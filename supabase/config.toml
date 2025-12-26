@@ -1,4 +1,0 @@
-project_id = "kadsdqnpxzgdxnnrdzra"
-
-[functions.google-drive-proxy]
-verify_jwt = false
