@@ -1,0 +1,314 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+
+    --primary: 222.2 47.4% 11.2%;
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 222.2 84% 4.9%;
+
+    --radius: 0.5rem;
+
+    --sidebar-background: 0 0% 98%;
+
+    --sidebar-foreground: 240 5.3% 26.1%;
+
+    --sidebar-primary: 240 5.9% 10%;
+
+    --sidebar-primary-foreground: 0 0% 98%;
+
+    --sidebar-accent: 240 4.8% 95.9%;
+
+    --sidebar-accent-foreground: 240 5.9% 10%;
+
+    --sidebar-border: 220 13% 91%;
+
+    --sidebar-ring: 217.2 91.2% 59.8%;
+
+    /* Creative mode colors based on reference 1 */
+    --creative-lightblue: 233 75% 78%; /* #9daaf2 */
+    --creative-darkblue: 226 39% 15%; /* #1a2238 */
+    --creative-orange: 12 100% 62%; /* #ff6a3d */
+    
+    /* Reference 1 color variables */
+    --white: #ffffff;
+    --grey: #5d5d5d;
+  }
+
+  .creative {
+    --primary: 12 100% 62%; /* --creative-orange */
+    --primary-foreground: 0 0% 100%;
+    --accent: 233 75% 78%; /* --creative-lightblue */
+    --accent-foreground: 226 39% 15%;
+    --secondary: 233 75% 90%;
+    --secondary-foreground: 226 39% 15%;
+    --sidebar-primary: 226 39% 15%; /* --creative-darkblue */
+    --background: 0 0% 100%;
+    --foreground: 226 39% 15%;
+    --card: 0 0% 100%;
+    --card-foreground: 226 39% 15%;
+    --muted: 233 75% 95%;
+    --muted-foreground: 226 39% 25%;
+    --border: 233 75% 85%;
+    --ring: 12 100% 62%; /* --creative-orange */
+  }
+
+  .creative.dark {
+    --background: 226 50% 8%; /* #0c1220 blackblue */
+    --foreground: 0 0% 100%;
+    --card: 226 45% 14%; /* Lighter card for better visibility */
+    --card-foreground: 0 0% 100%;
+    --primary: 12 100% 62%; /* --creative-orange */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 226 39% 18%; /* Slightly lighter for contrast */
+    --secondary-foreground: 0 0% 100%;
+    --muted: 226 39% 16%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 233 75% 78%; /* --creative-lightblue */
+    --accent-foreground: 226 39% 15%;
+    --border: 226 45% 22%; /* More visible border */
+    --ring: 12 100% 62%; /* --creative-orange */
+    
+    /* Project card specific colors */
+    --project-card: 226 45% 16%;
+    --project-card-image: 226 45% 12%;
+  }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+
+    --card: 222.2 60% 12%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 210 40% 98%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+
+    --secondary: 217.2 32.6% 20%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 217.2 32.6% 22%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 212.7 26.8% 83.9%;
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+    
+    /* Project card specific colors */
+    --project-card: 222.2 60% 14%;
+    --project-card-image: 222.2 60% 10%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+    word-break: normal;
+    overflow-wrap: normal;
+  }
+
+  html {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    min-height: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  /* Hide scrollbar but allow scrolling */
+  html,
+  body,
+  * {
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE and Edge */
+  }
+
+  html::-webkit-scrollbar,
+  body::-webkit-scrollbar,
+  *::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Opera */
+  }
+}
+
+/* Avatar floating animation like reference 1 */
+@keyframes float {
+  0% {
+    box-shadow: 0 5px 15px 0px rgba(0, 0, 0, 0.2);
+    transform: translatey(0rem);
+  }
+  30% {
+    box-shadow: 0 25px 15px 0px rgba(0, 0, 0, 0.2);
+    transform: translatey(-1rem);
+  }
+  100% {
+    box-shadow: 0 5px 15px 0px rgba(0, 0, 0, 0.2);
+    transform: translatey(0rem);
+  }
+}
+
+.avatar-float {
+  border-radius: 50%;
+  overflow: hidden;
+  box-shadow: 0 5px 15px 0px rgba(0, 0, 0, 0.6);
+  transform: translatey(0px);
+  animation: float 4s ease-in-out infinite;
+}
+
+/* Autoplay progress circle for AboutMeSection */
+.autoplay-progress {
+  position: relative;
+}
+
+.autoplay-progress svg {
+  --progress: 0;
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 10;
+  width: 100%;
+  height: 100%;
+  stroke-width: 4px;
+  stroke: currentColor;
+  fill: none;
+  stroke-dashoffset: calc(125.6 * (1 - var(--progress)));
+  stroke-dasharray: 125.6;
+  transform: rotate(-90deg);
+}
+
+.autoplay-progress span {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1;
+  font-size: 1.5rem;
+}
+
+/* Quote outer container box shadow like reference 1 */
+.quote-outer-container {
+  box-shadow: rgba(0, 0, 0, 0.4) 0px 2px 12px,
+    rgba(0, 0, 0, 0.3) 0px 1px 35px 8px, rgba(0, 0, 0, 0.2) 0px -3px 0px inset;
+}
+
+/* Splash Screen / Preloader - Reference 2 style */
+#preloader {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 999999;
+  background-color: #0c0513;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.preloader-circles {
+  position: relative;
+  width: 60px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.preloader-circle {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border: 2px solid;
+  border-radius: 50%;
+  background: transparent;
+  animation: preloaderPulse 1.4s ease-in-out infinite;
+}
+
+/* Triangle formation: top center, bottom left, bottom right */
+.preloader-circle:nth-child(1) {
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.preloader-circle:nth-child(2) {
+  bottom: 0;
+  left: 0;
+}
+
+.preloader-circle:nth-child(3) {
+  bottom: 0;
+  right: 0;
+}
+
+@keyframes preloaderPulse {
+  0%, 100% {
+    opacity: 0.3;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+}
+
+#preloader-none {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.5s ease-out;
+}
+
+#no-scroll {
+  overflow: hidden;
+  height: 100svh;
+  height: 100vh; /* Fallback for older browsers */
+}
