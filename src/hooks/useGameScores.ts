@@ -92,13 +92,12 @@ export const useGlobalLeaderboard = (gameType: GameType) => {
       // Validate nickname (max 10 chars, alphanumeric + spaces)
       const cleanNickname = nickname.slice(0, 10).replace(/[^a-zA-Z0-9 ]/g, '').trim() || 'Anonymous';
       
-      const { error } = await supabase
-        .from('game_scores')
-        .insert({
-          nickname: cleanNickname,
-          game_type: gameType,
-          score: Math.floor(score),
-        });
+      // Use the RPC function to bypass RLS restrictions
+      const { error } = await supabase.rpc('submit_game_score', {
+        p_game_type: gameType,
+        p_nickname: cleanNickname,
+        p_score: Math.floor(score),
+      });
 
       if (error) throw error;
       

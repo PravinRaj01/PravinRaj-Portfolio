@@ -330,8 +330,8 @@ const Academic = () => {
                         <CardContent className="p-3 sm:p-4 md:p-6 pt-0">
                           <p className="text-xs sm:text-sm md:text-base text-muted-foreground mb-2 sm:mb-3">{cert.description}</p>
                           {cert.credential_id && (
-                            <p className="text-[10px] sm:text-xs md:text-sm text-muted-foreground break-normal mb-2">
-                              <strong>Credential ID:</strong> {cert.credential_id}
+                            <p className="text-[10px] sm:text-xs md:text-sm text-muted-foreground mb-2 break-all">
+                              <strong>Credential ID:</strong> <span className="break-all">{cert.credential_id}</span>
                             </p>
                           )}
                           {cert.credential_url && (
@@ -401,8 +401,8 @@ const Academic = () => {
                       <CardContent className="p-3 sm:p-4 md:p-6 pt-0">
                         <p className="text-xs sm:text-sm text-muted-foreground mb-2 sm:mb-3">{cert.description}</p>
                         {cert.credential_id && (
-                          <p className="text-[10px] sm:text-xs text-muted-foreground break-normal mb-2">
-                            <strong>Credential ID:</strong> {cert.credential_id}
+                          <p className="text-[10px] sm:text-xs text-muted-foreground mb-2 break-all">
+                            <strong>Credential ID:</strong> <span className="break-all">{cert.credential_id}</span>
                           </p>
                         )}
                         {cert.credential_url && (

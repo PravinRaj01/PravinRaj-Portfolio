@@ -126,7 +126,7 @@ ${about.map((a: any) => a.content).join("\n")}
 ${skills.map((s: any) => `**${s.category}**: ${s.skills?.join(", ") || ""}`).join("\n")}
 
 ## Projects
-${projects.map((p: any) => `- **${p.title}** (${p.category}): ${p.description}${p.tags?.length ? ` | Technologies: ${p.tags.join(", ")}` : ""}${p.github_url ? ` | GitHub: ${p.github_url}` : ""}${p.live_url ? ` | Live: ${p.live_url}` : ""}`).join("\n")}
+${projects.map((p: any) => `- **${p.title}**${p.featured ? ' [FEATURED]' : ''} (${p.category}): ${p.description}${p.tags?.length ? ` | Technologies: ${p.tags.join(", ")}` : ""}${p.github_url ? ` | GitHub: ${p.github_url}` : ""}${p.live_url ? ` | Live: ${p.live_url}` : ""}`).join("\n")}
 
 ## Work Experience
 ${experiences.map((e: any) => `- **${e.title}** at ${e.company} (${e.period}): ${e.description}`).join("\n")}
@@ -135,7 +135,7 @@ ${experiences.map((e: any) => `- **${e.title}** at ${e.company} (${e.period}): $
 ${education.map((e: any) => `- **${e.degree}** from ${e.institution} (${e.period})`).join("\n")}
 
 ## Certifications & Achievements
-${certifications.map((c: any) => `- **${c.name}** by ${c.issuer} (${c.date})${c.credential_id ? ` | Credential ID: ${c.credential_id}` : ""}${c.credential_url ? ` | Credential URL: ${c.credential_url}` : ""}`).join("\n")}
+${certifications.map((c: any) => `- **${c.name}**${c.featured ? ' [FEATURED]' : ''} by ${c.issuer} (${c.date})${c.credential_id ? ` | Credential ID: ${c.credential_id}` : ""}${c.credential_url ? ` | Credential URL: ${c.credential_url}` : ""}`).join("\n")}
 
 ## Services Offered
 ${services.map((s: any) => `- **${s.title}**: ${s.description}`).join("\n")}
