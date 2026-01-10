@@ -198,7 +198,7 @@ const BannerQuote: React.FC<BannerQuoteProps> = ({
     <React.Fragment>
       <section className="quote-banner relative overflow-x-clip overflow-y-visible z-10" id="about-me">
         <div
-          className={`quote-outer-container ${bgColor} min-h-[40vh] md:h-[50vh] -rotate-3 flex justify-center items-center scale-110 py-8 md:py-0 min-[1921px]:px-96 relative overflow-hidden mt-24 md:mt-0`}
+          className={`quote-outer-container ${bgColor} min-h-[40vh] md:h-[50vh] -rotate-3 flex justify-center items-center scale-110 py-8 md:py-0 min-[1921px]:px-96 relative overflow-hidden mt-0`}
         >
           {/* Blurred background image */}
           <div
