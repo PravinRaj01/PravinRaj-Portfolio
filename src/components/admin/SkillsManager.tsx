@@ -8,7 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Pencil, X } from 'lucide-react';
+import { Plus, Pencil, X, Check, AlertCircle } from 'lucide-react';
+import { icons } from 'lucide-react';
 import { useSkills, useCreateSkill, useUpdateSkill, useDeleteSkill } from '@/hooks/useSkills';
 import { Skill } from '@/types/content';
 import { toast } from 'sonner';
@@ -222,15 +223,37 @@ const SkillsManager = () => {
                 <FormField
                   control={form.control}
                   name="icon"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Icon (Lucide React)</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Code" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+                  render={({ field }) => {
+                    const IconComponent = field.value ? icons[field.value as keyof typeof icons] : null;
+                    return (
+                      <FormItem>
+                        <FormLabel>Icon (Lucide React)</FormLabel>
+                        <div className="flex items-center gap-3">
+                          <FormControl>
+                            <Input placeholder="e.g., Code, Palette, SquareCode" {...field} className="flex-1" />
+                          </FormControl>
+                          {/* Live Icon Preview */}
+                          {field.value && (
+                            IconComponent ? (
+                              <div className="flex items-center gap-1.5 px-2 py-1 bg-green-500/10 border border-green-500/30 rounded-md">
+                                <IconComponent className="w-5 h-5 text-green-500" />
+                                <Check className="w-4 h-4 text-green-500" />
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-1.5 px-2 py-1 bg-destructive/10 border border-destructive/30 rounded-md">
+                                <AlertCircle className="w-4 h-4 text-destructive" />
+                                <span className="text-xs text-destructive">Not found</span>
+                              </div>
+                            )
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Use PascalCase names like: Code, Palette, Brain, Settings, SquareCode
+                        </p>
+                        <FormMessage />
+                      </FormItem>
+                    );
+                  }}
                 />
 
                 <FormField

@@ -127,13 +127,16 @@ const ProjectDetail = () => {
               });
               
               // Build final media array with video in correct position
+              // Check include_thumbnail_in_gallery setting (default true for backward compatibility)
+              const shouldIncludeThumbnail = project.include_thumbnail_in_gallery !== false;
+              
               let finalMedia: string[] = [];
-              if (mainImage && !galleryImages.includes(mainImage)) {
+              if (shouldIncludeThumbnail && mainImage && !galleryImages.includes(mainImage)) {
                 finalMedia = [mainImage, ...galleryImages];
                 if (videoPosition >= 0) videoPosition++; // Adjust for main image
               } else if (galleryImages.length > 0) {
                 finalMedia = galleryImages;
-              } else if (mainImage) {
+              } else if (shouldIncludeThumbnail && mainImage) {
                 finalMedia = [mainImage];
               }
 

@@ -13,7 +13,7 @@ import { useSiteSettings, useUpdateSiteSettings } from '@/hooks/useSiteSettings'
 import { usePortfolio } from '@/contexts/PortfolioContext';
 import { supabase } from '@/utils/supabase';
 import { toast } from 'sonner';
-import { Upload, FileText, Download, Trash2, Link, File, RefreshCw, Briefcase, Palette } from 'lucide-react';
+import { Upload, FileText, Download, Trash2, Link, File, RefreshCw, Briefcase, Palette, Copy } from 'lucide-react';
 
 const resumeSchema = z.object({
   resume_url: z.string().url('Please enter a valid URL').optional().or(z.literal('')),
@@ -306,13 +306,43 @@ const ResumeManager = () => {
         </Tabs>
 
         {currentResumeUrl && (
-          <div className="flex gap-4 pt-4 border-t">
+          <div className="flex flex-wrap gap-3 pt-4 border-t">
             <Button 
               variant="outline" 
               onClick={() => window.open(currentResumeUrl, '_blank')}
             >
               <Download className="w-4 h-4 mr-2" />
               Preview Resume
+            </Button>
+            
+            <Button 
+              variant="outline"
+              onClick={async () => {
+                try {
+                  const settingsData: any = {
+                    site_name: settings?.site_name || 'Portfolio',
+                    logo_url: settings?.logo_url,
+                  };
+
+                  // Copy to the opposite mode
+                  if (mode === 'professional') {
+                    settingsData.creative_resume_url = currentResumeUrl;
+                  } else {
+                    settingsData.professional_resume_url = currentResumeUrl;
+                  }
+                  
+                  await updateSettings.mutateAsync(settingsData);
+                  await queryClient.invalidateQueries({ queryKey: ['site-settings'] });
+                  toast.success(`Resume URL copied to ${mode === 'professional' ? 'Creative' : 'Professional'} mode`);
+                } catch (error) {
+                  toast.error('Failed to copy resume URL');
+                  console.error('Error copying resume:', error);
+                }
+              }}
+              disabled={updateSettings.isPending}
+            >
+              <Copy className="w-4 h-4 mr-2" />
+              Copy to {mode === 'professional' ? 'Creative' : 'Professional'} Mode
             </Button>
             
             <Button 

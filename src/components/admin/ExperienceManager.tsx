@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Edit, Trash2, Calendar, MapPin, Building2 } from 'lucide-react';
+import { Plus, Edit, Trash2, Calendar, MapPin, Building2, User, Image as ImageIcon } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -99,19 +99,50 @@ const ExperienceManager = () => {
               <CardHeader>
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
-                    <CardTitle className="text-xl mb-2">{experience.title}</CardTitle>
-                    <CardDescription className="space-y-1">
-                      <div className="flex items-center text-base">
-                        <Building2 className="w-4 h-4 mr-1" />
-                        {experience.company}
-                        <MapPin className="w-4 h-4 ml-4 mr-1" />
-                        {experience.location}
-                      </div>
-                      <div className="flex items-center text-primary">
-                        <Calendar className="w-4 h-4 mr-1" />
-                        {experience.period}
-                      </div>
-                    </CardDescription>
+                    {/* Creative mode: Show event name + role together */}
+                    {mode === 'creative' ? (
+                      <>
+                        <div className="flex items-center gap-2 mb-2">
+                          <CardTitle className="text-xl">{experience.title}</CardTitle>
+                          {experience.role && (
+                            <Badge variant="outline" className="text-xs">
+                              {experience.role}
+                            </Badge>
+                          )}
+                        </div>
+                        <CardDescription className="space-y-1">
+                          <div className="flex items-center text-base">
+                            <Building2 className="w-4 h-4 mr-1" />
+                            {experience.company}
+                            <MapPin className="w-4 h-4 ml-4 mr-1" />
+                            {experience.location}
+                          </div>
+                          <div className="flex items-center text-primary">
+                            <Calendar className="w-4 h-4 mr-1" />
+                            {experience.date_type === 'single' && experience.event_date
+                              ? experience.event_date
+                              : experience.period
+                            }
+                          </div>
+                        </CardDescription>
+                      </>
+                    ) : (
+                      <>
+                        <CardTitle className="text-xl mb-2">{experience.title}</CardTitle>
+                        <CardDescription className="space-y-1">
+                          <div className="flex items-center text-base">
+                            <Building2 className="w-4 h-4 mr-1" />
+                            {experience.company}
+                            <MapPin className="w-4 h-4 ml-4 mr-1" />
+                            {experience.location}
+                          </div>
+                          <div className="flex items-center text-primary">
+                            <Calendar className="w-4 h-4 mr-1" />
+                            {experience.period}
+                          </div>
+                        </CardDescription>
+                      </>
+                    )}
                   </div>
                   
                   <div className="flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -129,16 +160,45 @@ const ExperienceManager = () => {
                 </div>
               </CardHeader>
               
-              <CardContent>
-                <p className="text-muted-foreground mb-4">{experience.description}</p>
-                <div className="flex flex-wrap gap-2">
-                  {experience.achievements.map((achievement, index) => (
-                    <Badge key={index} variant="secondary" className="text-xs">
-                      {achievement}
-                    </Badge>
-                  ))}
+            <CardContent>
+              <p className="text-muted-foreground mb-4">{experience.description}</p>
+              
+              {/* Event Images for Creative Mode */}
+              {experience.event_images && experience.event_images.length > 0 && (
+                <div className="mb-4">
+                  <div className="flex items-center gap-1 text-sm text-muted-foreground mb-2">
+                    <ImageIcon className="w-4 h-4" />
+                    Event Images ({experience.event_images.length})
+                  </div>
+                  <div className="flex gap-2 overflow-x-auto pb-2">
+                    {experience.event_images.slice(0, 4).map((img, idx) => (
+                      <img
+                        key={idx}
+                        src={img}
+                        alt={`Event ${idx + 1}`}
+                        className="w-16 h-12 object-cover rounded border flex-shrink-0"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = '/placeholder.svg';
+                        }}
+                      />
+                    ))}
+                    {experience.event_images.length > 4 && (
+                      <div className="w-16 h-12 bg-muted rounded border flex items-center justify-center text-xs text-muted-foreground flex-shrink-0">
+                        +{experience.event_images.length - 4}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </CardContent>
+              )}
+              
+              <div className="flex flex-wrap gap-2">
+                {experience.achievements.map((achievement, index) => (
+                  <Badge key={index} variant="secondary" className="text-xs">
+                    {achievement}
+                  </Badge>
+                ))}
+              </div>
+            </CardContent>
             </Card>
           </motion.div>
         ))}

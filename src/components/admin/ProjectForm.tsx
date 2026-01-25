@@ -44,7 +44,8 @@ const ProjectForm = ({ project, onClose, onSave, mode }: ProjectFormProps) => {
     github_url: project?.github_url || '',
     live_url: project?.live_url || '',
     order_index: project?.order_index || 0,
-    project_date: project?.project_date || ''
+    project_date: project?.project_date || '',
+    include_thumbnail_in_gallery: project?.include_thumbnail_in_gallery ?? true
   });
   
   const [newTag, setNewTag] = useState('');
@@ -317,9 +318,11 @@ const ProjectForm = ({ project, onClose, onSave, mode }: ProjectFormProps) => {
             galleryImages={formData.gallery_images}
             videoUrl={formData.video_url}
             videoThumbnail={formData.video_thumbnail_drive_id}
+            includeThumbnailInGallery={formData.include_thumbnail_in_gallery}
             onGalleryImagesChange={(images) => setFormData(prev => ({ ...prev, gallery_images: images }))}
             onVideoUrlChange={(url) => setFormData(prev => ({ ...prev, video_url: url }))}
             onVideoThumbnailChange={(url) => setFormData(prev => ({ ...prev, video_thumbnail_drive_id: url }))}
+            onIncludeThumbnailInGalleryChange={(value) => setFormData(prev => ({ ...prev, include_thumbnail_in_gallery: value }))}
             onOpenFilePicker={(target) => openFilePicker(target)}
           />
 

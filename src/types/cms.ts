@@ -29,6 +29,7 @@ export interface Project {
   project_date?: string;
   created_at: string;
   updated_at: string;
+  include_thumbnail_in_gallery?: boolean;
 }
 
 export interface Experience {
@@ -43,6 +44,15 @@ export interface Experience {
   order_index: number;
   created_at: string;
   updated_at: string;
+  // New fields for flexible date handling
+  experience_type?: 'job' | 'event';
+  date_type?: 'single' | 'range';
+  event_date?: string;
+  role?: string;
+  event_images?: string[];
+  // Certificate fields
+  certificate_url?: string;
+  certificate_drive_id?: string;
 }
 
 export interface Social {

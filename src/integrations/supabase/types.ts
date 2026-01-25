@@ -167,40 +167,61 @@ export type Database = {
       experiences: {
         Row: {
           achievements: string[] | null
+          certificate_drive_id: string | null
+          certificate_url: string | null
           company: string
           created_at: string | null
+          date_type: string | null
           description: string
+          event_date: string | null
+          event_images: string[] | null
+          experience_type: string | null
           id: string
           location: string
           mode: string
           order_index: number | null
           period: string
+          role: string | null
           title: string
           updated_at: string | null
         }
         Insert: {
           achievements?: string[] | null
+          certificate_drive_id?: string | null
+          certificate_url?: string | null
           company: string
           created_at?: string | null
+          date_type?: string | null
           description: string
+          event_date?: string | null
+          event_images?: string[] | null
+          experience_type?: string | null
           id?: string
           location: string
           mode: string
           order_index?: number | null
           period: string
+          role?: string | null
           title: string
           updated_at?: string | null
         }
         Update: {
           achievements?: string[] | null
+          certificate_drive_id?: string | null
+          certificate_url?: string | null
           company?: string
           created_at?: string | null
+          date_type?: string | null
           description?: string
+          event_date?: string | null
+          event_images?: string[] | null
+          experience_type?: string | null
           id?: string
           location?: string
           mode?: string
           order_index?: number | null
           period?: string
+          role?: string | null
           title?: string
           updated_at?: string | null
         }
@@ -330,6 +351,7 @@ export type Database = {
           image_drive_id: string | null
           image_home_drive_id: string | null
           image_scroll_enabled: boolean | null
+          include_thumbnail_in_gallery: boolean | null
           live_url: string | null
           mode: string
           order_index: number | null
@@ -355,6 +377,7 @@ export type Database = {
           image_drive_id?: string | null
           image_home_drive_id?: string | null
           image_scroll_enabled?: boolean | null
+          include_thumbnail_in_gallery?: boolean | null
           live_url?: string | null
           mode: string
           order_index?: number | null
@@ -380,6 +403,7 @@ export type Database = {
           image_drive_id?: string | null
           image_home_drive_id?: string | null
           image_scroll_enabled?: boolean | null
+          include_thumbnail_in_gallery?: boolean | null
           live_url?: string | null
           mode?: string
           order_index?: number | null

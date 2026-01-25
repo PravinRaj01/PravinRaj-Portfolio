@@ -16,6 +16,7 @@ import ModeRouteHandler from "./components/ModeRouteHandler";
 import Index from "./pages/Index";
 import Academic from "./pages/Academic";
 import Experience from "./pages/Experience";
+import ExperienceDetail from "./pages/ExperienceDetail";
 import Projects from "./pages/Projects";
 import ProjectDetail from "./pages/ProjectDetail";
 import Contact from "./pages/Contact";
@@ -49,6 +50,7 @@ const AppContent = ({ load }: { load: boolean }) => {
             <Route path="/pro" element={<ModeRouteHandler targetMode="professional" />} />
             <Route path="/academic" element={<Academic />} />
             <Route path="/experience" element={<Experience />} />
+            <Route path="/experience/:id" element={<ExperienceDetail />} />
             <Route path="/projects" element={<Projects />} />
             <Route path="/projects/:id" element={<ProjectDetail />} />
             <Route path="/contact" element={<Contact />} />

@@ -20,6 +20,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Switch } from '@/components/ui/switch';
 import { X, Image, Video, Plus, GripVertical, Play } from 'lucide-react';
 import { generateDriveImageUrl } from '@/utils/googleDrive';
 import { cn } from '@/lib/utils';
@@ -37,9 +38,11 @@ interface ProjectMediaManagerProps {
   galleryImages: string[];
   videoUrl: string;
   videoThumbnail: string;
+  includeThumbnailInGallery: boolean;
   onGalleryImagesChange: (images: string[]) => void;
   onVideoUrlChange: (url: string) => void;
   onVideoThumbnailChange: (url: string) => void;
+  onIncludeThumbnailInGalleryChange: (value: boolean) => void;
   onOpenFilePicker: (target: 'gallery' | 'video' | 'thumbnail') => void;
 }
 
@@ -130,9 +133,11 @@ const ProjectMediaManager = ({
   galleryImages,
   videoUrl,
   videoThumbnail,
+  includeThumbnailInGallery,
   onGalleryImagesChange,
   onVideoUrlChange,
   onVideoThumbnailChange,
+  onIncludeThumbnailInGalleryChange,
   onOpenFilePicker,
 }: ProjectMediaManagerProps) => {
   const [newImageUrl, setNewImageUrl] = useState('');
@@ -331,6 +336,20 @@ const ProjectMediaManager = ({
             </Label>
           </div>
         </RadioGroup>
+
+        {/* Include Thumbnail Toggle */}
+        {(mediaType === 'images' || mediaType === 'both') && (
+          <div className="flex items-center space-x-2 pt-2 border-t mt-3">
+            <Switch
+              id="include_thumbnail"
+              checked={includeThumbnailInGallery}
+              onCheckedChange={onIncludeThumbnailInGalleryChange}
+            />
+            <Label htmlFor="include_thumbnail" className="text-sm cursor-pointer">
+              Include main project thumbnail in detail gallery
+            </Label>
+          </div>
+        )}
       </div>
 
       {/* Media Grid with Drag & Drop */}

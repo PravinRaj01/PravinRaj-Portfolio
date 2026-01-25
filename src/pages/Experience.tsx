@@ -1,8 +1,10 @@
 import React, { useState, useRef, useCallback, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Calendar, MapPin, Building2, ArrowUpDown } from 'lucide-react';
+import { Calendar, MapPin, Building2, ArrowUpDown, Award, ArrowRight } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Navigation from '@/components/Navigation';
 import CursorFollower from '@/components/CursorFollower';
@@ -10,14 +12,39 @@ import RadialGradient from '@/components/RadialGradient';
 import ExperienceModeBanner from '@/components/ExperienceModeBanner';
 import { usePortfolio } from '@/contexts/PortfolioContext';
 import { useExperience } from '@/hooks/useExperience';
+import { Experience as ExperienceType } from '@/types/cms';
 
 const Experience = () => {
+  const navigate = useNavigate();
   const [viewMode, setViewMode] = useState<'timeline' | 'cards'>('timeline');
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
   const [currentIndex, setCurrentIndex] = useState(0);
   const { mode, darkMode } = usePortfolio();
   const { experiences, loading } = useExperience(mode);
   const timelineRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const isCreativeMode = mode === 'creative';
+
+  // Helper functions
+  const getCertificateUrl = (exp: ExperienceType) => {
+    if (exp.certificate_url) return exp.certificate_url;
+    if (exp.certificate_drive_id) return `https://drive.google.com/file/d/${exp.certificate_drive_id}/view`;
+    return null;
+  };
+
+  const getDisplayDate = (exp: ExperienceType) => {
+    if (exp.date_type === 'single' && exp.event_date) return exp.event_date;
+    return exp.period;
+  };
+
+  const hasDetails = (exp: ExperienceType) => {
+    return (exp.event_images && exp.event_images.length > 0) || getCertificateUrl(exp);
+  };
+
+  const handleCardClick = (exp: ExperienceType) => {
+    if (isCreativeMode && hasDetails(exp)) {
+      navigate(`/experience/${exp.id}`);
+    }
+  };
 
   // Parse period to get start date for sorting
   const parseStartDate = (period: string): Date => {
@@ -157,25 +184,43 @@ const Experience = () => {
                 <div className="relative">
                   <div className="absolute left-3 sm:left-4 md:left-8 top-0 bottom-0 w-0.5 bg-border"></div>
                   <div className="space-y-4 sm:space-y-8 md:space-y-12">
-                    {sortedExperiences.map((exp, index) => (
-                      <motion.div
-                        key={exp.id}
-                        ref={(el) => { timelineRefs.current[index] = el; }}
-                        initial={{ opacity: 0, x: -30 }}
-                        whileInView={{ opacity: 1, x: 0 }}
-                        transition={{ duration: 0.6, delay: index * 0.2 }}
-                        viewport={{ once: true }}
-                        className="relative pl-8 sm:pl-10 md:pl-16"
-                        onViewportEnter={() => setCurrentIndex(index)}
-                      >
-                        <div className={`absolute left-1 sm:left-2 md:left-6 w-3 h-3 sm:w-4 sm:h-4 rounded-full border-2 sm:border-4 border-background transition-all ${
-                          currentIndex === index ? 'bg-primary scale-125' : 'bg-primary/60'
-                        }`}></div>
-                        <Card className="hover:shadow-lg transition-shadow">
-                          <CardHeader className="p-3 sm:p-4 md:p-6">
-                            <div className="flex flex-col gap-2">
-                              <div>
-                                <CardTitle className="text-base sm:text-lg md:text-xl mb-1 sm:mb-2">{exp.title}</CardTitle>
+                    {sortedExperiences.map((exp, index) => {
+                      const certificateUrl = getCertificateUrl(exp);
+                      const clickable = isCreativeMode && hasDetails(exp);
+                      
+                      return (
+                        <motion.div
+                          key={exp.id}
+                          ref={(el) => { timelineRefs.current[index] = el; }}
+                          initial={{ opacity: 0, x: -30 }}
+                          whileInView={{ opacity: 1, x: 0 }}
+                          transition={{ duration: 0.6, delay: index * 0.2 }}
+                          viewport={{ once: true }}
+                          className="relative pl-8 sm:pl-10 md:pl-16"
+                          onViewportEnter={() => setCurrentIndex(index)}
+                        >
+                          <div className={`absolute left-1 sm:left-2 md:left-6 w-3 h-3 sm:w-4 sm:h-4 rounded-full border-2 sm:border-4 border-background transition-all ${
+                            currentIndex === index ? 'bg-primary scale-125' : 'bg-primary/60'
+                          }`}></div>
+                          <Card 
+                            className={`hover:shadow-lg transition-shadow ${clickable ? 'cursor-pointer hover:border-primary/50' : ''}`}
+                            onClick={() => handleCardClick(exp)}
+                          >
+                            <CardHeader className="p-3 sm:p-4 md:p-6">
+                              <div className="flex flex-col gap-2">
+                            {/* Creative Mode: Role badge above Event Name */}
+                                {isCreativeMode ? (
+                                  <div className="flex flex-col gap-1.5 mb-1">
+                                    {exp.role && (
+                                      <Badge className="bg-orange-500/20 text-orange-400 border-orange-500/30 text-xs sm:text-sm w-fit">
+                                        {exp.role}
+                                      </Badge>
+                                    )}
+                                    <CardTitle className="text-base sm:text-lg md:text-xl">{exp.title}</CardTitle>
+                                  </div>
+                                ) : (
+                                  <CardTitle className="text-base sm:text-lg md:text-xl mb-1 sm:mb-2">{exp.title}</CardTitle>
+                                )}
                                 <CardDescription className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs sm:text-sm md:text-base min-w-0">
                                   <span className="flex items-center min-w-0">
                                     <Building2 className="w-3 h-3 sm:w-4 sm:h-4 mr-1 flex-shrink-0" />
@@ -186,32 +231,73 @@ const Experience = () => {
                                     <span className="min-w-0 break-normal">{exp.location}</span>
                                   </span>
                                 </CardDescription>
+                                {/* Professional Mode: Show role separately */}
+                                {!isCreativeMode && exp.role && (
+                                  <div className="flex items-center text-xs sm:text-sm text-muted-foreground">
+                                    <span className="px-2 py-0.5 bg-primary/10 rounded-full">
+                                      {exp.role}
+                                    </span>
+                                  </div>
+                                )}
+                                <div className="flex items-center text-xs sm:text-sm text-muted-foreground">
+                                  <Calendar className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+                                  {getDisplayDate(exp)}
+                                </div>
                               </div>
-                              <div className="flex items-center text-xs sm:text-sm text-muted-foreground">
-                                <Calendar className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
-                                {exp.period}
+                            </CardHeader>
+                            <CardContent className="p-3 sm:p-4 md:p-6 pt-0 sm:pt-0 md:pt-0 min-w-0 overflow-hidden">
+                              <p 
+                                className="text-xs sm:text-sm md:text-base text-muted-foreground mb-3 sm:mb-4"
+                                style={{ wordBreak: 'normal', overflowWrap: 'normal', hyphens: 'none' }}
+                              >{exp.description}</p>
+                              <div className="flex flex-wrap gap-1.5 sm:gap-2 mb-3">
+                                {exp.achievements?.map((achievement, achievementIndex) => (
+                                  <span
+                                    key={achievementIndex}
+                                    className="w-full sm:w-auto max-w-full px-2 py-0.5 sm:px-3 sm:py-1 bg-primary/10 text-primary rounded-full text-xs sm:text-sm whitespace-normal break-normal leading-snug"
+                                  >
+                                    {achievement}
+                                  </span>
+                                ))}
                               </div>
-                            </div>
-                          </CardHeader>
-                          <CardContent className="p-3 sm:p-4 md:p-6 pt-0 sm:pt-0 md:pt-0 min-w-0 overflow-hidden">
-                            <p 
-                              className="text-xs sm:text-sm md:text-base text-muted-foreground mb-3 sm:mb-4"
-                              style={{ wordBreak: 'normal', overflowWrap: 'normal', hyphens: 'none' }}
-                            >{exp.description}</p>
-                            <div className="flex flex-wrap gap-1.5 sm:gap-2">
-                              {exp.achievements.map((achievement, achievementIndex) => (
-                                <span
-                                  key={achievementIndex}
-                                  className="w-full sm:w-auto max-w-full px-2 py-0.5 sm:px-3 sm:py-1 bg-primary/10 text-primary rounded-full text-xs sm:text-sm whitespace-normal break-normal leading-snug"
-                                >
-                                  {achievement}
-                                </span>
-                              ))}
-                            </div>
-                          </CardContent>
-                        </Card>
-                      </motion.div>
-                    ))}
+                              {/* Action buttons for creative mode */}
+                              {isCreativeMode && (certificateUrl || hasDetails(exp)) && (
+                                <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
+                                  {certificateUrl && (
+                                    <Button 
+                                      variant="outline" 
+                                      size="sm" 
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        window.open(certificateUrl, '_blank');
+                                      }}
+                                      className="gap-1.5 text-xs"
+                                    >
+                                      <Award className="w-3 h-3" />
+                                      View Certificate
+                                    </Button>
+                                  )}
+                                  {hasDetails(exp) && (
+                                    <Button 
+                                      variant="ghost" 
+                                      size="sm" 
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        navigate(`/experience/${exp.id}`);
+                                      }}
+                                      className="gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+                                    >
+                                      View Details
+                                      <ArrowRight className="w-3 h-3" />
+                                    </Button>
+                                  )}
+                                </div>
+                              )}
+                            </CardContent>
+                          </Card>
+                        </motion.div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -219,51 +305,109 @@ const Experience = () => {
               {/* Cards View */}
               {viewMode === 'cards' && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
-                  {sortedExperiences.map((exp, index) => (
-                    <motion.div
-                      key={exp.id}
-                      initial={{ opacity: 0, y: 30 }}
-                      whileInView={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.6, delay: index * 0.1 }}
-                      viewport={{ once: true }}
-                    >
-                      <Card className="h-full hover:shadow-lg transition-shadow">
-                        <CardHeader className="p-3 sm:p-4 md:p-6">
-                          <CardTitle className="text-base sm:text-lg">{exp.title}</CardTitle>
-                          <CardDescription className="space-y-0.5 sm:space-y-1 text-xs sm:text-sm">
-                            <div className="flex items-center">
-                              <Building2 className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
-                              {exp.company}
+                  {sortedExperiences.map((exp, index) => {
+                    const certificateUrl = getCertificateUrl(exp);
+                    const clickable = isCreativeMode && hasDetails(exp);
+                    
+                    return (
+                      <motion.div
+                        key={exp.id}
+                        initial={{ opacity: 0, y: 30 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.6, delay: index * 0.1 }}
+                        viewport={{ once: true }}
+                      >
+                        <Card 
+                          className={`h-full hover:shadow-lg transition-shadow ${clickable ? 'cursor-pointer hover:border-primary/50' : ''}`}
+                          onClick={() => handleCardClick(exp)}
+                        >
+                          <CardHeader className="p-3 sm:p-4 md:p-6">
+                          {/* Creative Mode: Role badge above Event Name */}
+                            {isCreativeMode ? (
+                              <div className="flex flex-col gap-1.5 mb-2">
+                                {exp.role && (
+                                  <Badge className="bg-orange-500/20 text-orange-400 border-orange-500/30 text-xs w-fit">
+                                    {exp.role}
+                                  </Badge>
+                                )}
+                                <CardTitle className="text-base sm:text-lg">{exp.title}</CardTitle>
+                              </div>
+                            ) : (
+                              <CardTitle className="text-base sm:text-lg">{exp.title}</CardTitle>
+                            )}
+                            <CardDescription className="space-y-0.5 sm:space-y-1 text-xs sm:text-sm">
+                              <div className="flex items-center">
+                                <Building2 className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+                                {exp.company}
+                              </div>
+                              <div className="flex items-center">
+                                <MapPin className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+                                {exp.location}
+                              </div>
+                              {!isCreativeMode && exp.role && (
+                                <div className="text-muted-foreground">
+                                  Role: {exp.role}
+                                </div>
+                              )}
+                              <div className="flex items-center text-primary font-medium">
+                                <Calendar className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+                                {getDisplayDate(exp)}
+                              </div>
+                            </CardDescription>
+                          </CardHeader>
+                          <CardContent className="p-3 sm:p-4 md:p-6 pt-0">
+                            <p 
+                              className="text-xs sm:text-sm text-muted-foreground mb-3 sm:mb-4"
+                              style={{ wordBreak: 'normal', overflowWrap: 'normal', hyphens: 'none' }}
+                            >{exp.description}</p>
+                            <div className="flex flex-wrap gap-1.5 sm:gap-2 mb-3">
+                              {exp.achievements?.map((achievement, achievementIndex) => (
+                                <span
+                                  key={achievementIndex}
+                                  className="max-w-full px-2 py-0.5 sm:py-1 bg-primary/10 text-primary rounded text-xs whitespace-normal break-normal leading-snug"
+                                >
+                                  {achievement}
+                                </span>
+                              ))}
                             </div>
-                            <div className="flex items-center">
-                              <MapPin className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
-                              {exp.location}
-                            </div>
-                            <div className="flex items-center text-primary font-medium">
-                              <Calendar className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
-                              {exp.period}
-                            </div>
-                          </CardDescription>
-                        </CardHeader>
-                        <CardContent className="p-3 sm:p-4 md:p-6 pt-0">
-                          <p 
-                            className="text-xs sm:text-sm text-muted-foreground mb-3 sm:mb-4"
-                            style={{ wordBreak: 'normal', overflowWrap: 'normal', hyphens: 'none' }}
-                          >{exp.description}</p>
-                          <div className="flex flex-wrap gap-1.5 sm:gap-2">
-                            {exp.achievements.map((achievement, achievementIndex) => (
-                              <span
-                                key={achievementIndex}
-                                className="max-w-full px-2 py-0.5 sm:py-1 bg-primary/10 text-primary rounded text-xs whitespace-normal break-normal leading-snug"
-                              >
-                                {achievement}
-                              </span>
-                            ))}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </motion.div>
-                  ))}
+                            {/* Action buttons for creative mode */}
+                            {isCreativeMode && (certificateUrl || hasDetails(exp)) && (
+                              <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
+                                {certificateUrl && (
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm" 
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      window.open(certificateUrl, '_blank');
+                                    }}
+                                    className="gap-1.5 text-xs"
+                                  >
+                                    <Award className="w-3 h-3" />
+                                    View Certificate
+                                  </Button>
+                                )}
+                                {hasDetails(exp) && (
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      navigate(`/experience/${exp.id}`);
+                                    }}
+                                    className="gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+                                  >
+                                    View Details
+                                    <ArrowRight className="w-3 h-3" />
+                                  </Button>
+                                )}
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      </motion.div>
+                    );
+                  })}
                 </div>
               )}
             </>

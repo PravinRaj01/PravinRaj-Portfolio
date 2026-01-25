@@ -256,6 +256,7 @@ const ProjectImageGallery = ({
         <DialogContent 
           className="max-w-[95vw] max-h-[95vh] w-auto h-auto p-0 bg-black/95 border-none"
           onKeyDown={handleKeyDown}
+          hideCloseButton={true}
         >
           <VisuallyHidden>
             <DialogTitle>Fullscreen Image Gallery</DialogTitle>
