@@ -4,6 +4,8 @@ export interface SiteSettings {
   site_name: string;
   logo_url?: string;
   resume_url?: string;
+  professional_resume_url?: string;
+  creative_resume_url?: string;
   professional_mode_enabled?: boolean;
   creative_mode_enabled?: boolean;
   default_mode?: 'professional' | 'creative';

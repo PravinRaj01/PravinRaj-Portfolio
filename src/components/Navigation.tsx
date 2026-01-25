@@ -23,14 +23,21 @@ const Navigation = () => {
   const modeTogglePages = siteSettings?.mode_toggle_pages ?? ['home', 'projects', 'experience', 'academic', 'contact', 'podcast'];
   const showModeToggle = professionalModeEnabled && creativeModeEnabled && modeTogglePages.includes(currentPage);
 
+  // Get the mode-specific resume URL
+  const currentResumeUrl = mode === 'professional' 
+    ? (siteSettings?.professional_resume_url || siteSettings?.resume_url)
+    : (siteSettings?.creative_resume_url || siteSettings?.resume_url);
+
   // Debug logging for resume URL changes
   useEffect(() => {
     console.log('Navigation - Site settings changed:', {
       isLoading: siteSettingsLoading,
-      resumeUrl: siteSettings?.resume_url,
-      hasResumeUrl: !!siteSettings?.resume_url
+      mode,
+      professionalResumeUrl: siteSettings?.professional_resume_url,
+      creativeResumeUrl: siteSettings?.creative_resume_url,
+      currentResumeUrl
     });
-  }, [siteSettings, siteSettingsLoading]);
+  }, [siteSettings, siteSettingsLoading, mode, currentResumeUrl]);
 
   // Get visible pages for current mode
   const professionalVisiblePages = siteSettings?.professional_visible_pages ?? ['home', 'academic', 'experience', 'projects', 'contact'];
@@ -59,10 +66,10 @@ const Navigation = () => {
   const navItems = mode === 'professional' ? professionalNavItems : creativeNavItems;
 
   const handleResumeClick = () => {
-    console.log('Resume button clicked, URL:', siteSettings?.resume_url);
-    if (siteSettings?.resume_url) {
+    console.log('Resume button clicked, URL:', currentResumeUrl);
+    if (currentResumeUrl) {
       // Convert Google Drive view link to download link if needed
-      let downloadUrl = siteSettings.resume_url;
+      let downloadUrl = currentResumeUrl;
       if (downloadUrl.includes('drive.google.com/file/d/') && downloadUrl.includes('/view')) {
         // Convert Google Drive view link to direct download link
         const fileId = downloadUrl.match(/\/file\/d\/([a-zA-Z0-9_-]+)/)?.[1];
@@ -83,11 +90,12 @@ const Navigation = () => {
   };
 
   // Check if resume is available and not loading
-  const isResumeAvailable = !siteSettingsLoading && !!siteSettings?.resume_url;
+  const isResumeAvailable = !siteSettingsLoading && !!currentResumeUrl;
   
   console.log('Navigation - Resume availability:', {
     isLoading: siteSettingsLoading,
-    hasUrl: !!siteSettings?.resume_url,
+    mode,
+    hasUrl: !!currentResumeUrl,
     isAvailable: isResumeAvailable
   });
 

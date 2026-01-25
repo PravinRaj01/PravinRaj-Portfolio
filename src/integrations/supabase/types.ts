@@ -423,6 +423,7 @@ export type Database = {
           created_at: string
           creative_logo_url: string | null
           creative_mode_enabled: boolean | null
+          creative_resume_url: string | null
           creative_site_name: string | null
           creative_visible_pages: string[] | null
           default_mode: string | null
@@ -431,6 +432,7 @@ export type Database = {
           mode_toggle_pages: string[] | null
           professional_logo_url: string | null
           professional_mode_enabled: boolean | null
+          professional_resume_url: string | null
           professional_site_name: string | null
           professional_visible_pages: string[] | null
           projects_default_view: string | null
@@ -447,6 +449,7 @@ export type Database = {
           created_at?: string
           creative_logo_url?: string | null
           creative_mode_enabled?: boolean | null
+          creative_resume_url?: string | null
           creative_site_name?: string | null
           creative_visible_pages?: string[] | null
           default_mode?: string | null
@@ -455,6 +458,7 @@ export type Database = {
           mode_toggle_pages?: string[] | null
           professional_logo_url?: string | null
           professional_mode_enabled?: boolean | null
+          professional_resume_url?: string | null
           professional_site_name?: string | null
           professional_visible_pages?: string[] | null
           projects_default_view?: string | null
@@ -471,6 +475,7 @@ export type Database = {
           created_at?: string
           creative_logo_url?: string | null
           creative_mode_enabled?: boolean | null
+          creative_resume_url?: string | null
           creative_site_name?: string | null
           creative_visible_pages?: string[] | null
           default_mode?: string | null
@@ -479,6 +484,7 @@ export type Database = {
           mode_toggle_pages?: string[] | null
           professional_logo_url?: string | null
           professional_mode_enabled?: boolean | null
+          professional_resume_url?: string | null
           professional_site_name?: string | null
           professional_visible_pages?: string[] | null
           projects_default_view?: string | null

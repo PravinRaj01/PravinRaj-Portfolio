@@ -6,13 +6,14 @@ import * as z from 'zod';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useSiteSettings, useUpdateSiteSettings } from '@/hooks/useSiteSettings';
+import { usePortfolio } from '@/contexts/PortfolioContext';
 import { supabase } from '@/utils/supabase';
 import { toast } from 'sonner';
-import { Upload, FileText, Download, Trash2, Link, File, RefreshCw } from 'lucide-react';
+import { Upload, FileText, Download, Trash2, Link, File, RefreshCw, Briefcase, Palette } from 'lucide-react';
 
 const resumeSchema = z.object({
   resume_url: z.string().url('Please enter a valid URL').optional().or(z.literal('')),
@@ -21,35 +22,51 @@ const resumeSchema = z.object({
 type ResumeFormData = z.infer<typeof resumeSchema>;
 
 const ResumeManager = () => {
+  const { mode } = usePortfolio();
   const { data: settings, isLoading } = useSiteSettings();
   const updateSettings = useUpdateSiteSettings();
   const queryClient = useQueryClient();
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
 
+  // Get the current resume URL based on mode
+  const getCurrentResumeUrl = () => {
+    if (mode === 'professional') {
+      return settings?.professional_resume_url || '';
+    }
+    return settings?.creative_resume_url || '';
+  };
+
   const form = useForm<ResumeFormData>({
     resolver: zodResolver(resumeSchema),
     defaultValues: {
-      resume_url: settings?.resume_url || '',
+      resume_url: getCurrentResumeUrl(),
     },
   });
 
   React.useEffect(() => {
     if (settings) {
       form.reset({
-        resume_url: settings.resume_url || '',
+        resume_url: getCurrentResumeUrl(),
       });
     }
-  }, [settings, form]);
+  }, [settings, mode, form]);
 
   const saveResumeUrl = async (resumeUrl: string) => {
     try {
-      console.log('ResumeManager - Saving resume URL:', resumeUrl);
-      const settingsData = {
+      console.log('ResumeManager - Saving resume URL for mode:', mode, 'URL:', resumeUrl);
+      
+      const settingsData: any = {
         site_name: settings?.site_name || 'Portfolio',
         logo_url: settings?.logo_url,
-        resume_url: resumeUrl || undefined,
       };
+
+      // Set the mode-specific resume URL
+      if (mode === 'professional') {
+        settingsData.professional_resume_url = resumeUrl || null;
+      } else {
+        settingsData.creative_resume_url = resumeUrl || null;
+      }
       
       await updateSettings.mutateAsync(settingsData);
       
@@ -57,11 +74,6 @@ const ResumeManager = () => {
       console.log('ResumeManager - Forcing cache refresh...');
       await queryClient.invalidateQueries({ queryKey: ['site-settings'] });
       await queryClient.refetchQueries({ queryKey: ['site-settings'] });
-      
-      // Small delay to ensure cache propagation
-      setTimeout(() => {
-        console.log('ResumeManager - Cache should be updated now');
-      }, 100);
       
       return true;
     } catch (error) {
@@ -73,7 +85,7 @@ const ResumeManager = () => {
   const onSubmit = async (data: ResumeFormData) => {
     const success = await saveResumeUrl(data.resume_url || '');
     if (success) {
-      toast.success('Resume URL updated successfully - Navigation should update shortly');
+      toast.success(`${mode === 'professional' ? 'Professional' : 'Creative'} resume URL updated successfully`);
     } else {
       toast.error('Failed to update resume URL');
     }
@@ -98,16 +110,17 @@ const ResumeManager = () => {
 
     try {
       // Delete existing resume file if it exists
-      if (settings?.resume_url && settings.resume_url.includes('supabase')) {
-        const oldFileName = settings.resume_url.split('/').pop();
+      const currentUrl = getCurrentResumeUrl();
+      if (currentUrl && currentUrl.includes('supabase')) {
+        const oldFileName = currentUrl.split('/').pop();
         if (oldFileName) {
           await supabase.storage.from('resumes').remove([oldFileName]);
         }
       }
 
-      // Generate unique filename
+      // Generate unique filename with mode prefix
       const fileExt = file.name.split('.').pop();
-      const fileName = `resume-${Date.now()}.${fileExt}`;
+      const fileName = `${mode}-resume-${Date.now()}.${fileExt}`;
 
       // Upload file to Supabase Storage
       const { data: uploadData, error: uploadError } = await supabase.storage
@@ -133,7 +146,7 @@ const ResumeManager = () => {
       
       if (success) {
         form.reset({ resume_url: urlData.publicUrl });
-        toast.success('Resume uploaded and saved successfully - Check the navigation!');
+        toast.success(`${mode === 'professional' ? 'Professional' : 'Creative'} resume uploaded successfully`);
       } else {
         throw new Error('Failed to save resume URL');
       }
@@ -149,11 +162,12 @@ const ResumeManager = () => {
   };
 
   const handleRemoveResume = async () => {
-    if (confirm('Are you sure you want to remove the resume?')) {
+    if (confirm(`Are you sure you want to remove the ${mode} resume?`)) {
       try {
         // Delete file from storage if it's hosted on Supabase
-        if (settings?.resume_url && settings.resume_url.includes('supabase')) {
-          const fileName = settings.resume_url.split('/').pop();
+        const currentUrl = getCurrentResumeUrl();
+        if (currentUrl && currentUrl.includes('supabase')) {
+          const fileName = currentUrl.split('/').pop();
           if (fileName) {
             await supabase.storage.from('resumes').remove([fileName]);
           }
@@ -184,12 +198,25 @@ const ResumeManager = () => {
     return <div>Loading...</div>;
   }
 
+  const currentResumeUrl = getCurrentResumeUrl();
+
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <FileText className="w-5 h-5" />
           Resume Management
+          <span className={`ml-2 px-2 py-0.5 rounded-full text-xs font-medium ${
+            mode === 'professional' 
+              ? 'bg-blue-500/20 text-blue-400' 
+              : 'bg-orange-500/20 text-orange-400'
+          }`}>
+            {mode === 'professional' ? (
+              <span className="flex items-center gap-1"><Briefcase className="w-3 h-3" /> Professional</span>
+            ) : (
+              <span className="flex items-center gap-1"><Palette className="w-3 h-3" /> Creative</span>
+            )}
+          </span>
           <Button
             variant="ghost"
             size="sm"
@@ -199,6 +226,9 @@ const ResumeManager = () => {
             <RefreshCw className="w-4 h-4" />
           </Button>
         </CardTitle>
+        <CardDescription>
+          Manage the resume for <strong>{mode}</strong> mode. Each mode can have a different resume.
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <Tabs defaultValue="upload" className="space-y-6">
@@ -229,7 +259,7 @@ const ResumeManager = () => {
                     <Upload className="w-8 h-8 text-muted-foreground" />
                     <div>
                       <p className="text-sm font-medium">
-                        {uploading ? 'Uploading...' : 'Upload Resume PDF'}
+                        {uploading ? 'Uploading...' : `Upload ${mode === 'professional' ? 'Professional' : 'Creative'} Resume PDF`}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         Click to select or drag and drop (Max 10MB)
@@ -258,7 +288,7 @@ const ResumeManager = () => {
                   name="resume_url"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Resume URL</FormLabel>
+                      <FormLabel>{mode === 'professional' ? 'Professional' : 'Creative'} Resume URL</FormLabel>
                       <FormControl>
                         <Input placeholder="https://example.com/resume.pdf" {...field} />
                       </FormControl>
@@ -275,11 +305,11 @@ const ResumeManager = () => {
           </TabsContent>
         </Tabs>
 
-        {settings?.resume_url && (
+        {currentResumeUrl && (
           <div className="flex gap-4 pt-4 border-t">
             <Button 
               variant="outline" 
-              onClick={() => window.open(settings.resume_url, '_blank')}
+              onClick={() => window.open(currentResumeUrl, '_blank')}
             >
               <Download className="w-4 h-4 mr-2" />
               Preview Resume
