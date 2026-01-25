@@ -12,6 +12,7 @@ import PortfolioChatbot from "./components/chatbot/PortfolioChatbot";
 import OnboardingPopup from "./components/OnboardingPopup";
 import ModeTransitionOverlay from "./components/ModeTransitionOverlay";
 import KonamiCodeListener from "./components/games/KonamiCodeListener";
+import ModeRouteHandler from "./components/ModeRouteHandler";
 import Index from "./pages/Index";
 import Academic from "./pages/Academic";
 import Experience from "./pages/Experience";
@@ -44,6 +45,8 @@ const AppContent = ({ load }: { load: boolean }) => {
           <KonamiCodeListener />
           <Routes>
             <Route path="/" element={<Index />} />
+            <Route path="/creative" element={<ModeRouteHandler targetMode="creative" />} />
+            <Route path="/pro" element={<ModeRouteHandler targetMode="professional" />} />
             <Route path="/academic" element={<Academic />} />
             <Route path="/experience" element={<Experience />} />
             <Route path="/projects" element={<Projects />} />

@@ -60,6 +60,8 @@ const getPageNameFromId = (id: string): string => {
   return names[id] || id;
 };
 
+const MODE_FROM_URL_KEY = 'gg_portfolio_mode_from_url';
+
 export const PortfolioProvider: React.FC<PortfolioProviderProps> = ({ children }) => {
   const [mode, setMode] = useState<'professional' | 'creative'>('professional');
   const [darkMode, setDarkMode] = useState(true);
@@ -100,6 +102,21 @@ export const PortfolioProvider: React.FC<PortfolioProviderProps> = ({ children }
         // Set visible pages from database or use defaults
         setProfessionalVisiblePages(data?.professional_visible_pages ?? DEFAULT_PROFESSIONAL_PAGES);
         setCreativeVisiblePages(data?.creative_visible_pages ?? DEFAULT_CREATIVE_PAGES);
+
+        // Check for URL-triggered mode (from /creative or /pro routes)
+        const modeFromUrl = sessionStorage.getItem(MODE_FROM_URL_KEY) as 'professional' | 'creative' | null;
+        if (modeFromUrl) {
+          // Clear the session flag
+          sessionStorage.removeItem(MODE_FROM_URL_KEY);
+          
+          // Use the URL-triggered mode if it's enabled
+          if ((modeFromUrl === 'professional' && proEnabled) || (modeFromUrl === 'creative' && creEnabled)) {
+            setMode(modeFromUrl);
+            localStorage.setItem('portfolioMode', modeFromUrl);
+            setModeSettingsLoaded(true);
+            return;
+          }
+        }
 
         // Check for saved mode preference
         const savedMode = localStorage.getItem('portfolioMode') as 'professional' | 'creative';
