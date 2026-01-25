@@ -324,6 +324,7 @@ export type Database = {
           crop_tablet: Json | null
           description: string
           featured: boolean | null
+          gallery_images: string[] | null
           github_url: string | null
           id: string
           image_drive_id: string | null
@@ -336,6 +337,8 @@ export type Database = {
           tags: string[] | null
           title: string
           updated_at: string | null
+          video_thumbnail_drive_id: string | null
+          video_url: string | null
         }
         Insert: {
           category: string
@@ -346,6 +349,7 @@ export type Database = {
           crop_tablet?: Json | null
           description: string
           featured?: boolean | null
+          gallery_images?: string[] | null
           github_url?: string | null
           id?: string
           image_drive_id?: string | null
@@ -358,6 +362,8 @@ export type Database = {
           tags?: string[] | null
           title: string
           updated_at?: string | null
+          video_thumbnail_drive_id?: string | null
+          video_url?: string | null
         }
         Update: {
           category?: string
@@ -368,6 +374,7 @@ export type Database = {
           crop_tablet?: Json | null
           description?: string
           featured?: boolean | null
+          gallery_images?: string[] | null
           github_url?: string | null
           id?: string
           image_drive_id?: string | null
@@ -380,6 +387,8 @@ export type Database = {
           tags?: string[] | null
           title?: string
           updated_at?: string | null
+          video_thumbnail_drive_id?: string | null
+          video_url?: string | null
         }
         Relationships: []
       }

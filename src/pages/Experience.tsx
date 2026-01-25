@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import Navigation from '@/components/Navigation';
 import CursorFollower from '@/components/CursorFollower';
 import RadialGradient from '@/components/RadialGradient';
+import ExperienceModeBanner from '@/components/ExperienceModeBanner';
 import { usePortfolio } from '@/contexts/PortfolioContext';
 import { useExperience } from '@/hooks/useExperience';
 
@@ -104,7 +105,8 @@ const Experience = () => {
               }
             </p>
 
-            {/* View Mode Toggle & Sort - Compact Style */}
+            {/* Mode Switch Banner for Creative Mode */}
+            <ExperienceModeBanner />
             <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3">
               {/* View Mode Toggle - compact toggle group */}
               <div className="inline-flex rounded-lg border border-border bg-muted/50 p-1">

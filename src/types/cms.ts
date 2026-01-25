@@ -16,6 +16,9 @@ export interface Project {
   crop_square?: CropPosition;
   crop_phone?: CropPosition;
   crop_tablet?: CropPosition;
+  gallery_images?: string[];
+  video_url?: string;
+  video_thumbnail_drive_id?: string;
   tags: string[];
   category: string;
   github_url?: string;

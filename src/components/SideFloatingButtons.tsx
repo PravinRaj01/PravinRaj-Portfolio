@@ -4,6 +4,7 @@ import { usePortfolio } from '@/contexts/PortfolioContext';
 import { useEnabledSocials } from '@/hooks/useSocials';
 import { useLocation } from 'react-router-dom';
 import { useSiteSettings } from '@/hooks/useSiteSettings';
+import BehanceIcon from '@/components/icons/BehanceIcon';
 
 const SideFloatingButtons = () => {
   const { mode, professionalModeEnabled, creativeModeEnabled } = usePortfolio();
@@ -30,7 +31,7 @@ const SideFloatingButtons = () => {
   }, []);
 
   // Map icon names to Lucide icons
-  const iconMap: Record<string, LucideIcon> = {
+  const iconMap: Record<string, LucideIcon | typeof BehanceIcon> = {
     github: Github,
     linkedin: Linkedin,
     mail: Mail,
@@ -39,11 +40,12 @@ const SideFloatingButtons = () => {
     instagram: Instagram,
     youtube: Youtube,
     facebook: Facebook,
+    behance: BehanceIcon,
     globe: Globe,
   };
 
   // Get icon component for a social
-  const getIconComponent = (iconName: string): LucideIcon => {
+  const getIconComponent = (iconName: string): LucideIcon | typeof BehanceIcon => {
     const icon = iconMap[iconName.toLowerCase()];
     return icon || Globe; // Default to Globe if icon not found
   };

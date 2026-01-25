@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import Navigation from '@/components/Navigation';
 import CursorFollower from '@/components/CursorFollower';
 import RadialGradient from '@/components/RadialGradient';
+import ProjectImageGallery from '@/components/ProjectImageGallery';
 import { usePortfolio } from '@/contexts/PortfolioContext';
 import { useProjects } from '@/hooks/useProjects';
 import { generateDriveImageUrl } from '@/utils/googleDrive';
@@ -101,31 +102,69 @@ const ProjectDetail = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
           >
-            {/* Project Image */}
-            <div className="relative w-full h-64 sm:h-80 md:h-96 rounded-xl overflow-hidden mb-8">
-              {project.image_drive_id ? (
-                <img 
-                  src={project.image_drive_id.startsWith('http') 
+            {/* Project Image Gallery */}
+            {(() => {
+              const mainImage = project.image_drive_id 
+                ? (project.image_drive_id.startsWith('http') 
                     ? project.image_drive_id 
-                    : generateDriveImageUrl(project.image_drive_id, 'large')} 
-                  alt={project.title}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="w-full h-full bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center">
-                  <span className="text-muted-foreground">No Image Available</span>
+                    : generateDriveImageUrl(project.image_drive_id, 'large'))
+                : null;
+              
+              // Filter out VIDEO_MARKER and build gallery
+              const VIDEO_MARKER = '__VIDEO__';
+              const rawGallery = project.gallery_images || [];
+              
+              const galleryImages: string[] = [];
+              let videoPosition = -1;
+              
+              rawGallery.forEach((img, idx) => {
+                if (img === VIDEO_MARKER) {
+                  videoPosition = galleryImages.length; // Track where video should be
+                } else {
+                  const url = img.startsWith('http') ? img : generateDriveImageUrl(img, 'large');
+                  galleryImages.push(url);
+                }
+              });
+              
+              // Build final media array with video in correct position
+              let finalMedia: string[] = [];
+              if (mainImage && !galleryImages.includes(mainImage)) {
+                finalMedia = [mainImage, ...galleryImages];
+                if (videoPosition >= 0) videoPosition++; // Adjust for main image
+              } else if (galleryImages.length > 0) {
+                finalMedia = galleryImages;
+              } else if (mainImage) {
+                finalMedia = [mainImage];
+              }
+
+              const videoThumbnail = project.video_thumbnail_drive_id
+                ? (project.video_thumbnail_drive_id.startsWith('http')
+                    ? project.video_thumbnail_drive_id
+                    : generateDriveImageUrl(project.video_thumbnail_drive_id, 'large'))
+                : mainImage;
+
+              return (
+                <div className="relative mb-8">
+                  <ProjectImageGallery
+                    images={finalMedia}
+                    videoUrl={project.video_url}
+                    videoThumbnail={project.video_url ? videoThumbnail || undefined : undefined}
+                    videoPosition={videoPosition >= 0 ? videoPosition : undefined}
+                    title={project.title}
+                    mode={mode}
+                  />
+                  {project.featured && (
+                    <Badge className={`absolute top-4 left-4 z-10 bg-gradient-to-r ${
+                      mode === 'creative' 
+                        ? 'from-orange-500 to-orange-600' 
+                        : 'from-blue-600 to-purple-600'
+                    } text-white`}>
+                      Featured
+                    </Badge>
+                  )}
                 </div>
-              )}
-              {project.featured && (
-                <Badge className={`absolute top-4 left-4 bg-gradient-to-r ${
-                  mode === 'creative' 
-                    ? 'from-orange-500 to-orange-600' 
-                    : 'from-blue-600 to-purple-600'
-                } text-white`}>
-                  Featured
-                </Badge>
-              )}
-            </div>
+              );
+            })()}
 
             {/* Project Title & Meta */}
             <div className="mb-8">

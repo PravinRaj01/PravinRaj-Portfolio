@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { useSocials, useCreateSocial, useUpdateSocial, useDeleteSocial, Social } from '@/hooks/useSocials';
+import BehanceIcon from '@/components/icons/BehanceIcon';
 
 const SocialManager = () => {
   const [activeMode, setActiveMode] = useState<'professional' | 'creative'>('professional');
@@ -37,6 +38,7 @@ const SocialManager = () => {
     { value: 'instagram', label: 'Instagram', icon: Instagram },
     { value: 'youtube', label: 'YouTube', icon: Youtube },
     { value: 'facebook', label: 'Facebook', icon: Facebook },
+    { value: 'behance', label: 'Behance', icon: BehanceIcon },
     { value: 'globe', label: 'Website', icon: Globe },
   ];
 

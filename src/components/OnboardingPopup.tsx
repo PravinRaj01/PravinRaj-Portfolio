@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Briefcase, Palette, ArrowRight } from 'lucide-react';
 import { usePortfolio } from '@/contexts/PortfolioContext';
 import { cn } from '@/lib/utils';
+import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 
 const ONBOARDING_KEY = 'gg_portfolio_onboarding_seen';
 
@@ -48,17 +49,24 @@ const OnboardingPopup = () => {
       <DialogContent 
         className="sm:max-w-md p-0 bg-white/10 backdrop-blur-xl backdrop-saturate-150 border border-white/20 shadow-2xl rounded-2xl overflow-hidden"
         hideCloseButton
+        aria-labelledby="onboarding-dialog-title"
+        aria-describedby="onboarding-dialog-description"
       >
+        {/* Visually hidden DialogTitle for accessibility */}
+        <VisuallyHidden>
+          <DialogTitle>Choose Portfolio Mode</DialogTitle>
+        </VisuallyHidden>
+        
         {/* Subtle gradient overlay for frosty effect */}
         <div className="absolute inset-0 bg-gradient-to-br from-white/[0.05] via-transparent to-transparent pointer-events-none" />
         
         <div className="relative p-6">
           {/* Header */}
           <div className="text-center mb-6">
-            <h2 className="text-xl font-semibold text-foreground tracking-tight">
+            <h2 id="onboarding-dialog-title" className="text-xl font-semibold text-foreground tracking-tight">
               Hey there! 👋
             </h2>
-            <p className="text-sm text-muted-foreground mt-1">
+            <p id="onboarding-dialog-description" className="text-sm text-muted-foreground mt-1">
               I have two sides to my portfolio — pick one to explore
             </p>
           </div>

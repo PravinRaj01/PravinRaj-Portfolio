@@ -8,9 +8,10 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { X, Image } from 'lucide-react';
 import { useProjects } from '@/hooks/useProjects';
-import { Project, CropPosition } from '@/types/cms';
+import { Project } from '@/types/cms';
 import GoogleDriveFilePicker from './GoogleDriveFilePicker';
 import ImageCropPreview from './ImageCropPreview';
+import ProjectMediaManager from './ProjectMediaManager';
 import { DriveFile } from '@/services/googleDriveService';
 import { generateDriveImageUrl } from '@/utils/googleDrive';
 import { SingleDatePicker } from '@/components/ui/date-range-picker';
@@ -37,6 +38,9 @@ const ProjectForm = ({ project, onClose, onSave, mode }: ProjectFormProps) => {
     crop_square: project?.crop_square || { x: 50, y: 50, zoom: 100 },
     crop_phone: project?.crop_phone || { x: 50, y: 50, zoom: 100 },
     crop_tablet: project?.crop_tablet || { x: 50, y: 50, zoom: 100 },
+    gallery_images: project?.gallery_images || [],
+    video_url: project?.video_url || '',
+    video_thumbnail_drive_id: project?.video_thumbnail_drive_id || '',
     github_url: project?.github_url || '',
     live_url: project?.live_url || '',
     order_index: project?.order_index || 0,
@@ -46,6 +50,7 @@ const ProjectForm = ({ project, onClose, onSave, mode }: ProjectFormProps) => {
   const [newTag, setNewTag] = useState('');
   const [loading, setLoading] = useState(false);
   const [showFilePicker, setShowFilePicker] = useState(false);
+  const [filePickerTarget, setFilePickerTarget] = useState<'main' | 'gallery' | 'thumbnail' | 'video'>('main');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -94,16 +99,39 @@ const ProjectForm = ({ project, onClose, onSave, mode }: ProjectFormProps) => {
   };
 
   const handleFileSelect = (file: DriveFile) => {
-    setFormData(prev => ({
-      ...prev,
-      image_drive_id: file.id,
-      // Reset crop positions when new image is selected
-      crop_landscape: { x: 50, y: 50, zoom: 100 },
-      crop_square: { x: 50, y: 50, zoom: 100 },
-      crop_phone: { x: 50, y: 50, zoom: 100 },
-      crop_tablet: { x: 50, y: 50, zoom: 100 }
-    }));
+    if (filePickerTarget === 'main') {
+      setFormData(prev => ({
+        ...prev,
+        image_drive_id: file.id,
+        crop_landscape: { x: 50, y: 50, zoom: 100 },
+        crop_square: { x: 50, y: 50, zoom: 100 },
+        crop_phone: { x: 50, y: 50, zoom: 100 },
+        crop_tablet: { x: 50, y: 50, zoom: 100 }
+      }));
+    } else if (filePickerTarget === 'gallery') {
+      const imageUrl = generateDriveImageUrl(file.id, 'large');
+      setFormData(prev => ({
+        ...prev,
+        gallery_images: [...prev.gallery_images, imageUrl]
+      }));
+    } else if (filePickerTarget === 'thumbnail') {
+      setFormData(prev => ({
+        ...prev,
+        video_thumbnail_drive_id: file.id
+      }));
+    } else if (filePickerTarget === 'video') {
+      const driveVideoUrl = `https://drive.google.com/file/d/${file.id}/preview`;
+      setFormData(prev => ({
+        ...prev,
+        video_url: driveVideoUrl
+      }));
+    }
     setShowFilePicker(false);
+  };
+
+  const openFilePicker = (target: 'main' | 'gallery' | 'thumbnail' | 'video') => {
+    setFilePickerTarget(target);
+    setShowFilePicker(true);
   };
 
   const removeImage = () => {
@@ -121,13 +149,20 @@ const ProjectForm = ({ project, onClose, onSave, mode }: ProjectFormProps) => {
     return imageId.startsWith('http') ? imageId : generateDriveImageUrl(imageId, 'medium');
   };
 
+  const getFileTypesForPicker = () => {
+    if (filePickerTarget === 'video') {
+      return ['video'] as ('image' | 'video' | 'document')[];
+    }
+    return ['image'] as ('image' | 'video' | 'document')[];
+  };
+
   if (showFilePicker) {
     return (
       <GoogleDriveFilePicker
         onSelect={handleFileSelect}
         onCancel={() => setShowFilePicker(false)}
-        selectedFileId={formData.image_drive_id}
-        fileTypes={['image', 'video']}
+        selectedFileId={filePickerTarget === 'main' ? formData.image_drive_id : undefined}
+        fileTypes={getFileTypesForPicker()}
       />
     );
   }
@@ -148,6 +183,7 @@ const ProjectForm = ({ project, onClose, onSave, mode }: ProjectFormProps) => {
       
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Basic Info */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="title">Title</Label>
@@ -194,13 +230,15 @@ const ProjectForm = ({ project, onClose, onSave, mode }: ProjectFormProps) => {
             />
           </div>
 
-          {/* Project Image Section - Single upload with dual crop preview */}
+          {/* Main Thumbnail Image */}
           <div className="space-y-4">
-            <Label>Project Image</Label>
+            <Label className="text-base font-semibold">Main Thumbnail Image</Label>
+            <p className="text-xs text-muted-foreground">
+              This image is used as the project card thumbnail on the Projects page and Home page.
+            </p>
             
             {formData.image_drive_id ? (
               <div className="space-y-4">
-                {/* Image with remove button */}
                 <div className="relative inline-block">
                   <img
                     src={getImageUrl(formData.image_drive_id)}
@@ -218,7 +256,6 @@ const ProjectForm = ({ project, onClose, onSave, mode }: ProjectFormProps) => {
                   </Button>
                 </div>
 
-                {/* Dual Crop Previews */}
                 <ImageCropPreview
                   imageUrl={getImageUrl(formData.image_drive_id)}
                   cropLandscape={formData.crop_landscape}
@@ -229,18 +266,16 @@ const ProjectForm = ({ project, onClose, onSave, mode }: ProjectFormProps) => {
                   onCropTabletChange={(crop) => setFormData(prev => ({ ...prev, crop_tablet: crop }))}
                 />
 
-                {/* Change image button */}
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() => setShowFilePicker(true)}
+                  onClick={() => openFilePicker('main')}
                 >
                   <Image className="w-4 h-4 mr-2" />
                   Change Image
                 </Button>
 
-                {/* Scroll Effect Toggle */}
                 <div className="flex items-center space-x-2 pt-2 border-t">
                   <Switch
                     id="image_scroll_enabled"
@@ -255,7 +290,7 @@ const ProjectForm = ({ project, onClose, onSave, mode }: ProjectFormProps) => {
             ) : (
               <div className="space-y-3">
                 <Input
-                  placeholder="Enter image URL (e.g., https://example.com/image.jpg)"
+                  placeholder="Enter image URL"
                   value={formData.image_drive_id}
                   onChange={(e) => setFormData(prev => ({ ...prev, image_drive_id: e.target.value }))}
                 />
@@ -267,19 +302,28 @@ const ProjectForm = ({ project, onClose, onSave, mode }: ProjectFormProps) => {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => setShowFilePicker(true)}
+                  onClick={() => openFilePicker('main')}
                   className="w-full"
                 >
                   <Image className="w-4 h-4 mr-2" />
                   Select from Google Drive
                 </Button>
-                <p className="text-xs text-muted-foreground">
-                  Upload one image and adjust how it appears on both the Projects page (landscape) and Home page cards (square).
-                </p>
               </div>
             )}
           </div>
 
+          {/* Gallery & Video Media Manager */}
+          <ProjectMediaManager
+            galleryImages={formData.gallery_images}
+            videoUrl={formData.video_url}
+            videoThumbnail={formData.video_thumbnail_drive_id}
+            onGalleryImagesChange={(images) => setFormData(prev => ({ ...prev, gallery_images: images }))}
+            onVideoUrlChange={(url) => setFormData(prev => ({ ...prev, video_url: url }))}
+            onVideoThumbnailChange={(url) => setFormData(prev => ({ ...prev, video_thumbnail_drive_id: url }))}
+            onOpenFilePicker={(target) => openFilePicker(target)}
+          />
+
+          {/* Links */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="github_url">GitHub URL (Optional)</Label>
@@ -302,6 +346,7 @@ const ProjectForm = ({ project, onClose, onSave, mode }: ProjectFormProps) => {
             </div>
           </div>
 
+          {/* Tags */}
           <div>
             <Label htmlFor="tags">Tags</Label>
             <Input
@@ -321,6 +366,7 @@ const ProjectForm = ({ project, onClose, onSave, mode }: ProjectFormProps) => {
             </div>
           </div>
 
+          {/* Featured Toggle */}
           <div className="flex items-center space-x-2">
             <Switch
               id="featured"
@@ -330,6 +376,7 @@ const ProjectForm = ({ project, onClose, onSave, mode }: ProjectFormProps) => {
             <Label htmlFor="featured">Featured Project</Label>
           </div>
 
+          {/* Actions */}
           <div className="flex justify-end space-x-4 sticky bottom-0 bg-card py-4">
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
