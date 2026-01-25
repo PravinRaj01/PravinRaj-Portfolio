@@ -96,6 +96,9 @@ const ContactContentManager = () => {
           <Mail className="w-5 h-5" />
           Contact Page Content
         </CardTitle>
+        <p className="text-sm text-muted-foreground">
+          Manage contact information for each mode separately. Switch tabs to edit Professional or Creative content.
+        </p>
       </CardHeader>
       <CardContent>
         <Tabs value={activeMode} onValueChange={(value) => setActiveMode(value as 'professional' | 'creative')}>

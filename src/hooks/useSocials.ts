@@ -9,18 +9,25 @@ export interface Social {
   url: string;
   enabled: boolean;
   order_index: number;
+  mode: 'professional' | 'creative';
   created_at: string;
   updated_at: string;
 }
 
-export const useSocials = () => {
+export const useSocials = (mode?: 'professional' | 'creative') => {
   return useQuery({
-    queryKey: ['socials'],
+    queryKey: ['socials', mode],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('socials')
         .select('*')
         .order('order_index', { ascending: true });
+      
+      if (mode) {
+        query = query.eq('mode', mode);
+      }
+      
+      const { data, error } = await query;
       
       if (error) throw error;
       return data as Social[];
@@ -28,15 +35,21 @@ export const useSocials = () => {
   });
 };
 
-export const useEnabledSocials = () => {
+export const useEnabledSocials = (mode?: 'professional' | 'creative') => {
   return useQuery({
-    queryKey: ['socials', 'enabled'],
+    queryKey: ['socials', 'enabled', mode],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('socials')
         .select('*')
         .eq('enabled', true)
         .order('order_index', { ascending: true });
+      
+      if (mode) {
+        query = query.eq('mode', mode);
+      }
+      
+      const { data, error } = await query;
       
       if (error) throw error;
       return data as Social[];
@@ -79,8 +92,9 @@ export const useCreateSocial = () => {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['socials'] });
+      queryClient.invalidateQueries({ queryKey: ['socials', variables.mode] });
     },
   });
 };

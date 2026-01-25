@@ -7,11 +7,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { useSocials, useCreateSocial, useUpdateSocial, useDeleteSocial, Social } from '@/hooks/useSocials';
 
 const SocialManager = () => {
-  const { data: socials = [], isLoading } = useSocials();
+  const [activeMode, setActiveMode] = useState<'professional' | 'creative'>('professional');
+  const { data: socials = [], isLoading } = useSocials(activeMode);
   const createSocial = useCreateSocial();
   const updateSocial = useUpdateSocial();
   const deleteSocial = useDeleteSocial();
@@ -50,11 +52,12 @@ const SocialManager = () => {
     
     try {
       if (editingSocial) {
-        await updateSocial.mutateAsync({ id: editingSocial.id, ...formData });
+        await updateSocial.mutateAsync({ id: editingSocial.id, ...formData, mode: activeMode });
         toast.success('Social link updated successfully');
       } else {
         await createSocial.mutateAsync({
           ...formData,
+          mode: activeMode,
           order_index: socials.length,
         });
         toast.success('Social link added successfully');
@@ -129,14 +132,32 @@ const SocialManager = () => {
     toast.info('Changes discarded');
   };
 
+  // Reset pending changes when mode changes
+  useEffect(() => {
+    setPendingChanges({});
+    setShowForm(false);
+    setEditingSocial(null);
+  }, [activeMode]);
+
   if (isLoading) {
     return <div className="text-center py-8">Loading social links...</div>;
   }
 
   return (
     <div className="space-y-6">
+      {/* Mode Tabs */}
+      <Tabs value={activeMode} onValueChange={(v) => setActiveMode(v as 'professional' | 'creative')}>
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="professional">Professional</TabsTrigger>
+          <TabsTrigger value="creative">Creative</TabsTrigger>
+        </TabsList>
+      </Tabs>
+
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Social Media Links</h2>
+        <div>
+          <h2 className="text-2xl font-bold">Social Media Links</h2>
+          <p className="text-muted-foreground">Manage social links for {activeMode === 'professional' ? 'Professional' : 'Creative'} mode</p>
+        </div>
         <div className="flex gap-2">
           {hasPendingChanges && (
             <>
@@ -160,6 +181,9 @@ const SocialManager = () => {
         <Card>
           <CardHeader>
             <CardTitle>{editingSocial ? 'Edit' : 'Add'} Social Link</CardTitle>
+            <CardDescription>
+              This link will be added to the {activeMode === 'professional' ? 'Professional' : 'Creative'} mode
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -312,7 +336,7 @@ const SocialManager = () => {
       {socials.length === 0 && (
         <Card className="text-center py-12">
           <CardContent>
-            <p className="text-muted-foreground mb-4">No social media links configured</p>
+            <p className="text-muted-foreground mb-4">No social media links configured for {activeMode === 'professional' ? 'Professional' : 'Creative'} mode</p>
             <Button onClick={() => setShowForm(true)}>
               <Plus className="w-4 h-4 mr-2" />
               Add Your First Social Link

@@ -530,6 +530,7 @@ export type Database = {
           enabled: boolean | null
           icon: string
           id: string
+          mode: string
           name: string
           order_index: number | null
           updated_at: string | null
@@ -540,6 +541,7 @@ export type Database = {
           enabled?: boolean | null
           icon: string
           id?: string
+          mode?: string
           name: string
           order_index?: number | null
           updated_at?: string | null
@@ -550,6 +552,7 @@ export type Database = {
           enabled?: boolean | null
           icon?: string
           id?: string
+          mode?: string
           name?: string
           order_index?: number | null
           updated_at?: string | null

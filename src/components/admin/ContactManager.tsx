@@ -18,6 +18,7 @@ import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import { useSocials, useCreateSocial, useUpdateSocial, useDeleteSocial, Social } from '@/hooks/useSocials';
 import { useContactContent, useUpdateContactContent } from '@/hooks/useContactContent';
+import { usePortfolio } from '@/contexts/PortfolioContext';
 import { X } from 'lucide-react';
 
 const contactContentSchema = z.object({
@@ -32,15 +33,16 @@ type ContactContentFormData = z.infer<typeof contactContentSchema>;
 
 const ContactManager = () => {
   const [activeSection, setActiveSection] = useState<'contact' | 'socials'>('contact');
+  const { mode } = usePortfolio();
   
-  // Contact content hooks - use 'professional' as the shared mode
-  const { data: contactContent, isLoading: contactLoading } = useContactContent('professional');
+  // Contact content hooks - use mode from context
+  const { data: contactContent, isLoading: contactLoading } = useContactContent(mode);
   const updateContactContent = useUpdateContactContent();
   const [services, setServices] = useState<string[]>([]);
   const [newService, setNewService] = useState('');
 
-  // Social hooks
-  const { data: socials = [], isLoading: socialsLoading } = useSocials();
+  // Social hooks - filter by mode from context
+  const { data: socials = [], isLoading: socialsLoading } = useSocials(mode);
   const createSocial = useCreateSocial();
   const updateSocial = useUpdateSocial();
   const deleteSocial = useDeleteSocial();
@@ -102,7 +104,7 @@ const ContactManager = () => {
   const onContactSubmit = async (data: ContactContentFormData) => {
     try {
       const contentData = {
-        mode: 'professional' as const, // Use professional as shared mode
+        mode: mode,
         email: data.email,
         phone: data.phone || undefined,
         location: data.location || undefined,
@@ -135,11 +137,12 @@ const ContactManager = () => {
     
     try {
       if (editingSocial) {
-        await updateSocial.mutateAsync({ id: editingSocial.id, ...socialFormData });
+        await updateSocial.mutateAsync({ id: editingSocial.id, ...socialFormData, mode: mode });
         toast.success('Social link updated successfully');
       } else {
         await createSocial.mutateAsync({
           ...socialFormData,
+          mode: mode,
           order_index: socials.length,
         });
         toast.success('Social link added successfully');
@@ -238,10 +241,10 @@ const ContactManager = () => {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Mail className="w-5 h-5" />
-                Contact Page Content
+                Contact Page Content ({mode === 'professional' ? 'Professional' : 'Creative'})
               </CardTitle>
               <CardDescription>
-                Manage your contact information displayed on the Contact page and Share button (applies to both modes)
+                Editing contact information for {mode === 'professional' ? 'Professional' : 'Creative'} mode. Use the mode toggle at the top to switch modes.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -365,8 +368,8 @@ const ContactManager = () => {
         <TabsContent value="socials" className="mt-6 space-y-6">
           <div className="flex justify-between items-center">
             <div>
-              <h2 className="text-2xl font-bold">Social Media Links</h2>
-              <p className="text-muted-foreground">These appear on the Contact page and Share button</p>
+              <h2 className="text-2xl font-bold">Social Media Links ({mode === 'professional' ? 'Professional' : 'Creative'})</h2>
+              <p className="text-muted-foreground">Manage social links for {mode === 'professional' ? 'Professional' : 'Creative'} mode. Use the mode toggle at the top to switch modes.</p>
             </div>
             <div className="flex gap-2">
               {hasPendingChanges && (

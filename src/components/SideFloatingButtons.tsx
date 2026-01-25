@@ -8,7 +8,7 @@ import { useSiteSettings } from '@/hooks/useSiteSettings';
 const SideFloatingButtons = () => {
   const { mode, professionalModeEnabled, creativeModeEnabled } = usePortfolio();
   const { data: siteSettings } = useSiteSettings();
-  const { data: socials, isLoading } = useEnabledSocials();
+  const { data: socials, isLoading } = useEnabledSocials(mode);
   const [isOpen, setIsOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const location = useLocation();

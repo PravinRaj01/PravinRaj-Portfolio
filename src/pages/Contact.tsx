@@ -12,7 +12,7 @@ import { useEnabledSocials } from '@/hooks/useSocials';
 const Contact = () => {
   const { mode, darkMode } = usePortfolio();
   const { data: contactContent } = useContactContent(mode);
-  const { data: socials = [] } = useEnabledSocials();
+  const { data: socials = [] } = useEnabledSocials(mode);
 
   // Fallback data if no content is available
   const fallbackData = {

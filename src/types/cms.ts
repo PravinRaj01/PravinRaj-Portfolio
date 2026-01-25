@@ -49,6 +49,7 @@ export interface Social {
   url: string;
   enabled: boolean;
   order_index: number;
+  mode: 'professional' | 'creative';
   created_at: string;
   updated_at: string;
 }

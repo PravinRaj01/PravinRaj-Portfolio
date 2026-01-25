@@ -14,7 +14,7 @@ const Navigation = () => {
   const location = useLocation();
   const { mode, darkMode, handleModeToggle, handleDarkModeToggle, professionalModeEnabled, creativeModeEnabled } = usePortfolio();
   const { data: siteSettings, isLoading: siteSettingsLoading, refetch: refetchSettings } = useSiteSettings();
-  const { data: socialLinks, isLoading: socialsLoading } = useEnabledSocials();
+  const { data: socialLinks, isLoading: socialsLoading } = useEnabledSocials(mode);
   
   // Get current page from path
   const currentPage = location.pathname === '/' ? 'home' : location.pathname.replace('/', '');
