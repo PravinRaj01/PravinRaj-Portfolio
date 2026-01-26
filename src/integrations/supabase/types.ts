@@ -391,6 +391,7 @@ export type Database = {
           order_index: number | null
           position: string | null
           project_date: string | null
+          show_in_recent: boolean | null
           tags: string[] | null
           title: string
           updated_at: string | null
@@ -419,6 +420,7 @@ export type Database = {
           order_index?: number | null
           position?: string | null
           project_date?: string | null
+          show_in_recent?: boolean | null
           tags?: string[] | null
           title: string
           updated_at?: string | null
@@ -447,6 +449,7 @@ export type Database = {
           order_index?: number | null
           position?: string | null
           project_date?: string | null
+          show_in_recent?: boolean | null
           tags?: string[] | null
           title?: string
           updated_at?: string | null

@@ -91,7 +91,7 @@ const ProjectCard = ({
         </h3>
         
         <p 
-          className="text-muted-foreground mb-4 line-clamp-3"
+          className="text-muted-foreground mb-4 line-clamp-2"
           style={{ wordBreak: 'keep-all', overflowWrap: 'break-word', hyphens: 'none' }}
         >
           {description}

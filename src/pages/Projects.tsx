@@ -1,10 +1,11 @@
 import React, { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Filter, ExternalLink, Github, Calendar, Tag, ArrowUpDown, Star, Folder } from 'lucide-react';
+import { Filter, ExternalLink, Github, Calendar, Tag, ArrowUpDown, Star, Folder, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Navigation from '@/components/Navigation';
 import CursorFollower from '@/components/CursorFollower';
@@ -24,6 +25,7 @@ const Projects = () => {
   const { folders, loading: foldersLoading } = useProjectFolders(mode);
   const { data: siteSettings } = useSiteSettings();
   const [selectedFilter, setSelectedFilter] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'timeline' | 'cards'>('cards');
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -41,15 +43,54 @@ const Projects = () => {
 
   // Separate projects: standalone (no folder) vs in folders
   const standaloneProjects = projects.filter(p => !p.folder_id);
-  const foldersWithProjects = folders.filter(f => f.project_count && f.project_count > 0);
+  // Apply search and category filter to projects
+  const searchFilteredProjects = useMemo(() => {
+    let filtered = projects;
+    
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(project => 
+        project.title.toLowerCase().includes(query) ||
+        project.description.toLowerCase().includes(query) ||
+        project.tags.some(tag => tag.toLowerCase().includes(query)) ||
+        project.category.toLowerCase().includes(query)
+      );
+    }
+    
+    // Apply category filter
+    if (selectedFilter !== 'all') {
+      filtered = filtered.filter(project => project.category === selectedFilter);
+    }
+    
+    return filtered;
+  }, [projects, searchQuery, selectedFilter]);
 
-  const filteredProjects = selectedFilter === 'all' 
-    ? projects 
-    : projects.filter(project => project.category === selectedFilter);
+  // Filter folders based on whether they contain projects matching current filter
+  const foldersWithProjects = useMemo(() => {
+    return folders.filter(f => {
+      // Must have projects
+      if (!f.project_count || f.project_count === 0) return false;
+      
+      // If no filter applied, show all folders with projects
+      if (selectedFilter === 'all' && !searchQuery.trim()) return true;
+      
+      // Check if any projects in this folder match the current filter/search
+      const folderProjects = projects.filter(p => p.folder_id === f.id);
+      return folderProjects.some(project => {
+        const matchesCategory = selectedFilter === 'all' || project.category === selectedFilter;
+        const matchesSearch = !searchQuery.trim() || 
+          project.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          project.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          project.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
+        return matchesCategory && matchesSearch;
+      });
+    });
+  }, [folders, projects, selectedFilter, searchQuery]);
 
-  const filteredStandaloneProjects = selectedFilter === 'all'
-    ? standaloneProjects
-    : standaloneProjects.filter(project => project.category === selectedFilter);
+  const filteredProjects = searchFilteredProjects;
+
+  const filteredStandaloneProjects = searchFilteredProjects.filter(p => !p.folder_id);
 
   // Helper function to parse project date
   const parseProjectDate = (dateStr?: string): Date => {
@@ -208,6 +249,17 @@ const Projects = () => {
                   </SelectContent>
                 </Select>
               )}
+
+              {/* Search Bar */}
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                <Input
+                  placeholder="Search..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-[120px] sm:w-[160px] h-8 sm:h-9 text-xs sm:text-sm pl-8"
+                />
+              </div>
             </div>
           </motion.div>
 

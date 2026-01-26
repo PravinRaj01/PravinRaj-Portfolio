@@ -37,8 +37,8 @@ const FolderCard: React.FC<FolderCardProps> = ({ folder, mode, onClick }) => {
       `}
       onClick={onClick}
     >
-      {/* Cover Image or Gradient Background */}
-      <div className="aspect-[4/3] relative">
+      {/* Cover Image or Gradient Background - Match project card height */}
+      <div className="h-32 sm:h-40 md:h-48 relative">
         {coverImage ? (
           <img
             src={coverImage}

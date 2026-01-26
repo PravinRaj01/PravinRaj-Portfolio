@@ -9,8 +9,11 @@ interface RecentProjectsProps {
 const RecentProjects = ({ mode }: RecentProjectsProps) => {
   const { projects, loading } = useProjects(mode);
   
-  // Show only the first 5 projects for the slider
-  const recentProjects = projects.slice(0, 5);
+  // Filter projects that should show in recent (show_in_recent = true or undefined for backwards compatibility)
+  // Then take first 5 for the slider
+  const recentProjects = projects
+    .filter(p => p.show_in_recent !== false)
+    .slice(0, 5);
 
   if (loading) {
     return (

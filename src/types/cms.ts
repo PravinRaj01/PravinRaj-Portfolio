@@ -33,6 +33,7 @@ export interface Project {
   position?: string;
   folder_id?: string | null;
   folder_name?: string;
+  show_in_recent?: boolean;
 }
 
 export interface Experience {

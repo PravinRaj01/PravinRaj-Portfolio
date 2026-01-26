@@ -35,6 +35,7 @@ const ProjectForm = ({ project, onClose, onSave, mode }: ProjectFormProps) => {
     category: project?.category || '',
     tags: project?.tags || [],
     featured: project?.featured || false,
+    show_in_recent: project?.show_in_recent ?? true,
     image_drive_id: project?.image_drive_id || '',
     image_scroll_enabled: project?.image_scroll_enabled || false,
     crop_landscape: project?.crop_landscape || { x: 50, y: 50, zoom: 100 },
@@ -428,6 +429,16 @@ const ProjectForm = ({ project, onClose, onSave, mode }: ProjectFormProps) => {
               onCheckedChange={(checked) => setFormData(prev => ({ ...prev, featured: checked }))}
             />
             <Label htmlFor="featured">Featured Project</Label>
+          </div>
+
+          {/* Show in Recent Work Toggle */}
+          <div className="flex items-center space-x-2">
+            <Switch
+              id="show_in_recent"
+              checked={formData.show_in_recent}
+              onCheckedChange={(checked) => setFormData(prev => ({ ...prev, show_in_recent: checked }))}
+            />
+            <Label htmlFor="show_in_recent">Show in Home Page "Recent Work"</Label>
           </div>
 
           {/* Actions */}

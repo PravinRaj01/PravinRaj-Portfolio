@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useProjectFolders, ProjectFolder } from '@/hooks/useProjectFolders';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Folder, Edit, Trash2, GripVertical } from 'lucide-react';
+import { Plus, Folder, Edit, Trash2, GripVertical, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import ProjectFolderForm from './ProjectFolderForm';
 import {
@@ -24,6 +25,17 @@ const ProjectFolderManager = () => {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingFolder, setEditingFolder] = useState<ProjectFolder | null>(null);
   const [deleteConfirmFolder, setDeleteConfirmFolder] = useState<ProjectFolder | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Filter folders by search
+  const filteredFolders = useMemo(() => {
+    if (!searchQuery.trim()) return folders;
+    const query = searchQuery.toLowerCase();
+    return folders.filter(folder =>
+      folder.name.toLowerCase().includes(query) ||
+      folder.description?.toLowerCase().includes(query)
+    );
+  }, [folders, searchQuery]);
 
   const handleAddFolder = () => {
     setEditingFolder(null);
@@ -72,12 +84,23 @@ const ProjectFolderManager = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <h2 className="text-2xl font-bold">Project Folders</h2>
-        <Button onClick={handleAddFolder}>
-          <Plus className="w-4 h-4 mr-2" />
-          Add Folder
-        </Button>
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Search folders..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 w-[200px]"
+            />
+          </div>
+          <Button onClick={handleAddFolder}>
+            <Plus className="w-4 h-4 mr-2" />
+            Add Folder
+          </Button>
+        </div>
       </div>
 
       <Tabs value={activeMode} onValueChange={(v) => setActiveMode(v as 'professional' | 'creative')}>
@@ -87,7 +110,19 @@ const ProjectFolderManager = () => {
         </TabsList>
 
         <TabsContent value={activeMode} className="mt-4">
-          {folders.length === 0 ? (
+          {filteredFolders.length === 0 && folders.length > 0 ? (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-12">
+                <Search className="w-12 h-12 text-muted-foreground mb-4" />
+                <p className="text-muted-foreground text-center">
+                  No folders match your search.
+                </p>
+                <Button variant="outline" onClick={() => setSearchQuery('')} className="mt-4">
+                  Clear Search
+                </Button>
+              </CardContent>
+            </Card>
+          ) : filteredFolders.length === 0 ? (
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-12">
                 <Folder className="w-12 h-12 text-muted-foreground mb-4" />
@@ -102,7 +137,7 @@ const ProjectFolderManager = () => {
             </Card>
           ) : (
             <div className="space-y-3">
-              {folders.map((folder) => (
+              {filteredFolders.map((folder) => (
                 <Card key={folder.id} className="hover:bg-muted/50 transition-colors">
                   <CardContent className="flex items-center justify-between p-4">
                     <div className="flex items-center gap-4">

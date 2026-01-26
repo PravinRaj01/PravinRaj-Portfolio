@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Grid, List, Folder, ExternalLink, Github, Calendar, Tag } from 'lucide-react';
+import { ArrowLeft, Grid, List, Folder, ExternalLink, Github, Calendar, Tag, Filter, ArrowUpDown, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Navigation from '@/components/Navigation';
 import CursorFollower from '@/components/CursorFollower';
@@ -16,6 +17,7 @@ import { useProjectFolders, ProjectFolder as FolderType } from '@/hooks/useProje
 import { useSiteSettings } from '@/hooks/useSiteSettings';
 import { generateDriveImageUrl } from '@/utils/googleDrive';
 import { Project } from '@/types/cms';
+import { parse } from 'date-fns';
 
 const ProjectFolderPage = () => {
   const { folderId } = useParams<{ folderId: string }>();
@@ -29,6 +31,8 @@ const ProjectFolderPage = () => {
   const [folderProjects, setFolderProjects] = useState<Project[]>([]);
   const [viewMode, setViewMode] = useState<'cards' | 'timeline'>('cards');
   const [activeCategory, setActiveCategory] = useState<string>('all');
+  const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Set default view from settings
   useEffect(() => {
@@ -55,10 +59,53 @@ const ProjectFolderPage = () => {
   // Get unique categories from folder projects
   const categories = ['all', ...Array.from(new Set(folderProjects.map(p => p.category)))];
   
-  // Filter projects by category
-  const filteredProjects = activeCategory === 'all' 
-    ? folderProjects 
-    : folderProjects.filter(p => p.category === activeCategory);
+  // Helper function to parse project date
+  const parseProjectDate = (dateStr?: string): Date => {
+    if (!dateStr) return new Date(0);
+    try {
+      let date = parse(dateStr, "d MMM yyyy", new Date());
+      if (isNaN(date.getTime())) {
+        date = parse(dateStr, "MMM yyyy", new Date());
+      }
+      if (isNaN(date.getTime())) {
+        date = parse(dateStr, "yyyy", new Date());
+      }
+      return isNaN(date.getTime()) ? new Date(0) : date;
+    } catch {
+      return new Date(0);
+    }
+  };
+
+  // Filter and sort projects
+  const filteredProjects = useMemo(() => {
+    let filtered = folderProjects;
+    
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(project => 
+        project.title.toLowerCase().includes(query) ||
+        project.description.toLowerCase().includes(query) ||
+        project.tags.some(tag => tag.toLowerCase().includes(query))
+      );
+    }
+    
+    // Apply category filter
+    if (activeCategory !== 'all') {
+      filtered = filtered.filter(p => p.category === activeCategory);
+    }
+    
+    // Sort by date
+    filtered = [...filtered].sort((a, b) => {
+      const dateA = parseProjectDate(a.project_date);
+      const dateB = parseProjectDate(b.project_date);
+      return sortOrder === 'newest' 
+        ? dateB.getTime() - dateA.getTime()
+        : dateA.getTime() - dateB.getTime();
+    });
+    
+    return filtered;
+  }, [folderProjects, searchQuery, activeCategory, sortOrder]);
 
   const loading = projectsLoading || foldersLoading;
 
@@ -139,17 +186,54 @@ const ProjectFolderPage = () => {
             </Badge>
           </motion.div>
 
-          {/* View Toggle & Filters */}
+          {/* Filters & View Controls - matching Projects page */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, delay: 0.1 }}
-            className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8"
+            className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 mb-8"
           >
+            {/* View Mode Toggle */}
+            <div className="inline-flex rounded-lg border border-border bg-muted/50 p-1">
+              <button
+                onClick={() => setViewMode('timeline')}
+                className={`px-2.5 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm rounded-md transition-colors ${
+                  viewMode === 'timeline' 
+                    ? 'bg-background text-foreground shadow-sm' 
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                Timeline
+              </button>
+              <button
+                onClick={() => setViewMode('cards')}
+                className={`px-2.5 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm rounded-md transition-colors ${
+                  viewMode === 'cards' 
+                    ? 'bg-background text-foreground shadow-sm' 
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                Cards
+              </button>
+            </div>
+
+            {/* Sort Order */}
+            <Select value={sortOrder} onValueChange={(value: 'newest' | 'oldest') => setSortOrder(value)}>
+              <SelectTrigger className="w-[110px] sm:w-[140px] h-8 sm:h-9 text-xs sm:text-sm">
+                <ArrowUpDown className="w-3 h-3 sm:w-3.5 sm:h-3.5 mr-1 sm:mr-1.5" />
+                <SelectValue placeholder="Sort" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="newest">Newest First</SelectItem>
+                <SelectItem value="oldest">Oldest First</SelectItem>
+              </SelectContent>
+            </Select>
+
             {/* Category Filter */}
             {categories.length > 1 && (
               <Select value={activeCategory} onValueChange={setActiveCategory}>
-                <SelectTrigger className="w-[140px]">
+                <SelectTrigger className="w-[110px] sm:w-[140px] h-8 sm:h-9 text-xs sm:text-sm">
+                  <Filter className="w-3 h-3 sm:w-3.5 sm:h-3.5 mr-1 sm:mr-1.5" />
                   <SelectValue placeholder="Category" />
                 </SelectTrigger>
                 <SelectContent>
@@ -162,28 +246,15 @@ const ProjectFolderPage = () => {
               </Select>
             )}
 
-            {/* View Toggle */}
-            <div className="inline-flex rounded-lg border border-border bg-muted/50 p-1">
-              <button
-                onClick={() => setViewMode('cards')}
-                className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
-                  viewMode === 'cards' 
-                    ? 'bg-background text-foreground shadow-sm' 
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                <Grid className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => setViewMode('timeline')}
-                className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
-                  viewMode === 'timeline' 
-                    ? 'bg-background text-foreground shadow-sm' 
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                <List className="w-4 h-4" />
-              </button>
+            {/* Search Bar */}
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+              <Input
+                placeholder="Search..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-[120px] sm:w-[160px] h-8 sm:h-9 text-xs sm:text-sm pl-8"
+              />
             </div>
           </motion.div>
 

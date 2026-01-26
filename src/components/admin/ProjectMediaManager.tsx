@@ -267,8 +267,7 @@ const ProjectMediaManager = ({
       const newImages = galleryImages.filter(img => img !== VIDEO_MARKER);
       onGalleryImagesChange(newImages);
     } else {
-      const newImages = galleryImages.filter(img => img !== item.url && img !== VIDEO_MARKER || img === VIDEO_MARKER);
-      // Keep the video marker but remove the specific image
+      // Remove the specific image URL, keep video markers intact
       const filteredImages = galleryImages.filter(img => img !== item.url);
       onGalleryImagesChange(filteredImages);
     }
