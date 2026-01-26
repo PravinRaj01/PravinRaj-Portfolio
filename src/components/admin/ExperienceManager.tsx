@@ -5,7 +5,7 @@ import { Plus, Edit, Trash2, Calendar, MapPin, Building2, User, Image as ImageIc
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { useExperience } from '@/hooks/useExperience';
 import { Experience } from '@/types/cms';
 import ExperienceForm from './ExperienceForm';
@@ -60,20 +60,21 @@ const ExperienceManager = () => {
     return <div className="text-center py-8">Loading experiences...</div>;
   }
 
-  if (showForm) {
-    return (
-      <ExperienceForm
-        onSubmit={handleSubmit}
-        onCancel={handleCancel}
-        initialData={editingExperience || undefined}
-        loading={submitting}
-        mode={mode}
-      />
-    );
-  }
-
   return (
     <div className="space-y-6">
+      {/* Experience Form Dialog */}
+      <Dialog open={showForm} onOpenChange={(open) => !open && handleCancel()}>
+        <DialogContent className="max-w-2xl h-[90vh] p-0" hideCloseButton>
+          <ExperienceForm
+            onSubmit={handleSubmit}
+            onCancel={handleCancel}
+            initialData={editingExperience || undefined}
+            loading={submitting}
+            mode={mode}
+          />
+        </DialogContent>
+      </Dialog>
+
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-bold">Experience</h2>

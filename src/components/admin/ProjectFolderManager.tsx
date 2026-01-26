@@ -1,10 +1,10 @@
 import React, { useState, useMemo } from 'react';
 import { useProjectFolders, ProjectFolder } from '@/hooks/useProjectFolders';
+import { usePortfolio } from '@/contexts/PortfolioContext';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Plus, Folder, Edit, Trash2, GripVertical, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import ProjectFolderForm from './ProjectFolderForm';
@@ -20,8 +20,8 @@ import {
 } from '@/components/ui/alert-dialog';
 
 const ProjectFolderManager = () => {
-  const [activeMode, setActiveMode] = useState<'professional' | 'creative'>('professional');
-  const { folders, loading, addFolder, updateFolder, deleteFolder, refetch } = useProjectFolders(activeMode);
+  const { mode } = usePortfolio();
+  const { folders, loading, addFolder, updateFolder, deleteFolder, refetch } = useProjectFolders(mode);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingFolder, setEditingFolder] = useState<ProjectFolder | null>(null);
   const [deleteConfirmFolder, setDeleteConfirmFolder] = useState<ProjectFolder | null>(null);
@@ -85,7 +85,12 @@ const ProjectFolderManager = () => {
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <h2 className="text-2xl font-bold">Project Folders</h2>
+        <div>
+          <h2 className="text-2xl font-bold">Project Folders</h2>
+          <p className="text-sm text-muted-foreground">
+            Managing folders for <span className="font-medium capitalize">{mode}</span> mode
+          </p>
+        </div>
         <div className="flex items-center gap-3">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -103,83 +108,74 @@ const ProjectFolderManager = () => {
         </div>
       </div>
 
-      <Tabs value={activeMode} onValueChange={(v) => setActiveMode(v as 'professional' | 'creative')}>
-        <TabsList>
-          <TabsTrigger value="professional">Professional</TabsTrigger>
-          <TabsTrigger value="creative">Creative</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value={activeMode} className="mt-4">
-          {filteredFolders.length === 0 && folders.length > 0 ? (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <Search className="w-12 h-12 text-muted-foreground mb-4" />
-                <p className="text-muted-foreground text-center">
-                  No folders match your search.
-                </p>
-                <Button variant="outline" onClick={() => setSearchQuery('')} className="mt-4">
-                  Clear Search
-                </Button>
+      {filteredFolders.length === 0 && folders.length > 0 ? (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <Search className="w-12 h-12 text-muted-foreground mb-4" />
+            <p className="text-muted-foreground text-center">
+              No folders match your search.
+            </p>
+            <Button variant="outline" onClick={() => setSearchQuery('')} className="mt-4">
+              Clear Search
+            </Button>
+          </CardContent>
+        </Card>
+      ) : filteredFolders.length === 0 ? (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <Folder className="w-12 h-12 text-muted-foreground mb-4" />
+            <p className="text-muted-foreground text-center">
+              No folders yet. Create a folder to organize your {mode} projects.
+            </p>
+            <Button onClick={handleAddFolder} className="mt-4">
+              <Plus className="w-4 h-4 mr-2" />
+              Create First Folder
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-3">
+          {filteredFolders.map((folder) => (
+            <Card key={folder.id} className="hover:bg-muted/50 transition-colors">
+              <CardContent className="flex items-center justify-between p-4">
+                <div className="flex items-center gap-4">
+                  <GripVertical className="w-5 h-5 text-muted-foreground cursor-grab" />
+                  <Folder className={`w-8 h-8 ${mode === 'creative' ? 'text-orange-500' : 'text-purple-500'}`} />
+                  <div>
+                    <h3 className="font-semibold">{folder.name}</h3>
+                    {folder.description && (
+                      <p className="text-sm text-muted-foreground line-clamp-1">{folder.description}</p>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Badge variant="secondary">
+                    {folder.project_count} project{folder.project_count !== 1 ? 's' : ''}
+                  </Badge>
+                  <Button variant="ghost" size="icon" onClick={() => handleEditFolder(folder)}>
+                    <Edit className="w-4 h-4" />
+                  </Button>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    onClick={() => setDeleteConfirmFolder(folder)}
+                    className="text-destructive hover:text-destructive"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
               </CardContent>
             </Card>
-          ) : filteredFolders.length === 0 ? (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <Folder className="w-12 h-12 text-muted-foreground mb-4" />
-                <p className="text-muted-foreground text-center">
-                  No folders yet. Create a folder to organize your {activeMode} projects.
-                </p>
-                <Button onClick={handleAddFolder} className="mt-4">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Create First Folder
-                </Button>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-3">
-              {filteredFolders.map((folder) => (
-                <Card key={folder.id} className="hover:bg-muted/50 transition-colors">
-                  <CardContent className="flex items-center justify-between p-4">
-                    <div className="flex items-center gap-4">
-                      <GripVertical className="w-5 h-5 text-muted-foreground cursor-grab" />
-                      <Folder className={`w-8 h-8 ${activeMode === 'creative' ? 'text-orange-500' : 'text-purple-500'}`} />
-                      <div>
-                        <h3 className="font-semibold">{folder.name}</h3>
-                        {folder.description && (
-                          <p className="text-sm text-muted-foreground line-clamp-1">{folder.description}</p>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <Badge variant="secondary">
-                        {folder.project_count} project{folder.project_count !== 1 ? 's' : ''}
-                      </Badge>
-                      <Button variant="ghost" size="icon" onClick={() => handleEditFolder(folder)}>
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        onClick={() => setDeleteConfirmFolder(folder)}
-                        className="text-destructive hover:text-destructive"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-        </TabsContent>
-      </Tabs>
+          ))}
+        </div>
+      )}
 
       {/* Folder Form Dialog */}
       <ProjectFolderForm
         open={isFormOpen}
         onOpenChange={setIsFormOpen}
         folder={editingFolder}
-        mode={activeMode}
+        mode={mode}
         onSave={handleSaveFolder}
       />
 

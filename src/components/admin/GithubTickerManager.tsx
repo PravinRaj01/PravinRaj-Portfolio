@@ -5,10 +5,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useGithubTicker, useUpdateGithubTicker } from '@/hooks/useGithubTicker';
+import { usePortfolio } from '@/contexts/PortfolioContext';
 import { toast } from 'sonner';
 
 const GithubTickerManager = () => {
-  const { data: tickerData, isLoading } = useGithubTicker();
+  const { mode } = usePortfolio();
+  const { data: tickerData, isLoading } = useGithubTicker(mode);
   const updateTicker = useUpdateGithubTicker();
   
   const [formData, setFormData] = useState({
@@ -22,6 +24,12 @@ const GithubTickerManager = () => {
         text: tickerData.text,
         url: tickerData.url
       });
+    } else {
+      // Reset form when no data for current mode
+      setFormData({
+        text: '',
+        url: ''
+      });
     }
   }, [tickerData]);
 
@@ -34,7 +42,7 @@ const GithubTickerManager = () => {
         text: formData.text,
         url: formData.url
       });
-      toast.success('GitHub ticker updated successfully');
+      toast.success(`GitHub ticker updated for ${mode} mode`);
     } catch (error) {
       toast.error('Failed to update GitHub ticker');
       console.error('Error updating ticker:', error);
@@ -55,7 +63,7 @@ const GithubTickerManager = () => {
       <div>
         <h3 className="text-lg font-semibold">GitHub Ticker Settings</h3>
         <p className="text-sm text-muted-foreground">
-          Configure the scrolling ticker text and link that appears on the homepage
+          Configure the scrolling ticker text and link for <span className="font-medium capitalize">{mode}</span> mode
         </p>
       </div>
 
@@ -63,7 +71,7 @@ const GithubTickerManager = () => {
         <CardHeader>
           <CardTitle className="text-base">Ticker Content</CardTitle>
           <CardDescription>
-            This text scrolls across the page between sections
+            This text scrolls across the page between sections in {mode} mode
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -98,7 +106,7 @@ const GithubTickerManager = () => {
 
           <Button 
             onClick={handleSave} 
-            disabled={updateTicker.isPending}
+            disabled={updateTicker.isPending || !tickerData}
             className="w-full sm:w-auto"
           >
             <Save className="w-4 h-4 mr-2" />

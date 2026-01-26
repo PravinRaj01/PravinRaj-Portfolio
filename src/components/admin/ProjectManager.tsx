@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { useProjects } from '@/hooks/useProjects';
 import { generateDriveImageUrl } from '@/utils/googleDrive';
 import ProjectForm from './ProjectForm';
@@ -109,28 +110,34 @@ const ProjectManager = () => {
         </p>
       </div>
 
-      {showForm && (
-        <ProjectForm
-          onClose={() => setShowForm(false)}
-          onSave={() => {
-            setShowForm(false);
-            refetch();
-          }}
-          mode={mode}
-        />
-      )}
+      {/* Add Project Dialog */}
+      <Dialog open={showForm} onOpenChange={setShowForm}>
+        <DialogContent className="max-w-4xl h-[90vh] p-0" hideCloseButton>
+          <ProjectForm
+            onClose={() => setShowForm(false)}
+            onSave={() => {
+              setShowForm(false);
+              refetch();
+            }}
+            mode={mode}
+          />
+        </DialogContent>
+      </Dialog>
 
-      {editingProject && (
-        <ProjectForm
-          project={projects.find(p => p.id === editingProject)}
-          onClose={() => setEditingProject(null)}
-          onSave={() => {
-            setEditingProject(null);
-            refetch();
-          }}
-          mode={mode}
-        />
-      )}
+      {/* Edit Project Dialog */}
+      <Dialog open={!!editingProject} onOpenChange={(open) => !open && setEditingProject(null)}>
+        <DialogContent className="max-w-4xl h-[90vh] p-0" hideCloseButton>
+          <ProjectForm
+            project={projects.find(p => p.id === editingProject)}
+            onClose={() => setEditingProject(null)}
+            onSave={() => {
+              setEditingProject(null);
+              refetch();
+            }}
+            mode={mode}
+          />
+        </DialogContent>
+      </Dialog>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredProjects.filter(p => p.id !== editingProject).map((project) => (

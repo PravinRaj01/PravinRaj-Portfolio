@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { 
   DndContext, 
   closestCenter, 
@@ -21,7 +21,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Switch } from '@/components/ui/switch';
-import { X, Image, Video, Plus, GripVertical, Play } from 'lucide-react';
+import { X, Image, Video, Plus, GripVertical, Play, Images } from 'lucide-react';
 import { generateDriveImageUrl } from '@/utils/googleDrive';
 import { cn } from '@/lib/utils';
 
@@ -44,12 +44,15 @@ interface ProjectMediaManagerProps {
   onVideoThumbnailChange: (url: string) => void;
   onIncludeThumbnailInGalleryChange: (value: boolean) => void;
   onOpenFilePicker: (target: 'gallery' | 'video' | 'thumbnail') => void;
+  onOpenMultiFilePicker?: () => void;
 }
 
 interface SortableMediaItemProps {
   item: MediaItem;
   onRemove: () => void;
 }
+
+const VIDEO_MARKER = '__VIDEO__';
 
 const SortableMediaItem = ({ item, onRemove }: SortableMediaItemProps) => {
   const {
@@ -119,7 +122,12 @@ const SortableMediaItem = ({ item, onRemove }: SortableMediaItemProps) => {
 
         {/* Remove button */}
         <button
-          onClick={onRemove}
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onRemove();
+          }}
           className="absolute top-1 right-1 p-1 bg-destructive rounded opacity-0 group-hover:opacity-100 transition-opacity"
         >
           <X className="w-4 h-4 text-white" />
@@ -139,37 +147,35 @@ const ProjectMediaManager = ({
   onVideoThumbnailChange,
   onIncludeThumbnailInGalleryChange,
   onOpenFilePicker,
+  onOpenMultiFilePicker,
 }: ProjectMediaManagerProps) => {
   const [newImageUrl, setNewImageUrl] = useState('');
   const [newVideoUrl, setNewVideoUrl] = useState('');
 
   // Determine current media type based on existing data
-  const getInitialMediaType = (): MediaType => {
-    const hasImages = galleryImages.length > 0;
+  const getInitialMediaType = useCallback((): MediaType => {
+    const hasImages = galleryImages.filter(img => img !== VIDEO_MARKER).length > 0;
     const hasVideo = !!videoUrl;
     if (hasImages && hasVideo) return 'both';
     if (hasImages) return 'images';
     if (hasVideo) return 'video';
     return 'none';
-  };
+  }, [galleryImages, videoUrl]);
 
   const [mediaType, setMediaType] = useState<MediaType>(getInitialMediaType());
 
-  // Create combined media items for reordering
-  // Video position is tracked by a special marker in gallery_images
-  const VIDEO_MARKER = '__VIDEO__';
-  
-  const getMediaItems = useCallback((): MediaItem[] => {
+  // Create combined media items for reordering - memoized to prevent unnecessary recalculation
+  const mediaItems = useMemo((): MediaItem[] => {
     const items: MediaItem[] = [];
     
-    // Process gallery images and insert video at marker position
     if (mediaType === 'both' || mediaType === 'images' || mediaType === 'video') {
       let imageCounter = 0;
+      let videoAdded = false;
       
       galleryImages.forEach((img) => {
         if (img === VIDEO_MARKER) {
           // Insert video at this position
-          if (videoUrl && (mediaType === 'both' || mediaType === 'video')) {
+          if (videoUrl && (mediaType === 'both' || mediaType === 'video') && !videoAdded) {
             items.push({
               id: 'video-0',
               type: 'video',
@@ -178,6 +184,7 @@ const ProjectMediaManager = ({
                 (videoThumbnail.startsWith('http') ? videoThumbnail : generateDriveImageUrl(videoThumbnail, 'medium')) 
                 : undefined
             });
+            videoAdded = true;
           }
         } else {
           // Regular image
@@ -189,12 +196,9 @@ const ProjectMediaManager = ({
           imageCounter++;
         }
       });
-    }
-    
-    // Add video at end if not already added (no marker found, or video-only mode)
-    if ((mediaType === 'both' || mediaType === 'video') && videoUrl) {
-      const videoExists = items.some(item => item.type === 'video');
-      if (!videoExists) {
+      
+      // Add video at end if not already added
+      if ((mediaType === 'both' || mediaType === 'video') && videoUrl && !videoAdded) {
         items.push({
           id: 'video-0',
           type: 'video',
@@ -209,13 +213,6 @@ const ProjectMediaManager = ({
     return items;
   }, [galleryImages, videoUrl, videoThumbnail, mediaType]);
 
-  const [mediaItems, setMediaItems] = useState<MediaItem[]>(getMediaItems());
-
-  // Update media items when dependencies change
-  React.useEffect(() => {
-    setMediaItems(getMediaItems());
-  }, [getMediaItems]);
-
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
@@ -227,7 +224,7 @@ const ProjectMediaManager = ({
     })
   );
 
-  const handleDragEnd = (event: DragEndEvent) => {
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event;
 
     if (over && active.id !== over.id) {
@@ -235,15 +232,12 @@ const ProjectMediaManager = ({
       const newIndex = mediaItems.findIndex(item => item.id === over.id);
       
       const newItems = arrayMove(mediaItems, oldIndex, newIndex);
-      setMediaItems(newItems);
       
       // Build new gallery_images array with VIDEO_MARKER to preserve video position
-      const VIDEO_MARKER = '__VIDEO__';
       const newGalleryImages: string[] = [];
       
       newItems.forEach(item => {
         if (item.type === 'video') {
-          // Insert marker to track video position
           newGalleryImages.push(VIDEO_MARKER);
         } else {
           newGalleryImages.push(item.url);
@@ -252,13 +246,11 @@ const ProjectMediaManager = ({
       
       onGalleryImagesChange(newGalleryImages);
     }
-  };
+  }, [mediaItems, onGalleryImagesChange]);
 
-  const handleRemoveItem = (itemId: string) => {
+  const handleRemoveItem = useCallback((itemId: string) => {
     const item = mediaItems.find(m => m.id === itemId);
     if (!item) return;
-
-    const VIDEO_MARKER = '__VIDEO__';
     
     if (item.type === 'video') {
       onVideoUrlChange('');
@@ -268,26 +260,26 @@ const ProjectMediaManager = ({
       onGalleryImagesChange(newImages);
     } else {
       // Remove the specific image URL, keep video markers intact
-      const filteredImages = galleryImages.filter(img => img !== item.url);
-      onGalleryImagesChange(filteredImages);
+      const newImages = galleryImages.filter(img => img !== item.url);
+      onGalleryImagesChange(newImages);
     }
-  };
+  }, [mediaItems, galleryImages, onGalleryImagesChange, onVideoUrlChange, onVideoThumbnailChange]);
 
-  const handleAddImage = () => {
+  const handleAddImage = useCallback(() => {
     if (newImageUrl.trim()) {
       onGalleryImagesChange([...galleryImages, newImageUrl.trim()]);
       setNewImageUrl('');
     }
-  };
+  }, [newImageUrl, galleryImages, onGalleryImagesChange]);
 
-  const handleAddVideo = () => {
+  const handleAddVideo = useCallback(() => {
     if (newVideoUrl.trim()) {
       onVideoUrlChange(newVideoUrl.trim());
       setNewVideoUrl('');
     }
-  };
+  }, [newVideoUrl, onVideoUrlChange]);
 
-  const handleMediaTypeChange = (value: MediaType) => {
+  const handleMediaTypeChange = useCallback((value: MediaType) => {
     setMediaType(value);
     // Clear data when switching away from a type
     if (value === 'images' || value === 'none') {
@@ -297,7 +289,7 @@ const ProjectMediaManager = ({
     if (value === 'video' || value === 'none') {
       onGalleryImagesChange([]);
     }
-  };
+  }, [onVideoUrlChange, onVideoThumbnailChange, onGalleryImagesChange]);
 
   return (
     <div className="space-y-6 border rounded-lg p-4 bg-muted/30">
@@ -405,15 +397,28 @@ const ProjectMediaManager = ({
                   <Plus className="w-4 h-4" />
                 </Button>
               </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => onOpenFilePicker('gallery')}
-              >
-                <Image className="w-4 h-4 mr-2" />
-                Add from Google Drive
-              </Button>
+              <div className="flex gap-2 flex-wrap">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onOpenFilePicker('gallery')}
+                >
+                  <Image className="w-4 h-4 mr-2" />
+                  Add Single Image
+                </Button>
+                {onOpenMultiFilePicker && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={onOpenMultiFilePicker}
+                  >
+                    <Images className="w-4 h-4 mr-2" />
+                    Add Multiple Images
+                  </Button>
+                )}
+              </div>
             </div>
           )}
 

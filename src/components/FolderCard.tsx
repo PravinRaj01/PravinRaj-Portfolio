@@ -18,79 +18,77 @@ const FolderCard: React.FC<FolderCardProps> = ({ folder, mode, onClick }) => {
         : generateDriveImageUrl(folder.cover_image_drive_id, 'medium'))
     : null;
 
-  const accentColors = mode === 'creative' 
-    ? 'from-orange-500/20 to-orange-600/20 border-orange-500/30 hover:border-orange-500/50'
-    : 'from-purple-500/20 to-blue-600/20 border-purple-500/30 hover:border-purple-500/50';
-
   const iconColor = mode === 'creative' ? 'text-orange-400' : 'text-purple-400';
 
   return (
     <motion.div
-      whileHover={{ y: -5, scale: 1.02 }}
+      whileHover={{ y: -5 }}
       whileTap={{ scale: 0.98 }}
-      className={`
-        relative cursor-pointer rounded-xl overflow-hidden
-        bg-gradient-to-br ${accentColors}
-        border backdrop-blur-sm
-        transition-all duration-300
-        group
-      `}
+      className="group relative cursor-pointer rounded-xl overflow-hidden bg-card border border-border hover:shadow-2xl transition-all duration-300"
       onClick={onClick}
     >
-      {/* Cover Image or Gradient Background - Match project card height */}
-      <div className="h-32 sm:h-40 md:h-48 relative">
+      {/* Cover Image - Matches ProjectCard height */}
+      <div className="relative overflow-hidden">
         {coverImage ? (
           <img
             src={coverImage}
             alt={folder.name}
-            className="w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity"
+            className="w-full h-48 md:h-64 object-cover group-hover:scale-110 transition-transform duration-500"
           />
         ) : (
-          <div className={`w-full h-full bg-gradient-to-br ${
+          <div className={`w-full h-48 md:h-64 flex items-center justify-center ${
             mode === 'creative' 
-              ? 'from-orange-500/10 to-orange-600/20' 
-              : 'from-purple-500/10 to-blue-600/20'
+              ? 'bg-gradient-to-br from-orange-500/10 to-orange-600/20' 
+              : 'bg-gradient-to-br from-purple-500/10 to-blue-600/20'
           }`}>
-            <div className="absolute inset-0 flex items-center justify-center">
-              <Folder className={`w-16 h-16 ${iconColor} opacity-30`} />
-            </div>
+            <Folder className={`w-20 h-20 ${iconColor} opacity-40`} />
           </div>
         )}
-
-        {/* Overlay gradient */}
-        <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/40 to-transparent" />
+        
+        {/* Gradient overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+        
+        {/* Folder badge */}
+        <div className="absolute top-4 left-4">
+          <Badge className={`${
+            mode === 'creative' 
+              ? 'bg-orange-500/90 hover:bg-orange-500' 
+              : 'bg-purple-500/90 hover:bg-purple-500'
+          } text-white`}>
+            <Folder className="w-3 h-3 mr-1" />
+            Folder
+          </Badge>
+        </div>
       </div>
 
-      {/* Content */}
-      <div className="absolute bottom-0 left-0 right-0 p-4">
+      {/* Content - Matches ProjectCard p-6 structure */}
+      <div className="p-6">
         <div className="flex items-start justify-between gap-2">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              <Folder className={`w-5 h-5 ${iconColor} flex-shrink-0`} />
-              <h3 className="font-semibold text-foreground truncate">
-                {folder.name}
-              </h3>
-            </div>
-            {folder.description && (
-              <p className="text-sm text-muted-foreground line-clamp-2">
-                {folder.description}
-              </p>
-            )}
-          </div>
+          <h3 className="text-xl font-semibold group-hover:text-primary transition-colors line-clamp-1">
+            {folder.name}
+          </h3>
           <ChevronRight className={`w-5 h-5 ${iconColor} flex-shrink-0 group-hover:translate-x-1 transition-transform`} />
         </div>
+        
+        {folder.description && (
+          <p className="text-muted-foreground mt-3 mb-4 line-clamp-2">
+            {folder.description}
+          </p>
+        )}
 
-        {/* Project count badge */}
-        <Badge 
-          className={`mt-3 ${
-            mode === 'creative'
-              ? 'bg-orange-500/20 text-orange-300 border-orange-500/30'
-              : 'bg-purple-500/20 text-purple-300 border-purple-500/30'
-          }`}
-        >
-          {folder.project_count} project{folder.project_count !== 1 ? 's' : ''}
-        </Badge>
+        {/* Project count badge - same spacing as ProjectCard technologies */}
+        <div className="flex flex-wrap gap-2 mt-4">
+          <Badge 
+            variant="secondary"
+            className="text-xs hover:bg-primary hover:text-primary-foreground transition-colors"
+          >
+            {folder.project_count} project{folder.project_count !== 1 ? 's' : ''}
+          </Badge>
+        </div>
       </div>
+
+      {/* Hover effect - matches ProjectCard */}
+      <div className="absolute inset-0 border border-primary/50 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
     </motion.div>
   );
 };

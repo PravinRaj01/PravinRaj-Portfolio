@@ -5,22 +5,23 @@ export interface GithubTickerContent {
   id: string;
   text: string;
   url: string;
+  mode: string;
   created_at: string;
   updated_at: string;
 }
 
-export const useGithubTicker = () => {
+export const useGithubTicker = (mode: 'professional' | 'creative' = 'professional') => {
   return useQuery({
-    queryKey: ['github-ticker'],
+    queryKey: ['github-ticker', mode],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('github_ticker')
         .select('*')
-        .limit(1)
-        .single();
+        .eq('mode', mode)
+        .maybeSingle();
       
       if (error) throw error;
-      return data as GithubTickerContent;
+      return data as GithubTickerContent | null;
     },
   });
 };
@@ -40,7 +41,8 @@ export const useUpdateGithubTicker = () => {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      // Invalidate both modes to ensure fresh data
       queryClient.invalidateQueries({ queryKey: ['github-ticker'] });
     },
   });

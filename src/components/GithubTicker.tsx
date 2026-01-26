@@ -91,7 +91,7 @@ function ParallaxText({ children, baseVelocity = 100 }: ParallaxProps) {
 
 const GithubTicker = () => {
   const { mode } = usePortfolio();
-  const { data: tickerData } = useGithubTicker();
+  const { data: tickerData } = useGithubTicker(mode);
   
   const tickerText = tickerData?.text || 'More Projects on Github';
   const tickerUrl = tickerData?.url || 'https://github.com';

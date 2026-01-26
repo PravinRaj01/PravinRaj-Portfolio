@@ -58,6 +58,7 @@ const ProjectForm = ({ project, onClose, onSave, mode }: ProjectFormProps) => {
   const [loading, setLoading] = useState(false);
   const [showFilePicker, setShowFilePicker] = useState(false);
   const [filePickerTarget, setFilePickerTarget] = useState<'main' | 'gallery' | 'thumbnail' | 'video'>('main');
+  const [multiSelectMode, setMultiSelectMode] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -134,10 +135,22 @@ const ProjectForm = ({ project, onClose, onSave, mode }: ProjectFormProps) => {
       }));
     }
     setShowFilePicker(false);
+    setMultiSelectMode(false);
   };
 
-  const openFilePicker = (target: 'main' | 'gallery' | 'thumbnail' | 'video') => {
+  const handleMultiFileSelect = (files: DriveFile[]) => {
+    const newUrls = files.map(file => generateDriveImageUrl(file.id, 'large'));
+    setFormData(prev => ({
+      ...prev,
+      gallery_images: [...prev.gallery_images, ...newUrls]
+    }));
+    setShowFilePicker(false);
+    setMultiSelectMode(false);
+  };
+
+  const openFilePicker = (target: 'main' | 'gallery' | 'thumbnail' | 'video', isMultiSelect: boolean = false) => {
     setFilePickerTarget(target);
+    setMultiSelectMode(isMultiSelect);
     setShowFilePicker(true);
   };
 
@@ -167,29 +180,36 @@ const ProjectForm = ({ project, onClose, onSave, mode }: ProjectFormProps) => {
     return (
       <GoogleDriveFilePicker
         onSelect={handleFileSelect}
-        onCancel={() => setShowFilePicker(false)}
+        onSelectMultiple={multiSelectMode ? handleMultiFileSelect : undefined}
+        onCancel={() => {
+          setShowFilePicker(false);
+          setMultiSelectMode(false);
+        }}
         selectedFileId={filePickerTarget === 'main' ? formData.image_drive_id : undefined}
         fileTypes={getFileTypesForPicker()}
+        multiSelect={multiSelectMode}
       />
     );
   }
 
   return (
-    <Card className="w-full max-h-[90vh] overflow-y-auto">
-      <CardHeader className="flex flex-row items-center justify-between sticky top-0 bg-card z-10">
+    <div className="flex flex-col h-full max-h-[90vh]">
+      {/* Sticky Header */}
+      <div className="flex flex-row items-center justify-between bg-background px-6 py-4 border-b flex-shrink-0">
         <div>
-          <CardTitle>{project ? 'Edit Project' : 'Add New Project'}</CardTitle>
-          <CardDescription>
+          <h2 className="text-lg font-semibold">{project ? 'Edit Project' : 'Add New Project'}</h2>
+          <p className="text-sm text-muted-foreground">
             {project ? 'Update project details' : 'Create a new project for your portfolio'}
-          </CardDescription>
+          </p>
         </div>
-        <Button variant="ghost" size="sm" onClick={onClose}>
+        <Button variant="ghost" size="sm" onClick={onClose} type="button">
           <X className="w-4 h-4" />
         </Button>
-      </CardHeader>
+      </div>
       
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Scrollable Content */}
+      <div className="flex-1 overflow-y-auto px-6 py-4">
+        <form id="project-form" onSubmit={handleSubmit} className="space-y-6">
           {/* Basic Info */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -375,7 +395,8 @@ const ProjectForm = ({ project, onClose, onSave, mode }: ProjectFormProps) => {
             onVideoUrlChange={(url) => setFormData(prev => ({ ...prev, video_url: url }))}
             onVideoThumbnailChange={(url) => setFormData(prev => ({ ...prev, video_thumbnail_drive_id: url }))}
             onIncludeThumbnailInGalleryChange={(value) => setFormData(prev => ({ ...prev, include_thumbnail_in_gallery: value }))}
-            onOpenFilePicker={(target) => openFilePicker(target)}
+            onOpenFilePicker={(target) => openFilePicker(target, false)}
+            onOpenMultiFilePicker={() => openFilePicker('gallery', true)}
           />
 
           {/* Links */}
@@ -441,18 +462,19 @@ const ProjectForm = ({ project, onClose, onSave, mode }: ProjectFormProps) => {
             <Label htmlFor="show_in_recent">Show in Home Page "Recent Work"</Label>
           </div>
 
-          {/* Actions */}
-          <div className="flex justify-end space-x-4 sticky bottom-0 bg-card py-4">
-            <Button type="button" variant="outline" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? 'Saving...' : project ? 'Update Project' : 'Add Project'}
-            </Button>
-          </div>
         </form>
-      </CardContent>
-    </Card>
+      </div>
+
+      {/* Sticky Footer */}
+      <div className="flex justify-end space-x-4 bg-background px-6 py-4 border-t flex-shrink-0">
+        <Button type="button" variant="outline" onClick={onClose}>
+          Cancel
+        </Button>
+        <Button type="submit" form="project-form" disabled={loading}>
+          {loading ? 'Saving...' : project ? 'Update Project' : 'Add Project'}
+        </Button>
+      </div>
+    </div>
   );
 };
 

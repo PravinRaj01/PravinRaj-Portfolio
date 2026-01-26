@@ -253,21 +253,29 @@ const ExperienceForm = ({ onSubmit, onCancel, initialData, loading, mode }: Expe
   }
 
   return (
-    <Card className="w-full max-w-2xl mx-auto">
-      <CardHeader>
-        <CardTitle>
-          {initialData ? 'Edit Experience' : 'Add New Experience'}
-        </CardTitle>
-        <CardDescription>
-          {isCreativeMode 
-            ? 'Add your speaking engagement, event, or creative work experience'
-            : 'Add your work experience and achievements'
-          }
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
+    <div className="flex flex-col h-full max-h-[90vh]">
+      {/* Sticky Header */}
+      <div className="flex flex-row items-center justify-between bg-background px-6 py-4 border-b flex-shrink-0">
+        <div>
+          <h2 className="text-lg font-semibold">
+            {initialData ? 'Edit Experience' : 'Add New Experience'}
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            {isCreativeMode 
+              ? 'Add your speaking engagement, event, or creative work experience'
+              : 'Add your work experience and achievements'
+            }
+          </p>
+        </div>
+        <Button variant="ghost" size="sm" onClick={onCancel} type="button">
+          <X className="w-4 h-4" />
+        </Button>
+      </div>
+      
+      {/* Scrollable Content */}
+      <div className="flex-1 overflow-y-auto px-6 py-4">
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+          <form id="experience-form" onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -596,18 +604,20 @@ const ExperienceForm = ({ onSubmit, onCancel, initialData, loading, mode }: Expe
               </div>
             )}
 
-            <div className="flex justify-end space-x-4">
-              <Button type="button" variant="outline" onClick={onCancel}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={loading}>
-                {loading ? 'Saving...' : initialData ? 'Update Experience' : 'Add Experience'}
-              </Button>
-            </div>
           </form>
         </Form>
-      </CardContent>
-    </Card>
+      </div>
+
+      {/* Sticky Footer */}
+      <div className="flex justify-end space-x-4 bg-background px-6 py-4 border-t flex-shrink-0">
+        <Button type="button" variant="outline" onClick={onCancel}>
+          Cancel
+        </Button>
+        <Button type="submit" form="experience-form" disabled={loading}>
+          {loading ? 'Saving...' : initialData ? 'Update Experience' : 'Add Experience'}
+        </Button>
+      </div>
+    </div>
   );
 };
 
