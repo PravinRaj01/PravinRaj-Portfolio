@@ -7,7 +7,6 @@ import { Badge } from '@/components/ui/badge';
 import Navigation from '@/components/Navigation';
 import CursorFollower from '@/components/CursorFollower';
 import RadialGradient from '@/components/RadialGradient';
-import Footer from '@/components/Footer';
 import ProjectImageGallery from '@/components/ProjectImageGallery';
 import { usePortfolio } from '@/contexts/PortfolioContext';
 import { useExperience } from '@/hooks/useExperience';
@@ -90,9 +89,9 @@ const ExperienceDetail = () => {
   const hasImages = experience.event_images && experience.event_images.length > 0;
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background relative overflow-hidden">
       <CursorFollower />
-      <RadialGradient scale="scale-y-100" opacity={darkMode ? "opacity-30" : "opacity-30"} />
+      <RadialGradient scale="scale-y-100" opacity={darkMode ? "opacity-30" : "opacity-30"} overflow="overflow-hidden" />
       <Navigation />
 
       <div className="pt-16 sm:pt-20 px-3 sm:px-4">
@@ -210,39 +209,34 @@ const ExperienceDetail = () => {
           )}
 
           {/* Navigation */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.5 }}
-            className="flex justify-between items-center pt-8 border-t border-border"
-          >
-            {prevExperience ? (
-              <Link to={`/experience/${prevExperience.id}`} className="group flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
-                <ChevronLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-                <div className="text-left">
-                  <div className="text-xs text-muted-foreground">Previous</div>
-                  <div className="text-sm font-medium">{prevExperience.title}</div>
-                </div>
-              </Link>
-            ) : (
-              <div />
-            )}
-            {nextExperience ? (
-              <Link to={`/experience/${nextExperience.id}`} className="group flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors text-right">
-                <div>
-                  <div className="text-xs text-muted-foreground">Next</div>
-                  <div className="text-sm font-medium">{nextExperience.title}</div>
-                </div>
-                <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-              </Link>
-            ) : (
-              <div />
-            )}
-          </motion.div>
+          <div className="border-t border-border pt-8">
+            <div className="flex justify-between items-center">
+              {prevExperience ? (
+                <Link to={`/experience/${prevExperience.id}`} className="group flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
+                  <ChevronLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+                  <div className="text-left">
+                    <div className="text-xs text-muted-foreground">Previous</div>
+                    <div className="text-sm font-medium">{prevExperience.title}</div>
+                  </div>
+                </Link>
+              ) : (
+                <div />
+              )}
+              {nextExperience ? (
+                <Link to={`/experience/${nextExperience.id}`} className="group flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors text-right">
+                  <div>
+                    <div className="text-xs text-muted-foreground">Next</div>
+                    <div className="text-sm font-medium">{nextExperience.title}</div>
+                  </div>
+                  <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                </Link>
+              ) : (
+                <div />
+              )}
+            </div>
+          </div>
         </div>
       </div>
-
-      <Footer />
     </div>
   );
 };

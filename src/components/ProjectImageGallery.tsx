@@ -254,7 +254,7 @@ const ProjectImageGallery = ({
       {/* Fullscreen Modal */}
       <Dialog open={isFullscreen} onOpenChange={setIsFullscreen}>
         <DialogContent 
-          className="max-w-[95vw] max-h-[95vh] w-auto h-auto p-0 bg-black/95 border-none"
+          className="!max-w-none !w-screen !h-screen !max-h-screen p-0 bg-black border-none rounded-none"
           onKeyDown={handleKeyDown}
           hideCloseButton={true}
         >
@@ -262,7 +262,7 @@ const ProjectImageGallery = ({
             <DialogTitle>Fullscreen Image Gallery</DialogTitle>
           </VisuallyHidden>
           
-          <div className="relative w-full h-full flex items-center justify-center min-h-[50vh]">
+          <div className="relative w-full h-full flex items-center justify-center">
             {/* Close Button */}
             <Button
               variant="ghost"
@@ -284,7 +284,7 @@ const ProjectImageGallery = ({
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
                 transition={{ duration: 0.2 }}
-                className="max-w-full max-h-[90vh] object-contain"
+                className="max-w-[90vw] max-h-[85vh] object-contain"
               />
             </AnimatePresence>
 

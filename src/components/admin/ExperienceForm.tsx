@@ -2,6 +2,9 @@ import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, rectSortingStrategy } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -11,12 +14,69 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
-import { X, Plus, Image as ImageIcon, Award, Link as LinkIcon } from 'lucide-react';
+import { X, Plus, Image as ImageIcon, Award, Link as LinkIcon, GripVertical } from 'lucide-react';
 import { Experience } from '@/types/cms';
 import { DateRangePicker, SingleDatePicker } from '@/components/ui/date-range-picker';
 import GoogleDriveFilePicker from './GoogleDriveFilePicker';
 import { DriveFile } from '@/services/googleDriveService';
 import { generateDriveImageUrl } from '@/utils/googleDrive';
+
+// Sortable image item component
+interface SortableImageProps {
+  id: string;
+  url: string;
+  index: number;
+  onRemove: (index: number) => void;
+}
+
+const SortableImage = ({ id, url, index, onRemove }: SortableImageProps) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 10 : 1,
+    opacity: isDragging ? 0.8 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`relative group ${isDragging ? 'ring-2 ring-primary' : ''}`}
+    >
+      <div
+        {...attributes}
+        {...listeners}
+        className="absolute top-1 left-1 p-1 bg-background/80 rounded cursor-grab opacity-0 group-hover:opacity-100 transition-opacity z-10"
+      >
+        <GripVertical className="w-3 h-3" />
+      </div>
+      <img 
+        src={url} 
+        alt={`Event image ${index + 1}`}
+        className="w-full h-20 object-cover rounded-lg border"
+        onError={(e) => {
+          (e.target as HTMLImageElement).src = '/placeholder.svg';
+        }}
+      />
+      <button
+        type="button"
+        onClick={() => onRemove(index)}
+        className="absolute top-1 right-1 p-1 bg-destructive rounded opacity-0 group-hover:opacity-100 transition-opacity"
+      >
+        <X className="w-3 h-3 text-white" />
+      </button>
+    </div>
+  );
+};
 
 const experienceSchema = z.object({
   title: z.string().min(1, 'Title is required'),
@@ -117,6 +177,23 @@ const ExperienceForm = ({ onSubmit, onCancel, initialData, loading, mode }: Expe
 
   const removeEventImage = (index: number) => {
     setEventImages(eventImages.filter((_, i) => i !== index));
+  };
+
+  // Drag and drop sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      const oldIndex = eventImages.findIndex((_, i) => `image-${i}` === active.id);
+      const newIndex = eventImages.findIndex((_, i) => `image-${i}` === over.id);
+      setEventImages(arrayMove(eventImages, oldIndex, newIndex));
+    }
   };
 
   const handleFileSelect = (file: DriveFile) => {
@@ -427,27 +504,28 @@ const ExperienceForm = ({ onSubmit, onCancel, initialData, loading, mode }: Expe
                   Add from Google Drive
                 </Button>
                 {eventImages.length > 0 && (
-                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                    {eventImages.map((url, index) => (
-                      <div key={index} className="relative group">
-                        <img 
-                          src={url} 
-                          alt={`Event image ${index + 1}`}
-                          className="w-full h-20 object-cover rounded-lg border"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).src = '/placeholder.svg';
-                          }}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => removeEventImage(index)}
-                          className="absolute top-1 right-1 p-1 bg-destructive rounded opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          <X className="w-3 h-3 text-white" />
-                        </button>
+                  <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={handleDragEnd}
+                  >
+                    <SortableContext
+                      items={eventImages.map((_, i) => `image-${i}`)}
+                      strategy={rectSortingStrategy}
+                    >
+                      <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                        {eventImages.map((url, index) => (
+                          <SortableImage
+                            key={`image-${index}`}
+                            id={`image-${index}`}
+                            url={url}
+                            index={index}
+                            onRemove={removeEventImage}
+                          />
+                        ))}
                       </div>
-                    ))}
-                  </div>
+                    </SortableContext>
+                  </DndContext>
                 )}
                 <p className="text-xs text-muted-foreground">
                   Add photos from the event to showcase your participation

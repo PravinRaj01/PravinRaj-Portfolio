@@ -13,8 +13,7 @@ export const useExperience = (mode?: 'professional' | 'creative') => {
       setLoading(true);
       let query = supabase
         .from('experiences')
-        .select('*')
-        .order('order_index', { ascending: false });
+        .select('*');
 
       if (mode) {
         query = query.eq('mode', mode);
@@ -23,7 +22,21 @@ export const useExperience = (mode?: 'professional' | 'creative') => {
       const { data, error } = await query;
 
       if (error) throw error;
-      setExperiences(data || []);
+      
+      // Sort experiences: by event_date for creative mode (newest first), by order_index otherwise
+      const sortedData = (data || []).sort((a, b) => {
+        if (mode === 'creative') {
+          // Parse event_date for proper date comparison (format: "DD MMM YYYY" or similar)
+          const dateA = a.event_date ? new Date(a.event_date) : new Date(0);
+          const dateB = b.event_date ? new Date(b.event_date) : new Date(0);
+          // Newest first (descending)
+          return dateB.getTime() - dateA.getTime();
+        }
+        // Default: order_index descending
+        return (b.order_index || 0) - (a.order_index || 0);
+      });
+      
+      setExperiences(sortedData);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch experiences');
     } finally {
