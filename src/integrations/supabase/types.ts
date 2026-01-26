@@ -335,6 +335,39 @@ export type Database = {
         }
         Relationships: []
       }
+      project_folders: {
+        Row: {
+          cover_image_drive_id: string | null
+          created_at: string
+          description: string | null
+          id: string
+          mode: string
+          name: string
+          order_index: number
+          updated_at: string
+        }
+        Insert: {
+          cover_image_drive_id?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          mode: string
+          name: string
+          order_index?: number
+          updated_at?: string
+        }
+        Update: {
+          cover_image_drive_id?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          mode?: string
+          name?: string
+          order_index?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       projects: {
         Row: {
           category: string
@@ -345,6 +378,7 @@ export type Database = {
           crop_tablet: Json | null
           description: string
           featured: boolean | null
+          folder_id: string | null
           gallery_images: string[] | null
           github_url: string | null
           id: string
@@ -372,6 +406,7 @@ export type Database = {
           crop_tablet?: Json | null
           description: string
           featured?: boolean | null
+          folder_id?: string | null
           gallery_images?: string[] | null
           github_url?: string | null
           id?: string
@@ -399,6 +434,7 @@ export type Database = {
           crop_tablet?: Json | null
           description?: string
           featured?: boolean | null
+          folder_id?: string | null
           gallery_images?: string[] | null
           github_url?: string | null
           id?: string
@@ -417,7 +453,15 @@ export type Database = {
           video_thumbnail_drive_id?: string | null
           video_url?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "projects_folder_id_fkey"
+            columns: ["folder_id"]
+            isOneToOne: false
+            referencedRelation: "project_folders"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       services: {
         Row: {

@@ -6,8 +6,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { X, Image } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { X, Image, Folder } from 'lucide-react';
 import { useProjects } from '@/hooks/useProjects';
+import { useProjectFolders } from '@/hooks/useProjectFolders';
 import { Project } from '@/types/cms';
 import GoogleDriveFilePicker from './GoogleDriveFilePicker';
 import ImageCropPreview from './ImageCropPreview';
@@ -25,6 +27,7 @@ interface ProjectFormProps {
 
 const ProjectForm = ({ project, onClose, onSave, mode }: ProjectFormProps) => {
   const { addProject, updateProject } = useProjects();
+  const { folders } = useProjectFolders(mode);
   
   const [formData, setFormData] = useState({
     title: project?.title || '',
@@ -46,7 +49,8 @@ const ProjectForm = ({ project, onClose, onSave, mode }: ProjectFormProps) => {
     order_index: project?.order_index || 0,
     project_date: project?.project_date || '',
     include_thumbnail_in_gallery: project?.include_thumbnail_in_gallery ?? true,
-    position: project?.position || ''
+    position: project?.position || '',
+    folder_id: project?.folder_id || null
   });
   
   const [newTag, setNewTag] = useState('');
@@ -208,6 +212,36 @@ const ProjectForm = ({ project, onClose, onSave, mode }: ProjectFormProps) => {
                 required
               />
             </div>
+          </div>
+
+          {/* Folder Selection */}
+          <div>
+            <Label>Folder (Optional)</Label>
+            <Select 
+              value={formData.folder_id || 'none'} 
+              onValueChange={(value) => setFormData(prev => ({ 
+                ...prev, 
+                folder_id: value === 'none' ? null : value 
+              }))}
+            >
+              <SelectTrigger>
+                <div className="flex items-center gap-2">
+                  <Folder className="w-4 h-4 text-muted-foreground" />
+                  <SelectValue placeholder="Select a folder" />
+                </div>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">No Folder</SelectItem>
+                {folders.map((folder) => (
+                  <SelectItem key={folder.id} value={folder.id}>
+                    {folder.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground mt-1">
+              Organize projects into folders for better categorization
+            </p>
           </div>
 
           {/* Position field - Creative Mode Only */}

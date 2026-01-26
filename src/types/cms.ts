@@ -31,6 +31,8 @@ export interface Project {
   updated_at: string;
   include_thumbnail_in_gallery?: boolean;
   position?: string;
+  folder_id?: string | null;
+  folder_name?: string;
 }
 
 export interface Experience {

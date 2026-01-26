@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, ExternalLink, Github, Calendar, Tag, ChevronLeft, ChevronRight, User } from 'lucide-react';
+import { ArrowLeft, ExternalLink, Github, Calendar, Tag, ChevronLeft, ChevronRight, User, Folder } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import Navigation from '@/components/Navigation';
@@ -10,16 +10,22 @@ import RadialGradient from '@/components/RadialGradient';
 import ProjectImageGallery from '@/components/ProjectImageGallery';
 import { usePortfolio } from '@/contexts/PortfolioContext';
 import { useProjects } from '@/hooks/useProjects';
+import { useProjectFolders } from '@/hooks/useProjectFolders';
 import { generateDriveImageUrl } from '@/utils/googleDrive';
 import { Project } from '@/types/cms';
 
 const ProjectDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { mode, darkMode } = usePortfolio();
   const { projects, loading } = useProjects(mode);
+  const { folders } = useProjectFolders(mode);
   const [project, setProject] = useState<Project | null>(null);
   const [adjacentProjects, setAdjacentProjects] = useState<{ prev: Project | null; next: Project | null }>({ prev: null, next: null });
+  
+  // Check if came from folder view
+  const fromFolder = (location.state as { fromFolder?: string })?.fromFolder;
 
   useEffect(() => {
     if (projects.length > 0 && id) {
@@ -80,19 +86,53 @@ const ProjectDetail = () => {
 
       <div className="pt-20 sm:pt-24 px-4">
         <div className="container mx-auto max-w-4xl py-8">
-          {/* Back Button */}
+          {/* Breadcrumb & Back Button */}
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.4 }}
           >
+            {/* Breadcrumb for folder context */}
+            {project?.folder_id && folders.find(f => f.id === project.folder_id) && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+                <span 
+                  className="hover:text-foreground cursor-pointer"
+                  onClick={() => navigate('/projects')}
+                >
+                  Projects
+                </span>
+                <ChevronRight className="w-4 h-4" />
+                <span 
+                  className={`hover:text-foreground cursor-pointer flex items-center gap-1 ${
+                    mode === 'creative' ? 'text-orange-400' : 'text-purple-400'
+                  }`}
+                  onClick={() => navigate(`/projects/folder/${project.folder_id}`)}
+                >
+                  <Folder className="w-3 h-3" />
+                  {folders.find(f => f.id === project.folder_id)?.name}
+                </span>
+                <ChevronRight className="w-4 h-4" />
+                <span className="text-foreground truncate max-w-[200px]">{project.title}</span>
+              </div>
+            )}
+            
             <Button 
               variant="ghost" 
-              onClick={() => navigate('/projects')}
+              onClick={() => {
+                if (fromFolder) {
+                  navigate(`/projects/folder/${fromFolder}`);
+                } else if (project?.folder_id) {
+                  navigate(`/projects/folder/${project.folder_id}`);
+                } else {
+                  navigate('/projects');
+                }
+              }}
               className="mb-6 hover:bg-muted"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Projects
+              {fromFolder || project?.folder_id 
+                ? `Back to ${folders.find(f => f.id === (fromFolder || project?.folder_id))?.name || 'Folder'}` 
+                : 'Back to Projects'}
             </Button>
           </motion.div>
 

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Filter, ExternalLink, Github, Calendar, Tag, ArrowUpDown, Star } from 'lucide-react';
+import { Filter, ExternalLink, Github, Calendar, Tag, ArrowUpDown, Star, Folder } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -9,8 +9,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import Navigation from '@/components/Navigation';
 import CursorFollower from '@/components/CursorFollower';
 import RadialGradient from '@/components/RadialGradient';
+import FolderCard from '@/components/FolderCard';
 import { usePortfolio } from '@/contexts/PortfolioContext';
 import { useProjects } from '@/hooks/useProjects';
+import { useProjectFolders } from '@/hooks/useProjectFolders';
 import { useSiteSettings } from '@/hooks/useSiteSettings';
 import { generateDriveImageUrl } from '@/utils/googleDrive';
 import { parse } from 'date-fns';
@@ -19,6 +21,7 @@ const Projects = () => {
   const navigate = useNavigate();
   const { mode, darkMode } = usePortfolio();
   const { projects, loading } = useProjects(mode);
+  const { folders, loading: foldersLoading } = useProjectFolders(mode);
   const { data: siteSettings } = useSiteSettings();
   const [selectedFilter, setSelectedFilter] = useState('all');
   const [viewMode, setViewMode] = useState<'timeline' | 'cards'>('cards');
@@ -36,9 +39,17 @@ const Projects = () => {
   // Get unique categories from projects
   const categories = ['all', ...new Set(projects.map(project => project.category))];
 
+  // Separate projects: standalone (no folder) vs in folders
+  const standaloneProjects = projects.filter(p => !p.folder_id);
+  const foldersWithProjects = folders.filter(f => f.project_count && f.project_count > 0);
+
   const filteredProjects = selectedFilter === 'all' 
     ? projects 
     : projects.filter(project => project.category === selectedFilter);
+
+  const filteredStandaloneProjects = selectedFilter === 'all'
+    ? standaloneProjects
+    : standaloneProjects.filter(project => project.category === selectedFilter);
 
   // Helper function to parse project date
   const parseProjectDate = (dateStr?: string): Date => {
@@ -88,7 +99,10 @@ const Projects = () => {
     timelineRefs.current[newIndex]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }, [currentIndex, sortedProjects.length]);
 
-  if (loading) {
+  // Loading state includes folders
+  const isLoading = loading || foldersLoading;
+
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-background">
         <CursorFollower />
@@ -280,6 +294,21 @@ const Projects = () => {
                                         {project.project_date}
                                       </span>
                                     )}
+                                    {/* Folder badge in timeline view */}
+                                    {project.folder_id && folders.find(f => f.id === project.folder_id) && (
+                                      <span 
+                                        className={`flex items-center cursor-pointer ${
+                                          mode === 'creative' ? 'text-orange-400' : 'text-purple-400'
+                                        }`}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          navigate(`/projects/folder/${project.folder_id}`);
+                                        }}
+                                      >
+                                        <Folder className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+                                        {folders.find(f => f.id === project.folder_id)?.name}
+                                      </span>
+                                    )}
                                   </CardDescription>
                                 </div>
                               </CardHeader>
@@ -345,10 +374,28 @@ const Projects = () => {
                 </div>
               )}
 
-              {/* Cards View */}
+              {/* Cards View - Shows folders + standalone projects */}
               {viewMode === 'cards' && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
-                  {sortedProjects.map((project, index) => (
+                  {/* Render Folder Cards First */}
+                  {foldersWithProjects.map((folder, index) => (
+                    <motion.div
+                      key={`folder-${folder.id}`}
+                      initial={{ opacity: 0, y: 30 }}
+                      whileInView={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.6, delay: index * 0.1 }}
+                      viewport={{ once: true }}
+                    >
+                      <FolderCard 
+                        folder={folder}
+                        mode={mode}
+                        onClick={() => navigate(`/projects/folder/${folder.id}`)}
+                      />
+                    </motion.div>
+                  ))}
+                  
+                  {/* Render Standalone Projects (sorted) */}
+                  {sortedProjects.filter(p => !p.folder_id).map((project, index) => (
                     <motion.div
                       key={project.id}
                       initial={{ opacity: 0, y: 30 }}

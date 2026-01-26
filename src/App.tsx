@@ -19,6 +19,7 @@ import Experience from "./pages/Experience";
 import ExperienceDetail from "./pages/ExperienceDetail";
 import Projects from "./pages/Projects";
 import ProjectDetail from "./pages/ProjectDetail";
+import ProjectFolder from "./pages/ProjectFolder";
 import Contact from "./pages/Contact";
 import Podcast from "./pages/Podcast";
 import Playground from "./pages/Playground";
@@ -52,6 +53,7 @@ const AppContent = ({ load }: { load: boolean }) => {
             <Route path="/experience" element={<Experience />} />
             <Route path="/experience/:id" element={<ExperienceDetail />} />
             <Route path="/projects" element={<Projects />} />
+            <Route path="/projects/folder/:folderId" element={<ProjectFolder />} />
             <Route path="/projects/:id" element={<ProjectDetail />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/podcast" element={<Podcast />} />
