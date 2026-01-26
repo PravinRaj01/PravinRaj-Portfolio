@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, ExternalLink, Github, Calendar, Tag, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowLeft, ExternalLink, Github, Calendar, Tag, ChevronLeft, ChevronRight, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import Navigation from '@/components/Navigation';
@@ -171,6 +171,14 @@ const ProjectDetail = () => {
 
             {/* Project Title & Meta */}
             <div className="mb-8">
+              {/* Position Badge for Creative Mode */}
+              {mode === 'creative' && project.position && (
+                <Badge className="mb-3 bg-orange-500/20 text-orange-400 border-orange-500/30">
+                  <User className="w-3 h-3 mr-1" />
+                  {project.position}
+                </Badge>
+              )}
+              
               <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4 text-foreground">
                 {project.title}
               </h1>

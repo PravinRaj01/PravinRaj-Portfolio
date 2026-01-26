@@ -355,6 +355,7 @@ export type Database = {
           live_url: string | null
           mode: string
           order_index: number | null
+          position: string | null
           project_date: string | null
           tags: string[] | null
           title: string
@@ -381,6 +382,7 @@ export type Database = {
           live_url?: string | null
           mode: string
           order_index?: number | null
+          position?: string | null
           project_date?: string | null
           tags?: string[] | null
           title: string
@@ -407,6 +409,7 @@ export type Database = {
           live_url?: string | null
           mode?: string
           order_index?: number | null
+          position?: string | null
           project_date?: string | null
           tags?: string[] | null
           title?: string

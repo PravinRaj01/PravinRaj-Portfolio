@@ -262,6 +262,12 @@ const Projects = () => {
                             <div className="w-full md:w-2/3">
                               <CardHeader className="p-3 sm:p-4 md:p-6">
                                 <div className="flex flex-col gap-1 sm:gap-2">
+                                  {/* Position Badge for Creative Mode */}
+                                  {mode === 'creative' && project.position && (
+                                    <Badge className="w-fit text-[10px] sm:text-xs bg-orange-500/20 text-orange-400 border-orange-500/30">
+                                      {project.position}
+                                    </Badge>
+                                  )}
                                   <CardTitle className="text-base sm:text-lg md:text-xl">{project.title}</CardTitle>
                                   <CardDescription className="flex items-center gap-2 text-xs sm:text-sm md:text-base flex-wrap">
                                     <span className="flex items-center">
@@ -386,6 +392,12 @@ const Projects = () => {
                         </div>
 
                         <CardHeader className="p-3 sm:p-4 md:p-6">
+                          {/* Position Badge for Creative Mode */}
+                          {mode === 'creative' && project.position && (
+                            <Badge className="w-fit mb-1 text-[10px] sm:text-xs bg-orange-500/20 text-orange-400 border-orange-500/30">
+                              {project.position}
+                            </Badge>
+                          )}
                           <CardTitle className="text-sm sm:text-base md:text-lg">{project.title}</CardTitle>
                           <CardDescription className="text-xs sm:text-sm">
                             <div className="flex items-center gap-2 flex-wrap">

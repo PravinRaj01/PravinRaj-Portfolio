@@ -30,6 +30,7 @@ export interface Project {
   created_at: string;
   updated_at: string;
   include_thumbnail_in_gallery?: boolean;
+  position?: string;
 }
 
 export interface Experience {

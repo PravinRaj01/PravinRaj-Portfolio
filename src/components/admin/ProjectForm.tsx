@@ -45,7 +45,8 @@ const ProjectForm = ({ project, onClose, onSave, mode }: ProjectFormProps) => {
     live_url: project?.live_url || '',
     order_index: project?.order_index || 0,
     project_date: project?.project_date || '',
-    include_thumbnail_in_gallery: project?.include_thumbnail_in_gallery ?? true
+    include_thumbnail_in_gallery: project?.include_thumbnail_in_gallery ?? true,
+    position: project?.position || ''
   });
   
   const [newTag, setNewTag] = useState('');
@@ -208,6 +209,22 @@ const ProjectForm = ({ project, onClose, onSave, mode }: ProjectFormProps) => {
               />
             </div>
           </div>
+
+          {/* Position field - Creative Mode Only */}
+          {mode === 'creative' && (
+            <div>
+              <Label htmlFor="position">Position/Role (Creative Mode)</Label>
+              <Input
+                id="position"
+                value={formData.position}
+                onChange={(e) => setFormData(prev => ({ ...prev, position: e.target.value }))}
+                placeholder="e.g., Chairman, Lead Designer, Assistant"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Your role or position in this creative project
+              </p>
+            </div>
+          )}
 
           <div>
             <Label>Project Date</Label>

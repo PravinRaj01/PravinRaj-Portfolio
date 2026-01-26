@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Calendar, MapPin, Building2, ArrowUpDown, Award, ArrowRight } from 'lucide-react';
+import { Calendar, MapPin, Building2, ArrowUpDown, Award, ArrowRight, Filter } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -18,11 +18,19 @@ const Experience = () => {
   const navigate = useNavigate();
   const [viewMode, setViewMode] = useState<'timeline' | 'cards'>('timeline');
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
+  const [selectedRole, setSelectedRole] = useState<string>('all');
   const [currentIndex, setCurrentIndex] = useState(0);
   const { mode, darkMode } = usePortfolio();
   const { experiences, loading } = useExperience(mode);
   const timelineRefs = useRef<(HTMLDivElement | null)[]>([]);
   const isCreativeMode = mode === 'creative';
+
+  // Get unique roles for creative mode filter
+  const roles = useMemo(() => {
+    if (!isCreativeMode || !experiences) return [];
+    const uniqueRoles = [...new Set(experiences.map(exp => exp.role).filter(Boolean))] as string[];
+    return uniqueRoles;
+  }, [experiences, isCreativeMode]);
 
   // Helper functions
   const getCertificateUrl = (exp: ExperienceType) => {
@@ -46,30 +54,56 @@ const Experience = () => {
     }
   };
 
-  // Parse period to get start date for sorting
-  const parseStartDate = (period: string): Date => {
-    // Extract the start date from period (e.g., "Aug 2023 - Jan 2024" or "Mar 2025 - Present")
-    const startPart = period.split(' - ')[0].trim();
-    const [month, year] = startPart.split(' ');
+  // Parse date for sorting - supports both period range and event_date
+  const parseExperienceDate = (exp: ExperienceType): Date => {
     const monthMap: Record<string, number> = {
       'Jan': 0, 'Feb': 1, 'Mar': 2, 'Apr': 3, 'May': 4, 'Jun': 5,
       'Jul': 6, 'Aug': 7, 'Sep': 8, 'Oct': 9, 'Nov': 10, 'Dec': 11
     };
+
+    // For creative mode with single event date, use event_date
+    if (exp.date_type === 'single' && exp.event_date) {
+      // Parse formats like "15 Jan 2024" or "Jan 2024"
+      const parts = exp.event_date.trim().split(' ');
+      if (parts.length === 3) {
+        // "15 Jan 2024" format
+        const day = parseInt(parts[0]);
+        const month = monthMap[parts[1]] ?? 0;
+        const year = parseInt(parts[2]);
+        return new Date(year, month, day);
+      } else if (parts.length === 2) {
+        // "Jan 2024" format
+        const month = monthMap[parts[0]] ?? 0;
+        const year = parseInt(parts[1]);
+        return new Date(year, month, 1);
+      }
+    }
+    
+    // Fallback to parsing period (e.g., "Aug 2023 - Jan 2024")
+    const startPart = exp.period.split(' - ')[0].trim();
+    const [month, year] = startPart.split(' ');
     return new Date(parseInt(year), monthMap[month] || 0, 1);
   };
 
-  // Sort experiences based on period dates
+  // Filter and sort experiences
   const sortedExperiences = useMemo(() => {
     if (!experiences) return [];
-    const sorted = [...experiences].sort((a, b) => {
-      const dateA = parseStartDate(a.period);
-      const dateB = parseStartDate(b.period);
+    
+    // Filter by role if in creative mode and role is selected
+    let filtered = experiences;
+    if (isCreativeMode && selectedRole !== 'all') {
+      filtered = experiences.filter(exp => exp.role === selectedRole);
+    }
+    
+    const sorted = [...filtered].sort((a, b) => {
+      const dateA = parseExperienceDate(a);
+      const dateB = parseExperienceDate(b);
       return sortOrder === 'newest' 
         ? dateB.getTime() - dateA.getTime() 
         : dateA.getTime() - dateB.getTime();
     });
     return sorted;
-  }, [experiences, sortOrder]);
+  }, [experiences, sortOrder, selectedRole, isCreativeMode]);
 
   const handleNavigate = useCallback((direction: 'up' | 'down') => {
     const newIndex = direction === 'up' 
@@ -170,12 +204,45 @@ const Experience = () => {
                   <SelectItem value="oldest">Oldest First</SelectItem>
                 </SelectContent>
               </Select>
+
+              {/* Role/Position Filter - Creative Mode Only */}
+              {isCreativeMode && roles.length > 0 && (
+                <Select value={selectedRole} onValueChange={setSelectedRole}>
+                  <SelectTrigger className="w-[120px] sm:w-[150px] h-8 sm:h-9 text-xs sm:text-sm">
+                    <Filter className="w-3 h-3 sm:w-3.5 sm:h-3.5 mr-1 sm:mr-1.5" />
+                    <SelectValue placeholder="Position" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Positions</SelectItem>
+                    {roles.map((role) => (
+                      <SelectItem key={role} value={role}>
+                        {role}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
           </motion.div>
 
           {sortedExperiences.length === 0 ? (
             <div className="text-center py-12">
-              <p className="text-muted-foreground">No experiences found for {mode} mode.</p>
+              <p className="text-muted-foreground">
+                {selectedRole !== 'all' 
+                  ? `No experiences found for position "${selectedRole}".`
+                  : `No experiences found for ${mode} mode.`
+                }
+              </p>
+              {selectedRole !== 'all' && (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="mt-4"
+                  onClick={() => setSelectedRole('all')}
+                >
+                  Clear Filter
+                </Button>
+              )}
             </div>
           ) : (
             <>

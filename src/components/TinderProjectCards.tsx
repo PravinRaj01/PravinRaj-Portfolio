@@ -145,6 +145,12 @@ const TinderProjectCards = ({ projects, mode }: TinderProjectCardsProps) => {
             {/* Project Content */}
             <div className="flex-1 p-4 flex flex-col justify-between">
               <div>
+                {/* Position Badge for Creative Mode */}
+                {mode === 'creative' && project.position && (
+                  <Badge className="mb-1 text-xs bg-orange-500/20 text-orange-400 border-orange-500/30">
+                    {project.position}
+                  </Badge>
+                )}
                 <h3 className="text-lg font-semibold mb-1 line-clamp-1">
                   {project.title}
                 </h3>
