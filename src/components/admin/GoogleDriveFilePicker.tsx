@@ -11,9 +11,12 @@ import { generateDriveImageUrl } from '@/utils/googleDrive';
 
 interface GoogleDriveFilePickerProps {
   onSelect: (file: DriveFile) => void;
+  onSelectMultiple?: (files: DriveFile[]) => void;
   onCancel: () => void;
   selectedFileId?: string;
+  selectedFileIds?: string[];
   fileTypes?: ('image' | 'video' | 'document')[];
+  multiSelect?: boolean;
 }
 
 interface FolderNavigationItem {
@@ -23,9 +26,12 @@ interface FolderNavigationItem {
 
 const GoogleDriveFilePicker = ({ 
   onSelect, 
+  onSelectMultiple,
   onCancel, 
   selectedFileId,
-  fileTypes = ['image', 'video'] 
+  selectedFileIds = [],
+  fileTypes = ['image', 'video'],
+  multiSelect = false
 }: GoogleDriveFilePickerProps) => {
   const [files, setFiles] = useState<DriveFile[]>([]);
   const [filteredFiles, setFilteredFiles] = useState<DriveFile[]>([]);
@@ -34,6 +40,7 @@ const GoogleDriveFilePicker = ({
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
   const [navigationStack, setNavigationStack] = useState<FolderNavigationItem[]>([]);
   const [showAllFiles, setShowAllFiles] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState<DriveFile[]>([]);
 
   const fetchFilesFromFolder = async (folderId?: string) => {
     setLoading(true);
@@ -125,8 +132,33 @@ const GoogleDriveFilePicker = ({
     });
 
     if (isSelectable) {
-      onSelect(file);
+      if (multiSelect) {
+        // Toggle selection in multi-select mode
+        setSelectedFiles(prev => {
+          const isAlreadySelected = prev.some(f => f.id === file.id);
+          if (isAlreadySelected) {
+            return prev.filter(f => f.id !== file.id);
+          } else {
+            return [...prev, file];
+          }
+        });
+      } else {
+        onSelect(file);
+      }
     }
+  };
+
+  const handleConfirmMultiSelect = () => {
+    if (onSelectMultiple && selectedFiles.length > 0) {
+      onSelectMultiple(selectedFiles);
+    }
+  };
+
+  const isFileSelected = (fileId: string) => {
+    if (multiSelect) {
+      return selectedFiles.some(f => f.id === fileId);
+    }
+    return selectedFileId === fileId || selectedFileIds.includes(fileId);
   };
 
   const navigateBack = () => {
@@ -245,6 +277,21 @@ const GoogleDriveFilePicker = ({
             {filteredFiles.length} files found
           </Badge>
         </div>
+        {/* Multi-select action bar */}
+        {multiSelect && (
+          <div className="flex items-center justify-between mb-4 p-3 bg-muted/50 rounded-lg">
+            <span className="text-sm text-muted-foreground">
+              {selectedFiles.length} image{selectedFiles.length !== 1 ? 's' : ''} selected
+            </span>
+            <Button 
+              onClick={handleConfirmMultiSelect}
+              disabled={selectedFiles.length === 0}
+            >
+              <Check className="w-4 h-4 mr-2" />
+              Add {selectedFiles.length} Image{selectedFiles.length !== 1 ? 's' : ''}
+            </Button>
+          </div>
+        )}
       </CardHeader>
       
       <CardContent>
@@ -272,7 +319,7 @@ const GoogleDriveFilePicker = ({
                 onClick={() => handleFileClick(file)}
               >
                 <Card className={`h-full hover:shadow-lg transition-shadow ${
-                  selectedFileId === file.id ? 'ring-2 ring-primary' : ''
+                  isFileSelected(file.id) ? 'ring-2 ring-primary' : ''
                 } ${!isFileSelectable(file) && file.mimeType !== 'application/vnd.google-apps.folder' ? 'cursor-not-allowed' : ''}`}>
                   <div className="relative">
                     {file.mimeType.startsWith('image/') ? (
@@ -287,7 +334,7 @@ const GoogleDriveFilePicker = ({
                       </div>
                     )}
                     
-                    {selectedFileId === file.id && (
+                    {isFileSelected(file.id) && (
                       <div className="absolute top-2 right-2 bg-primary text-primary-foreground rounded-full p-1">
                         <Check className="w-4 h-4" />
                       </div>

@@ -125,6 +125,12 @@ const ExperienceForm = ({ onSubmit, onCancel, initialData, loading, mode }: Expe
     setShowFilePicker(false);
   };
 
+  const handleMultiFileSelect = (files: DriveFile[]) => {
+    const newUrls = files.map(file => generateDriveImageUrl(file.id, 'large'));
+    setEventImages([...eventImages, ...newUrls]);
+    setShowFilePicker(false);
+  };
+
   const handleCertificateSelect = (file: DriveFile) => {
     setCertificateDriveId(file.id);
     setCertificateUrl(''); // Clear URL if Drive ID is set
@@ -143,13 +149,15 @@ const ExperienceForm = ({ onSubmit, onCancel, initialData, loading, mode }: Expe
     return certificateUrl;
   };
 
-  // Show Google Drive file picker for images
+  // Show Google Drive file picker for images (multi-select enabled)
   if (showFilePicker) {
     return (
       <GoogleDriveFilePicker
         onSelect={handleFileSelect}
+        onSelectMultiple={handleMultiFileSelect}
         onCancel={() => setShowFilePicker(false)}
         fileTypes={['image']}
+        multiSelect={true}
       />
     );
   }
