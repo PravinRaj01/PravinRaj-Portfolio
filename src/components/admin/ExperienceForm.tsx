@@ -8,6 +8,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { RichTextEditor } from '@/components/ui/rich-text-editor';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -442,14 +443,19 @@ const ExperienceForm = ({ onSubmit, onCancel, initialData, loading, mode }: Expe
                 <FormItem>
                   <FormLabel>Description</FormLabel>
                   <FormControl>
-                    <Textarea 
-                      placeholder={isCreativeMode 
-                        ? "Describe your role and contributions at this event..."
-                        : "Describe your role and responsibilities..."
-                      }
-                      className="min-h-[100px]"
-                      {...field}
-                    />
+                    {isCreativeMode ? (
+                      <RichTextEditor
+                        value={field.value}
+                        onChange={field.onChange}
+                        placeholder="Describe your role and contributions at this event... Use formatting for emphasis"
+                      />
+                    ) : (
+                      <Textarea 
+                        placeholder="Describe your role and responsibilities..."
+                        className="min-h-[100px]"
+                        {...field}
+                      />
+                    )}
                   </FormControl>
                   <FormMessage />
                 </FormItem>

@@ -293,8 +293,8 @@ const Projects = () => {
                           onClick={() => navigate(`/projects/${project.id}`)}
                         >
                           <div className="flex flex-col md:flex-row">
-                            {/* Project Image */}
-                            <div className="relative w-full md:w-1/3 h-36 sm:h-48 md:h-auto overflow-hidden">
+                            {/* Project Image - Square Crop */}
+                            <div className="relative w-full md:w-48 aspect-square md:aspect-square overflow-hidden flex-shrink-0">
                               {project.image_drive_id ? (
                                 <img 
                                   src={project.image_drive_id.startsWith('http') 
@@ -303,13 +303,13 @@ const Projects = () => {
                                   alt={project.title}
                                   className="w-full h-full object-cover"
                                   style={{
-                                    objectPosition: `${project.crop_tablet?.x ?? project.crop_landscape?.x ?? 50}% ${project.crop_tablet?.y ?? project.crop_landscape?.y ?? 50}%`,
-                                    transform: `scale(${(project.crop_tablet?.zoom ?? project.crop_landscape?.zoom ?? 100) / 100})`,
-                                    transformOrigin: `${project.crop_tablet?.x ?? project.crop_landscape?.x ?? 50}% ${project.crop_tablet?.y ?? project.crop_landscape?.y ?? 50}%`
+                                    objectPosition: `${project.crop_square?.x ?? 50}% ${project.crop_square?.y ?? 50}%`,
+                                    transform: `scale(${(project.crop_square?.zoom ?? 100) / 100})`,
+                                    transformOrigin: `${project.crop_square?.x ?? 50}% ${project.crop_square?.y ?? 50}%`
                                   }}
                                 />
                               ) : (
-                                <div className="w-full h-full bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center min-h-[140px] sm:min-h-[200px]">
+                                <div className="w-full h-full bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center">
                                   <span className="text-muted-foreground text-xs sm:text-sm">No Image</span>
                                 </div>
                               )}
@@ -328,11 +328,15 @@ const Projects = () => {
                             <div className="w-full md:w-2/3">
                               <CardHeader className="p-3 sm:p-4 md:p-6">
                                 <div className="flex flex-col gap-1 sm:gap-2">
-                                  {/* Position Badge for Creative Mode */}
-                                  {mode === 'creative' && project.position && (
-                                    <Badge className="w-fit text-[10px] sm:text-xs bg-orange-500/20 text-orange-400 border-orange-500/30">
-                                      {project.position}
-                                    </Badge>
+                                  {/* Position Badges for Creative Mode */}
+                                  {mode === 'creative' && (project.positions?.length ? project.positions : project.position ? [project.position] : []).length > 0 && (
+                                    <div className="flex flex-wrap gap-1">
+                                      {(project.positions?.length ? project.positions : project.position ? [project.position] : []).map((pos, idx) => (
+                                        <Badge key={idx} className="text-[10px] sm:text-xs bg-orange-500/20 text-orange-400 border-orange-500/30">
+                                          {pos}
+                                        </Badge>
+                                      ))}
+                                    </div>
                                   )}
                                   <CardTitle className="text-base sm:text-lg md:text-xl">{project.title}</CardTitle>
                                   <CardDescription className="flex items-center gap-2 text-xs sm:text-sm md:text-base flex-wrap">
@@ -459,8 +463,8 @@ const Projects = () => {
                         className="h-full hover:shadow-lg transition-shadow overflow-hidden cursor-pointer"
                         onClick={() => navigate(`/projects/${project.id}`)}
                       >
-                        {/* Project Image */}
-                        <div className="relative h-32 sm:h-40 md:h-48 overflow-hidden">
+                        {/* Project Image - 16:9 Ratio */}
+                        <div className="relative aspect-video overflow-hidden">
                           {project.image_drive_id ? (
                             <img 
                               src={project.image_drive_id.startsWith('http') 
@@ -491,11 +495,15 @@ const Projects = () => {
                         </div>
 
                         <CardHeader className="p-3 sm:p-4 md:p-6">
-                          {/* Position Badge for Creative Mode */}
-                          {mode === 'creative' && project.position && (
-                            <Badge className="w-fit mb-1 text-[10px] sm:text-xs bg-orange-500/20 text-orange-400 border-orange-500/30">
-                              {project.position}
-                            </Badge>
+                          {/* Position Badges for Creative Mode */}
+                          {mode === 'creative' && (project.positions?.length ? project.positions : project.position ? [project.position] : []).length > 0 && (
+                            <div className="flex flex-wrap gap-1 mb-1">
+                              {(project.positions?.length ? project.positions : project.position ? [project.position] : []).map((pos, idx) => (
+                                <Badge key={idx} className="text-[10px] sm:text-xs bg-orange-500/20 text-orange-400 border-orange-500/30">
+                                  {pos}
+                                </Badge>
+                              ))}
+                            </div>
                           )}
                           <CardTitle className="text-sm sm:text-base md:text-lg">{project.title}</CardTitle>
                           <CardDescription className="text-xs sm:text-sm">

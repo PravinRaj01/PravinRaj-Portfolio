@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { RichTextEditor } from '@/components/ui/rich-text-editor';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
@@ -33,6 +34,7 @@ const ProjectForm = ({ project, onClose, onSave, mode }: ProjectFormProps) => {
     title: project?.title || '',
     description: project?.description || '',
     category: project?.category || '',
+    categories: project?.categories || [],
     tags: project?.tags || [],
     featured: project?.featured || false,
     show_in_recent: project?.show_in_recent ?? true,
@@ -51,10 +53,13 @@ const ProjectForm = ({ project, onClose, onSave, mode }: ProjectFormProps) => {
     project_date: project?.project_date || '',
     include_thumbnail_in_gallery: project?.include_thumbnail_in_gallery ?? true,
     position: project?.position || '',
+    positions: project?.positions || [],
     folder_id: project?.folder_id || null
   });
   
   const [newTag, setNewTag] = useState('');
+  const [newCategory, setNewCategory] = useState('');
+  const [newPosition, setNewPosition] = useState('');
   const [loading, setLoading] = useState(false);
   const [showFilePicker, setShowFilePicker] = useState(false);
   const [filePickerTarget, setFilePickerTarget] = useState<'main' | 'gallery' | 'thumbnail' | 'video'>('main');
@@ -104,6 +109,56 @@ const ProjectForm = ({ project, onClose, onSave, mode }: ProjectFormProps) => {
       ...prev,
       tags: prev.tags.filter(tag => tag !== tagToRemove)
     }));
+  };
+
+  const addCategory = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && newCategory.trim()) {
+      e.preventDefault();
+      if (!formData.categories.includes(newCategory.trim())) {
+        setFormData(prev => ({
+          ...prev,
+          categories: [...prev.categories, newCategory.trim()],
+          category: prev.category || newCategory.trim() // Keep first as primary
+        }));
+      }
+      setNewCategory('');
+    }
+  };
+
+  const removeCategory = (catToRemove: string) => {
+    setFormData(prev => {
+      const newCategories = prev.categories.filter(c => c !== catToRemove);
+      return {
+        ...prev,
+        categories: newCategories,
+        category: newCategories[0] || '' // Update primary category
+      };
+    });
+  };
+
+  const addPosition = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && newPosition.trim()) {
+      e.preventDefault();
+      if (!formData.positions.includes(newPosition.trim())) {
+        setFormData(prev => ({
+          ...prev,
+          positions: [...prev.positions, newPosition.trim()],
+          position: prev.position || newPosition.trim() // Keep first as primary
+        }));
+      }
+      setNewPosition('');
+    }
+  };
+
+  const removePosition = (posToRemove: string) => {
+    setFormData(prev => {
+      const newPositions = prev.positions.filter(p => p !== posToRemove);
+      return {
+        ...prev,
+        positions: newPositions,
+        position: newPositions[0] || ''
+      };
+    });
   };
 
   const handleFileSelect = (file: DriveFile) => {
@@ -224,14 +279,34 @@ const ProjectForm = ({ project, onClose, onSave, mode }: ProjectFormProps) => {
             </div>
             
             <div>
-              <Label htmlFor="category">Category</Label>
-              <Input
-                id="category"
-                value={formData.category}
-                onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
-                placeholder="e.g., Web Development"
-                required
-              />
+              <Label htmlFor="category">Category {mode === 'creative' && '(type & press Enter for multiple)'}</Label>
+              {mode === 'creative' ? (
+                <div className="space-y-2">
+                  <Input
+                    id="category"
+                    value={newCategory}
+                    onChange={(e) => setNewCategory(e.target.value)}
+                    onKeyDown={addCategory}
+                    placeholder="Type category and press Enter"
+                  />
+                  <div className="flex flex-wrap gap-2">
+                    {formData.categories.map((cat) => (
+                      <Badge key={cat} variant="secondary" className="cursor-pointer" onClick={() => removeCategory(cat)}>
+                        {cat}
+                        <X className="w-3 h-3 ml-1" />
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <Input
+                  id="category"
+                  value={formData.category}
+                  onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
+                  placeholder="e.g., Web Development"
+                  required
+                />
+              )}
             </div>
           </div>
 
@@ -268,15 +343,26 @@ const ProjectForm = ({ project, onClose, onSave, mode }: ProjectFormProps) => {
           {/* Position field - Creative Mode Only */}
           {mode === 'creative' && (
             <div>
-              <Label htmlFor="position">Position/Role (Creative Mode)</Label>
-              <Input
-                id="position"
-                value={formData.position}
-                onChange={(e) => setFormData(prev => ({ ...prev, position: e.target.value }))}
-                placeholder="e.g., Chairman, Lead Designer, Assistant"
-              />
+              <Label htmlFor="position">Position/Role (type & press Enter for multiple)</Label>
+              <div className="space-y-2">
+                <Input
+                  id="position"
+                  value={newPosition}
+                  onChange={(e) => setNewPosition(e.target.value)}
+                  onKeyDown={addPosition}
+                  placeholder="e.g., Chairman, Lead Designer"
+                />
+                <div className="flex flex-wrap gap-2">
+                  {formData.positions.map((pos) => (
+                    <Badge key={pos} variant="secondary" className="cursor-pointer" onClick={() => removePosition(pos)}>
+                      {pos}
+                      <X className="w-3 h-3 ml-1" />
+                    </Badge>
+                  ))}
+                </div>
+              </div>
               <p className="text-xs text-muted-foreground mt-1">
-                Your role or position in this creative project
+                Your role(s) or position(s) in this creative project
               </p>
             </div>
           )}
@@ -293,14 +379,23 @@ const ProjectForm = ({ project, onClose, onSave, mode }: ProjectFormProps) => {
 
           <div>
             <Label htmlFor="description">Description</Label>
-            <Textarea
-              id="description"
-              value={formData.description}
-              onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-              placeholder="Describe your project..."
-              rows={3}
-              required
-            />
+            {mode === 'creative' ? (
+              <RichTextEditor
+                id="description"
+                value={formData.description}
+                onChange={(value) => setFormData(prev => ({ ...prev, description: value }))}
+                placeholder="Describe your project... Use formatting for emphasis"
+              />
+            ) : (
+              <Textarea
+                id="description"
+                value={formData.description}
+                onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                placeholder="Describe your project..."
+                rows={3}
+                required
+              />
+            )}
           </div>
 
           {/* Main Thumbnail Image */}

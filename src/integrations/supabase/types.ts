@@ -373,6 +373,7 @@ export type Database = {
       }
       projects: {
         Row: {
+          categories: string[] | null
           category: string
           created_at: string | null
           crop_landscape: Json | null
@@ -393,6 +394,7 @@ export type Database = {
           mode: string
           order_index: number | null
           position: string | null
+          positions: string[] | null
           project_date: string | null
           show_in_recent: boolean | null
           tags: string[] | null
@@ -402,6 +404,7 @@ export type Database = {
           video_url: string | null
         }
         Insert: {
+          categories?: string[] | null
           category: string
           created_at?: string | null
           crop_landscape?: Json | null
@@ -422,6 +425,7 @@ export type Database = {
           mode: string
           order_index?: number | null
           position?: string | null
+          positions?: string[] | null
           project_date?: string | null
           show_in_recent?: boolean | null
           tags?: string[] | null
@@ -431,6 +435,7 @@ export type Database = {
           video_url?: string | null
         }
         Update: {
+          categories?: string[] | null
           category?: string
           created_at?: string | null
           crop_landscape?: Json | null
@@ -451,6 +456,7 @@ export type Database = {
           mode?: string
           order_index?: number | null
           position?: string | null
+          positions?: string[] | null
           project_date?: string | null
           show_in_recent?: boolean | null
           tags?: string[] | null

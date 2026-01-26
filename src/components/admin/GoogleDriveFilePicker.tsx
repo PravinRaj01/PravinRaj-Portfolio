@@ -214,7 +214,7 @@ const GoogleDriveFilePicker = ({
   }
 
   return (
-    <Card className="w-full max-w-4xl mx-auto">
+    <Card className="w-full max-w-4xl mx-auto max-h-[85vh] flex flex-col">
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>
@@ -294,7 +294,7 @@ const GoogleDriveFilePicker = ({
         )}
       </CardHeader>
       
-      <CardContent>
+      <CardContent className="flex-1 overflow-y-auto">
         {filteredFiles.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-muted-foreground">

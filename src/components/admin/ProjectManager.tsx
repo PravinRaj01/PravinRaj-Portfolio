@@ -112,7 +112,12 @@ const ProjectManager = () => {
 
       {/* Add Project Dialog */}
       <Dialog open={showForm} onOpenChange={setShowForm}>
-        <DialogContent className="max-w-4xl h-[90vh] p-0" hideCloseButton>
+        <DialogContent 
+          className="max-w-4xl h-[90vh] p-0" 
+          hideCloseButton
+          onInteractOutside={(e) => e.preventDefault()}
+          onEscapeKeyDown={(e) => e.preventDefault()}
+        >
           <ProjectForm
             onClose={() => setShowForm(false)}
             onSave={() => {
@@ -126,7 +131,12 @@ const ProjectManager = () => {
 
       {/* Edit Project Dialog */}
       <Dialog open={!!editingProject} onOpenChange={(open) => !open && setEditingProject(null)}>
-        <DialogContent className="max-w-4xl h-[90vh] p-0" hideCloseButton>
+        <DialogContent 
+          className="max-w-4xl h-[90vh] p-0" 
+          hideCloseButton
+          onInteractOutside={(e) => e.preventDefault()}
+          onEscapeKeyDown={(e) => e.preventDefault()}
+        >
           <ProjectForm
             project={projects.find(p => p.id === editingProject)}
             onClose={() => setEditingProject(null)}

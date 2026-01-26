@@ -11,6 +11,7 @@ import ProjectImageGallery from '@/components/ProjectImageGallery';
 import { usePortfolio } from '@/contexts/PortfolioContext';
 import { useExperience } from '@/hooks/useExperience';
 import { Experience } from '@/types/cms';
+import ReactMarkdown from 'react-markdown';
 
 const ExperienceDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -184,7 +185,26 @@ const ExperienceDetail = () => {
             className="mb-8"
           >
             <h2 className="text-lg font-semibold mb-3">About</h2>
-            <p className="text-muted-foreground leading-relaxed">{experience.description}</p>
+            {mode === 'creative' ? (
+              <div className="text-muted-foreground leading-relaxed prose-headings:text-foreground prose-strong:text-foreground">
+                <ReactMarkdown
+                  components={{
+                    p: ({ children }) => <p className="mb-3 last:mb-0">{children}</p>,
+                    strong: ({ children }) => <strong className="font-semibold text-foreground">{children}</strong>,
+                    em: ({ children }) => <em className="italic">{children}</em>,
+                    u: ({ children }) => <u className="underline">{children}</u>,
+                    h2: ({ children }) => <h3 className="text-lg font-semibold text-foreground mt-4 mb-2">{children}</h3>,
+                    ul: ({ children }) => <ul className="list-disc ml-4 space-y-1 my-2">{children}</ul>,
+                    ol: ({ children }) => <ol className="list-decimal ml-4 space-y-1 my-2">{children}</ol>,
+                    li: ({ children }) => <li>{children}</li>,
+                  }}
+                >
+                  {experience.description}
+                </ReactMarkdown>
+              </div>
+            ) : (
+              <p className="text-muted-foreground leading-relaxed">{experience.description}</p>
+            )}
           </motion.div>
 
           {/* Achievements/Highlights */}

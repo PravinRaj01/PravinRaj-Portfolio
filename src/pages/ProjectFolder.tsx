@@ -281,7 +281,7 @@ const ProjectFolderPage = () => {
                     className="cursor-pointer hover:shadow-lg transition-all overflow-hidden group"
                     onClick={() => navigate(`/projects/${project.id}`, { state: { fromFolder: folderId } })}
                   >
-                    <div className="relative h-48 overflow-hidden">
+                    <div className="relative aspect-video overflow-hidden">
                       {project.image_drive_id ? (
                         <img 
                           src={project.image_drive_id.startsWith('http') 
@@ -354,7 +354,7 @@ const ProjectFolderPage = () => {
                       onClick={() => navigate(`/projects/${project.id}`, { state: { fromFolder: folderId } })}
                     >
                       <div className="flex flex-col md:flex-row">
-                        <div className="relative w-full md:w-1/3 h-48 md:h-auto overflow-hidden">
+                        <div className="relative w-full md:w-1/3 aspect-video md:aspect-auto overflow-hidden">
                           {project.image_drive_id ? (
                             <img 
                               src={project.image_drive_id.startsWith('http') 

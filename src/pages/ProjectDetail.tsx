@@ -13,6 +13,7 @@ import { useProjects } from '@/hooks/useProjects';
 import { useProjectFolders } from '@/hooks/useProjectFolders';
 import { generateDriveImageUrl } from '@/utils/googleDrive';
 import { Project } from '@/types/cms';
+import ReactMarkdown from 'react-markdown';
 
 const ProjectDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -94,25 +95,25 @@ const ProjectDetail = () => {
           >
             {/* Breadcrumb for folder context */}
             {project?.folder_id && folders.find(f => f.id === project.folder_id) && (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+              <div className="flex items-center gap-1 sm:gap-2 text-sm text-muted-foreground mb-2 flex-wrap">
                 <span 
-                  className="hover:text-foreground cursor-pointer"
+                  className="hover:text-foreground cursor-pointer flex-shrink-0"
                   onClick={() => navigate('/projects')}
                 >
                   Projects
                 </span>
-                <ChevronRight className="w-4 h-4" />
+                <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
                 <span 
-                  className={`hover:text-foreground cursor-pointer flex items-center gap-1 ${
+                  className={`hover:text-foreground cursor-pointer flex items-center gap-1 flex-shrink-0 ${
                     mode === 'creative' ? 'text-orange-400' : 'text-purple-400'
                   }`}
                   onClick={() => navigate(`/projects/folder/${project.folder_id}`)}
                 >
                   <Folder className="w-3 h-3" />
-                  {folders.find(f => f.id === project.folder_id)?.name}
+                  <span className="max-w-[80px] sm:max-w-[150px] truncate">{folders.find(f => f.id === project.folder_id)?.name}</span>
                 </span>
-                <ChevronRight className="w-4 h-4" />
-                <span className="text-foreground truncate max-w-[200px]">{project.title}</span>
+                <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                <span className="text-foreground truncate max-w-[100px] sm:max-w-[200px]">{project.title}</span>
               </div>
             )}
             
@@ -211,26 +212,32 @@ const ProjectDetail = () => {
 
             {/* Project Title & Meta */}
             <div className="mb-8">
-              {/* Position Badge for Creative Mode */}
-              {mode === 'creative' && project.position && (
-                <Badge className="mb-3 bg-orange-500/20 text-orange-400 border-orange-500/30">
-                  <User className="w-3 h-3 mr-1" />
-                  {project.position}
-                </Badge>
+              {/* Position Badges for Creative Mode */}
+              {mode === 'creative' && (project.positions?.length ? project.positions : project.position ? [project.position] : []).length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {(project.positions?.length ? project.positions : project.position ? [project.position] : []).map((pos, idx) => (
+                    <Badge key={idx} className="bg-orange-500/20 text-orange-400 border-orange-500/30 max-w-[200px] truncate">
+                      <User className="w-3 h-3 mr-1 flex-shrink-0" />
+                      <span className="truncate">{pos}</span>
+                    </Badge>
+                  ))}
+                </div>
               )}
               
               <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4 text-foreground">
                 {project.title}
               </h1>
               
-              <div className="flex flex-wrap items-center gap-3 text-muted-foreground mb-6">
-                <span className="flex items-center">
-                  <Tag className="w-4 h-4 mr-1.5" />
-                  {project.category}
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-muted-foreground mb-6">
+                <span className="flex items-center text-sm sm:text-base">
+                  <Tag className="w-4 h-4 mr-1.5 flex-shrink-0" />
+                  <span className="truncate max-w-[150px] sm:max-w-none">
+                    {(project.categories?.length ? project.categories : [project.category]).join(' / ')}
+                  </span>
                 </span>
                 {project.project_date && (
-                  <span className="flex items-center">
-                    <Calendar className="w-4 h-4 mr-1.5" />
+                  <span className="flex items-center text-sm sm:text-base">
+                    <Calendar className="w-4 h-4 mr-1.5 flex-shrink-0" />
                     {project.project_date}
                   </span>
                 )}
@@ -281,48 +288,69 @@ const ProjectDetail = () => {
             {/* Project Description */}
             <div className="prose prose-lg dark:prose-invert max-w-none mb-12">
               <h2 className="text-xl font-semibold mb-4">About This Project</h2>
-              <p className="text-muted-foreground leading-relaxed whitespace-pre-wrap">
-                {project.description}
-              </p>
+              {mode === 'creative' ? (
+                <div className="text-muted-foreground leading-relaxed prose-headings:text-foreground prose-strong:text-foreground prose-ul:text-muted-foreground prose-ol:text-muted-foreground">
+                  <ReactMarkdown
+                    components={{
+                      p: ({ children }) => <p className="mb-3 last:mb-0">{children}</p>,
+                      strong: ({ children }) => <strong className="font-semibold text-foreground">{children}</strong>,
+                      em: ({ children }) => <em className="italic">{children}</em>,
+                      u: ({ children }) => <u className="underline">{children}</u>,
+                      h2: ({ children }) => <h3 className="text-lg font-semibold text-foreground mt-4 mb-2">{children}</h3>,
+                      ul: ({ children }) => <ul className="list-disc ml-4 space-y-1 my-2">{children}</ul>,
+                      ol: ({ children }) => <ol className="list-decimal ml-4 space-y-1 my-2">{children}</ol>,
+                      li: ({ children }) => <li>{children}</li>,
+                    }}
+                  >
+                    {project.description}
+                  </ReactMarkdown>
+                </div>
+              ) : (
+                <p className="text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                  {project.description}
+                </p>
+              )}
             </div>
 
             {/* Navigation to Adjacent Projects */}
             <div className="border-t border-border pt-8">
-              <div className="flex justify-between items-center">
+              <div className="flex flex-row justify-between items-center gap-2">
                 {adjacentProjects.prev ? (
                   <Button 
                     variant="ghost" 
                     onClick={() => navigate(`/projects/${adjacentProjects.prev!.id}`)}
-                    className="flex items-center gap-2 hover:bg-muted"
+                    className="flex items-center gap-1 sm:gap-2 hover:bg-muted min-w-0 flex-1 justify-start px-2 sm:px-4"
                   >
-                    <ChevronLeft className="w-4 h-4" />
-                    <div className="text-left">
+                    <ChevronLeft className="w-4 h-4 flex-shrink-0" />
+                    <div className="text-left min-w-0 hidden sm:block">
                       <div className="text-xs text-muted-foreground">Previous</div>
-                      <div className="text-sm font-medium truncate max-w-[150px] sm:max-w-[200px]">
+                      <div className="text-sm font-medium truncate max-w-[100px] sm:max-w-[150px]">
                         {adjacentProjects.prev.title}
                       </div>
                     </div>
+                    <span className="sm:hidden text-xs">Prev</span>
                   </Button>
                 ) : (
-                  <div />
+                  <div className="flex-1" />
                 )}
                 
                 {adjacentProjects.next ? (
                   <Button 
                     variant="ghost" 
                     onClick={() => navigate(`/projects/${adjacentProjects.next!.id}`)}
-                    className="flex items-center gap-2 hover:bg-muted"
+                    className="flex items-center gap-1 sm:gap-2 hover:bg-muted min-w-0 flex-1 justify-end px-2 sm:px-4"
                   >
-                    <div className="text-right">
+                    <span className="sm:hidden text-xs">Next</span>
+                    <div className="text-right min-w-0 hidden sm:block">
                       <div className="text-xs text-muted-foreground">Next</div>
-                      <div className="text-sm font-medium truncate max-w-[150px] sm:max-w-[200px]">
+                      <div className="text-sm font-medium truncate max-w-[100px] sm:max-w-[150px]">
                         {adjacentProjects.next.title}
                       </div>
                     </div>
-                    <ChevronRight className="w-4 h-4" />
+                    <ChevronRight className="w-4 h-4 flex-shrink-0" />
                   </Button>
                 ) : (
-                  <div />
+                  <div className="flex-1" />
                 )}
               </div>
             </div>

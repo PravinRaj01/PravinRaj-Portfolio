@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, PanInfo } from 'framer-motion';
 import { ChevronLeft, ChevronRight, X, Maximize2, Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
@@ -117,40 +117,48 @@ const ProjectImageGallery = ({
     <>
       {/* Main Gallery */}
       <div 
-        className="relative w-full h-64 sm:h-80 md:h-96 rounded-xl overflow-hidden group"
+        className="relative w-full aspect-square sm:aspect-video rounded-xl overflow-hidden group bg-black"
         onKeyDown={handleKeyDown}
         tabIndex={0}
         role="region"
         aria-label="Project image gallery"
       >
         {/* Current Image/Video */}
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={currentIndex}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
-            className="absolute inset-0"
-          >
-            {showVideo && isVideoSlide ? (
-              <iframe
-                src={getVideoEmbedUrl(currentContent.url)}
-                className="w-full h-full"
-                allow="autoplay; fullscreen; picture-in-picture"
-                allowFullScreen
-                title={`${title} video`}
-              />
-            ) : (
+        <div className="absolute inset-0">
+          {showVideo && isVideoSlide ? (
+            <iframe
+              src={getVideoEmbedUrl(currentContent.url)}
+              className="w-full h-full"
+              allow="autoplay; fullscreen; picture-in-picture"
+              allowFullScreen
+              title={`${title} video`}
+            />
+          ) : (
+            <motion.div
+              key={currentIndex}
+              drag={hasMultipleSlides ? "x" : false}
+              dragConstraints={{ left: 0, right: 0 }}
+              dragElastic={0.1}
+              onDragEnd={(event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+                const threshold = 50;
+                if (info.offset.x > threshold) {
+                  goToPrev();
+                } else if (info.offset.x < -threshold) {
+                  goToNext();
+                }
+              }}
+              className="w-full h-full cursor-pointer"
+              onClick={handleImageClick}
+            >
               <img
                 src={isVideoSlide ? (currentContent.thumbnail || '/placeholder.svg') : currentContent.url}
                 alt={`${title} - ${isVideoSlide ? 'Video' : 'Image'} ${currentIndex + 1}`}
-                className="w-full h-full object-cover cursor-pointer"
-                onClick={handleImageClick}
+                className="w-full h-full object-contain"
+                draggable={false}
               />
-            )}
-          </motion.div>
-        </AnimatePresence>
+            </motion.div>
+          )}
+        </div>
 
         {/* Video Play Overlay */}
         {isVideoSlide && !showVideo && (
@@ -275,18 +283,11 @@ const ProjectImageGallery = ({
             </Button>
 
             {/* Image */}
-            <AnimatePresence mode="wait">
-              <motion.img
-                key={currentIndex}
-                src={isVideoSlide ? (currentContent.thumbnail || '/placeholder.svg') : currentContent.url}
-                alt={`${title} - ${isVideoSlide ? 'Video' : 'Image'} ${currentIndex + 1}`}
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                transition={{ duration: 0.2 }}
-                className="max-w-[90vw] max-h-[85vh] object-contain"
-              />
-            </AnimatePresence>
+            <img
+              src={isVideoSlide ? (currentContent.thumbnail || '/placeholder.svg') : currentContent.url}
+              alt={`${title} - ${isVideoSlide ? 'Video' : 'Image'} ${currentIndex + 1}`}
+              className="max-w-[90vw] max-h-[85vh] object-contain"
+            />
 
             {/* Navigation */}
             {hasMultipleSlides && (
