@@ -190,9 +190,11 @@ const ExperienceForm = ({ onSubmit, onCancel, initialData, loading, mode }: Expe
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (over && active.id !== over.id) {
-      const oldIndex = eventImages.findIndex((_, i) => `image-${i}` === active.id);
-      const newIndex = eventImages.findIndex((_, i) => `image-${i}` === over.id);
-      setEventImages(arrayMove(eventImages, oldIndex, newIndex));
+      const oldIndex = eventImages.findIndex((url) => url === active.id);
+      const newIndex = eventImages.findIndex((url) => url === over.id);
+      if (oldIndex !== -1 && newIndex !== -1) {
+        setEventImages(arrayMove(eventImages, oldIndex, newIndex));
+      }
     }
   };
 
@@ -510,14 +512,14 @@ const ExperienceForm = ({ onSubmit, onCancel, initialData, loading, mode }: Expe
                     onDragEnd={handleDragEnd}
                   >
                     <SortableContext
-                      items={eventImages.map((_, i) => `image-${i}`)}
+                      items={eventImages}
                       strategy={rectSortingStrategy}
                     >
                       <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
                         {eventImages.map((url, index) => (
                           <SortableImage
-                            key={`image-${index}`}
-                            id={`image-${index}`}
+                            key={url}
+                            id={url}
                             url={url}
                             index={index}
                             onRemove={removeEventImage}
