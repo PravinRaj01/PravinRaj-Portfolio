@@ -23,9 +23,14 @@ const ProjectManager = () => {
 
   // Get unique categories
   const categories = useMemo(() => {
-    const cats = new Set(projects.map(p => p.category));
+    const cats = new Set(
+      projects
+        .map(p => p.category)
+        .filter(cat => cat && cat.trim() !== '') // Filter out empty categories
+    );
     return ['all', ...Array.from(cats)];
   }, [projects]);
+
 
   // Filter projects
   const filteredProjects = useMemo(() => {
@@ -96,11 +101,14 @@ const ProjectManager = () => {
               <SelectValue placeholder="Category" />
             </SelectTrigger>
             <SelectContent>
-              {categories.map((category) => (
-                <SelectItem key={category} value={category} className="capitalize">
-                  {category}
-                </SelectItem>
-              ))}
+              {categories
+                .filter(category => category && category.trim() !== '') // Extra safety check
+                .map((category) => (
+                  <SelectItem key={category} value={category} className="capitalize">
+                    {category}
+                  </SelectItem>
+                ))
+              }
             </SelectContent>
           </Select>
         )}
