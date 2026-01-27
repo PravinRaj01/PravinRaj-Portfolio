@@ -8,13 +8,15 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { X, Image, Folder } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { X, Image, Folder, Plus, Link as LinkIcon, Trash2, Eye, EyeOff } from 'lucide-react';
 import { useProjects } from '@/hooks/useProjects';
 import { useProjectFolders } from '@/hooks/useProjectFolders';
-import { Project } from '@/types/cms';
+import { Project, ProjectLink } from '@/types/cms';
 import GoogleDriveFilePicker from './GoogleDriveFilePicker';
 import ImageCropPreview from './ImageCropPreview';
 import ProjectMediaManager from './ProjectMediaManager';
+import ProjectImageFolderManager from './ProjectImageFolderManager';
 import { DriveFile } from '@/services/googleDriveService';
 import { generateDriveImageUrl } from '@/utils/googleDrive';
 import { SingleDatePicker } from '@/components/ui/date-range-picker';
@@ -38,6 +40,7 @@ const ProjectForm = ({ project, onClose, onSave, mode }: ProjectFormProps) => {
     tags: project?.tags || [],
     featured: project?.featured || false,
     show_in_recent: project?.show_in_recent ?? true,
+    is_active: project?.is_active ?? true,
     image_drive_id: project?.image_drive_id || '',
     image_scroll_enabled: project?.image_scroll_enabled || false,
     crop_landscape: project?.crop_landscape || { x: 50, y: 50, zoom: 100 },
@@ -49,6 +52,7 @@ const ProjectForm = ({ project, onClose, onSave, mode }: ProjectFormProps) => {
     video_thumbnail_drive_id: project?.video_thumbnail_drive_id || '',
     github_url: project?.github_url || '',
     live_url: project?.live_url || '',
+    project_links: project?.project_links || [] as ProjectLink[],
     order_index: project?.order_index || 0,
     project_date: project?.project_date || '',
     include_thumbnail_in_gallery: project?.include_thumbnail_in_gallery ?? true,
@@ -56,6 +60,10 @@ const ProjectForm = ({ project, onClose, onSave, mode }: ProjectFormProps) => {
     positions: project?.positions || [],
     folder_id: project?.folder_id || null
   });
+  
+  const [newLinkLabel, setNewLinkLabel] = useState('');
+  const [newLinkUrl, setNewLinkUrl] = useState('');
+  const [newLinkShowOnCard, setNewLinkShowOnCard] = useState(false);
   
   const [newTag, setNewTag] = useState('');
   const [newCategory, setNewCategory] = useState('');
@@ -494,6 +502,11 @@ const ProjectForm = ({ project, onClose, onSave, mode }: ProjectFormProps) => {
             onOpenMultiFilePicker={() => openFilePicker('gallery', true)}
           />
 
+          {/* Image Subfolders - Only show when editing existing project */}
+          {project && (
+            <ProjectImageFolderManager projectId={project.id} />
+          )}
+
           {/* Links */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -555,6 +568,109 @@ const ProjectForm = ({ project, onClose, onSave, mode }: ProjectFormProps) => {
               onCheckedChange={(checked) => setFormData(prev => ({ ...prev, show_in_recent: checked }))}
             />
             <Label htmlFor="show_in_recent">Show in Home Page "Recent Work"</Label>
+          </div>
+
+          {/* Active/Inactive Toggle */}
+          <div className="flex items-center space-x-2 p-3 rounded-lg border border-border bg-muted/30">
+            <Switch
+              id="is_active"
+              checked={formData.is_active}
+              onCheckedChange={(checked) => setFormData(prev => ({ ...prev, is_active: checked }))}
+            />
+            <Label htmlFor="is_active" className="flex items-center gap-2">
+              {formData.is_active ? (
+                <>
+                  <Eye className="w-4 h-4 text-green-500" />
+                  <span>Project is Active (visible to public)</span>
+                </>
+              ) : (
+                <>
+                  <EyeOff className="w-4 h-4 text-muted-foreground" />
+                  <span>Project is Inactive (hidden from public)</span>
+                </>
+              )}
+            </Label>
+          </div>
+
+          {/* Project Links Section */}
+          <div className="space-y-3 border border-border rounded-lg p-4">
+            <Label className="text-base font-semibold flex items-center gap-2">
+              <LinkIcon className="w-4 h-4" />
+              Project Links
+            </Label>
+            <p className="text-xs text-muted-foreground">
+              Add custom links with custom button text. Check "Show on card" for the link to appear on project cards.
+            </p>
+            
+            {/* Existing links */}
+            {formData.project_links.map((link, index) => (
+              <div key={index} className="flex items-center gap-2 p-2 bg-muted/50 rounded">
+                <Badge variant={link.show_on_card ? "default" : "secondary"} className="text-xs">
+                  {link.show_on_card ? "Card" : "Detail"}
+                </Badge>
+                <span className="font-medium text-sm">{link.label}</span>
+                <span className="text-xs text-muted-foreground truncate flex-1">{link.url}</span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setFormData(prev => ({
+                      ...prev,
+                      project_links: prev.project_links.filter((_, i) => i !== index)
+                    }));
+                  }}
+                >
+                  <Trash2 className="w-3 h-3 text-destructive" />
+                </Button>
+              </div>
+            ))}
+            
+            {/* Add new link */}
+            <div className="flex flex-col gap-2 pt-2 border-t">
+              <div className="grid grid-cols-2 gap-2">
+                <Input
+                  placeholder="Button label (e.g., View Demo)"
+                  value={newLinkLabel}
+                  onChange={(e) => setNewLinkLabel(e.target.value)}
+                />
+                <Input
+                  placeholder="URL"
+                  value={newLinkUrl}
+                  onChange={(e) => setNewLinkUrl(e.target.value)}
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="show_on_card"
+                    checked={newLinkShowOnCard}
+                    onCheckedChange={(checked) => setNewLinkShowOnCard(!!checked)}
+                  />
+                  <Label htmlFor="show_on_card" className="text-sm">Show on project card</Label>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    if (newLinkLabel && newLinkUrl) {
+                      setFormData(prev => ({
+                        ...prev,
+                        project_links: [...prev.project_links, { label: newLinkLabel, url: newLinkUrl, show_on_card: newLinkShowOnCard }]
+                      }));
+                      setNewLinkLabel('');
+                      setNewLinkUrl('');
+                      setNewLinkShowOnCard(false);
+                    }
+                  }}
+                  disabled={!newLinkLabel || !newLinkUrl}
+                >
+                  <Plus className="w-3 h-3 mr-1" />
+                  Add Link
+                </Button>
+              </div>
+            </div>
           </div>
 
         </form>

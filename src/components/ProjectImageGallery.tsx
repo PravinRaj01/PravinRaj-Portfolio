@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { motion, PanInfo } from 'framer-motion';
 import { ChevronLeft, ChevronRight, X, Maximize2, Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -26,6 +26,24 @@ const ProjectImageGallery = ({
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showVideo, setShowVideo] = useState(false);
+
+  // Handle browser back button when fullscreen is open
+  useEffect(() => {
+    if (isFullscreen) {
+      // Push a state when entering fullscreen
+      window.history.pushState({ fullscreenGallery: true }, '');
+      
+      const handlePopState = (e: PopStateEvent) => {
+        // Close fullscreen instead of navigating away
+        setIsFullscreen(false);
+      };
+      
+      window.addEventListener('popstate', handlePopState);
+      return () => {
+        window.removeEventListener('popstate', handlePopState);
+      };
+    }
+  }, [isFullscreen]);
 
   // Calculate video index and total slides
   const videoIndex = videoUrl ? (videoPosition !== undefined ? videoPosition : images.length) : -1;
@@ -147,13 +165,24 @@ const ProjectImageGallery = ({
                   goToNext();
                 }
               }}
-              className="w-full h-full cursor-pointer"
+              className="w-full h-full cursor-pointer relative"
               onClick={handleImageClick}
             >
+              {/* Blurred background layer */}
+              <div className="absolute inset-0 overflow-hidden">
+                <img
+                  src={isVideoSlide ? (currentContent.thumbnail || '/placeholder.svg') : currentContent.url}
+                  alt=""
+                  className="w-full h-full object-cover scale-125 blur-xl opacity-60"
+                  aria-hidden="true"
+                  draggable={false}
+                />
+              </div>
+              {/* Main image on top */}
               <img
                 src={isVideoSlide ? (currentContent.thumbnail || '/placeholder.svg') : currentContent.url}
                 alt={`${title} - ${isVideoSlide ? 'Video' : 'Image'} ${currentIndex + 1}`}
-                className="w-full h-full object-contain"
+                className="relative w-full h-full object-contain z-10"
                 draggable={false}
               />
             </motion.div>
@@ -183,7 +212,7 @@ const ProjectImageGallery = ({
               variant="ghost"
               size="icon"
               onClick={(e) => { e.stopPropagation(); goToPrev(); }}
-              className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+              className="absolute left-2 top-1/2 -translate-y-1/2 z-20 bg-black/50 hover:bg-black/70 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
               aria-label="Previous image"
             >
               <ChevronLeft className="w-5 h-5" />
@@ -192,7 +221,7 @@ const ProjectImageGallery = ({
               variant="ghost"
               size="icon"
               onClick={(e) => { e.stopPropagation(); goToNext(); }}
-              className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+              className="absolute right-2 top-1/2 -translate-y-1/2 z-20 bg-black/50 hover:bg-black/70 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
               aria-label="Next image"
             >
               <ChevronRight className="w-5 h-5" />
@@ -206,7 +235,7 @@ const ProjectImageGallery = ({
             variant="ghost"
             size="icon"
             onClick={handleImageClick}
-            className="absolute top-2 right-2 bg-black/50 hover:bg-black/70 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+            className="absolute top-2 right-2 z-20 bg-black/50 hover:bg-black/70 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
             aria-label="View fullscreen"
           >
             <Maximize2 className="w-4 h-4" />
@@ -215,7 +244,7 @@ const ProjectImageGallery = ({
 
         {/* Image Counter */}
         {hasMultipleSlides && (
-          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/60 text-white text-xs px-3 py-1 rounded-full">
+          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-20 bg-black/60 text-white text-xs px-3 py-1 rounded-full">
             {currentIndex + 1} / {totalSlides}
             {isVideoSlide && ' (Video)'}
           </div>
@@ -223,7 +252,7 @@ const ProjectImageGallery = ({
 
         {/* Thumbnail Strip */}
         {hasMultipleSlides && (
-          <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex gap-1.5 bg-black/40 p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-20 flex gap-1.5 bg-black/40 p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
             {Array.from({ length: Math.min(5, totalSlides) }).map((_, idx) => {
               const slideContent = getContentForIndex(idx);
               const isVideo = slideContent.type === 'video';
@@ -271,22 +300,32 @@ const ProjectImageGallery = ({
           </VisuallyHidden>
           
           <div className="relative w-full h-full flex items-center justify-center">
-            {/* Close Button */}
+            {/* Close Button - always visible and larger for mobile */}
             <Button
               variant="ghost"
               size="icon"
               onClick={() => setIsFullscreen(false)}
-              className="absolute top-2 right-2 z-10 bg-black/50 hover:bg-black/70 text-white rounded-full"
+              className="absolute top-4 right-4 z-50 bg-black/70 hover:bg-black/90 text-white rounded-full w-12 h-12 sm:w-10 sm:h-10"
               aria-label="Close fullscreen"
             >
-              <X className="w-5 h-5" />
+              <X className="w-6 h-6 sm:w-5 sm:h-5" />
             </Button>
 
+            {/* Blurred background for fullscreen */}
+            <div className="absolute inset-0 overflow-hidden">
+              <img
+                src={isVideoSlide ? (currentContent.thumbnail || '/placeholder.svg') : currentContent.url}
+                alt=""
+                className="w-full h-full object-cover scale-125 blur-2xl opacity-50"
+                aria-hidden="true"
+              />
+            </div>
+            
             {/* Image */}
             <img
               src={isVideoSlide ? (currentContent.thumbnail || '/placeholder.svg') : currentContent.url}
               alt={`${title} - ${isVideoSlide ? 'Video' : 'Image'} ${currentIndex + 1}`}
-              className="max-w-[90vw] max-h-[85vh] object-contain"
+              className="relative z-10 max-w-[90vw] max-h-[85vh] object-contain"
             />
 
             {/* Navigation */}

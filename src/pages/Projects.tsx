@@ -1,12 +1,15 @@
 import React, { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { Filter, ExternalLink, Github, Calendar, Tag, ArrowUpDown, Star, Folder, Search } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Filter, ExternalLink, Github, Calendar, Tag, ArrowUpDown, Star, Folder, Search, ZoomIn, ZoomOut, User, ChevronDown, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Slider } from '@/components/ui/slider';
+import { Separator } from '@/components/ui/separator';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import Navigation from '@/components/Navigation';
 import CursorFollower from '@/components/CursorFollower';
 import RadialGradient from '@/components/RadialGradient';
@@ -17,6 +20,9 @@ import { useProjectFolders } from '@/hooks/useProjectFolders';
 import { useSiteSettings } from '@/hooks/useSiteSettings';
 import { generateDriveImageUrl } from '@/utils/googleDrive';
 import { parse } from 'date-fns';
+import ReactMarkdown from 'react-markdown';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { cn } from '@/lib/utils';
 
 const Projects = () => {
   const navigate = useNavigate();
@@ -29,7 +35,20 @@ const Projects = () => {
   const [viewMode, setViewMode] = useState<'timeline' | 'cards'>('cards');
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [showFolderPicker, setShowFolderPicker] = useState(false);
   const timelineRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const isMobile = useIsMobile();
+  
+  // Zoom state - load from localStorage
+  const [cardZoom, setCardZoom] = useState(() => {
+    const saved = localStorage.getItem('projects-card-zoom');
+    return saved ? parseInt(saved, 10) : 100;
+  });
+
+  // Save zoom to localStorage when it changes
+  useEffect(() => {
+    localStorage.setItem('projects-card-zoom', String(cardZoom));
+  }, [cardZoom]);
 
   // Set default view from settings
   useEffect(() => {
@@ -39,7 +58,14 @@ const Projects = () => {
   }, [siteSettings?.projects_default_view]);
 
   // Get unique categories from projects
-  const categories = ['all', ...new Set(projects.map(project => project.category))];
+  // Get unique categories from projects - include both category and categories array
+  const categories = ['all', ...new Set(
+    projects.flatMap(project => 
+      project.categories?.length 
+        ? project.categories 
+        : [project.category]
+    ).filter(Boolean)
+  )];
 
   // Separate projects: standalone (no folder) vs in folders
   const standaloneProjects = projects.filter(p => !p.folder_id);
@@ -58,9 +84,14 @@ const Projects = () => {
       );
     }
     
-    // Apply category filter
+    // Apply category filter - check both category and categories array
     if (selectedFilter !== 'all') {
-      filtered = filtered.filter(project => project.category === selectedFilter);
+      filtered = filtered.filter(project => {
+        const projectCategories = project.categories?.length 
+          ? project.categories 
+          : [project.category];
+        return projectCategories.includes(selectedFilter);
+      });
     }
     
     return filtered;
@@ -260,6 +291,48 @@ const Projects = () => {
                   className="w-[120px] sm:w-[160px] h-8 sm:h-9 text-xs sm:text-sm pl-8"
                 />
               </div>
+
+              {/* Zoom Controls */}
+              {viewMode === 'cards' && (
+                <div className="flex items-center gap-2">
+                  {isMobile ? (
+                    <>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => setCardZoom(prev => Math.max(60, prev - 10))}
+                        disabled={cardZoom <= 60}
+                      >
+                        <ZoomOut className="w-3.5 h-3.5" />
+                      </Button>
+                      <span className="text-xs text-muted-foreground w-8 text-center">{cardZoom}%</span>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => setCardZoom(prev => Math.min(120, prev + 10))}
+                        disabled={cardZoom >= 120}
+                      >
+                        <ZoomIn className="w-3.5 h-3.5" />
+                      </Button>
+                    </>
+                  ) : (
+                    <div className="flex items-center gap-2 bg-muted/50 rounded-lg px-2 py-1">
+                      <ZoomOut className="w-3.5 h-3.5 text-muted-foreground" />
+                      <Slider
+                        value={[cardZoom]}
+                        onValueChange={(values) => setCardZoom(values[0])}
+                        min={60}
+                        max={120}
+                        step={5}
+                        className="w-24"
+                      />
+                      <ZoomIn className="w-3.5 h-3.5 text-muted-foreground" />
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </motion.div>
 
@@ -432,24 +505,148 @@ const Projects = () => {
 
               {/* Cards View - Shows folders + standalone projects */}
               {viewMode === 'cards' && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
-                  {/* Render Folder Cards First */}
-                  {foldersWithProjects.map((folder, index) => (
-                    <motion.div
-                      key={`folder-${folder.id}`}
-                      initial={{ opacity: 0, y: 30 }}
-                      whileInView={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.6, delay: index * 0.1 }}
-                      viewport={{ once: true }}
-                    >
-                      <FolderCard 
-                        folder={folder}
-                        mode={mode}
-                        onClick={() => navigate(`/projects/folder/${folder.id}`)}
-                      />
-                    </motion.div>
-                  ))}
+                <div className="pb-12">
+                  {/* Folders Button/Dialog - Only show if there are folders */}
+                  {foldersWithProjects.length > 0 && (
+                    <div className="mb-6 flex flex-col sm:flex-row sm:items-center gap-2">
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          onClick={() => setShowFolderPicker(true)}
+                          className={cn(
+                            "gap-2 w-full sm:w-auto",
+                            mode === 'creative' 
+                              ? 'border-orange-500/50 hover:border-orange-500 hover:bg-orange-500/10' 
+                              : 'border-purple-500/50 hover:border-purple-500 hover:bg-purple-500/10'
+                          )}
+                        >
+                          <Folder className={cn(
+                            "w-4 h-4",
+                            mode === 'creative' ? 'text-orange-400' : 'text-purple-400'
+                          )} />
+                          <span>Browse Folders</span>
+                          <Badge 
+                            variant="secondary" 
+                            className={cn(
+                              "ml-1 text-xs",
+                              mode === 'creative' ? 'bg-orange-500/20 text-orange-400' : 'bg-purple-500/20 text-purple-400'
+                            )}
+                          >
+                            {foldersWithProjects.length}
+                          </Badge>
+                        </Button>
+                        
+                        {/* Desktop/Tablet indicator */}
+                        {!isMobile && (
+                          <span className="hidden sm:flex items-center text-sm text-muted-foreground">
+                            <span className="mx-2">|</span>
+                            Showing unfoldered projects
+                          </span>
+                        )}
+                      </div>
+                      
+                      {/* Mobile indicator */}
+                      {isMobile && (
+                        <span className="text-xs text-muted-foreground">
+                          No folder selected
+                        </span>
+                      )}
+                      
+                      <Dialog open={showFolderPicker} onOpenChange={setShowFolderPicker}>
+                        <DialogContent className="w-[90vw] max-w-[500px] max-h-[80vh] overflow-y-auto">
+                          <DialogHeader>
+                            <DialogTitle>Project Folders</DialogTitle>
+                          </DialogHeader>
+                          
+                          {isMobile ? (
+                            /* Mobile: List view */
+                            <div className="flex flex-col gap-2">
+                              {foldersWithProjects.map((folder) => (
+                                <button
+                                  key={folder.id}
+                                  onClick={() => {
+                                    navigate(`/projects/folder/${folder.id}`);
+                                    setShowFolderPicker(false);
+                                  }}
+                                  className={cn(
+                                    "flex items-center justify-between p-3 rounded-lg border transition-colors",
+                                    mode === 'creative' 
+                                      ? 'border-orange-500/30 hover:border-orange-500/60 hover:bg-orange-500/10' 
+                                      : 'border-purple-500/30 hover:border-purple-500/60 hover:bg-purple-500/10'
+                                  )}
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <Folder className={cn(
+                                      "w-4 h-4",
+                                      mode === 'creative' ? 'text-orange-400' : 'text-purple-400'
+                                    )} />
+                                    <span className="text-sm">{folder.name}</span>
+                                  </div>
+                                  <Badge variant="secondary" className="text-xs">
+                                    {folder.project_count}
+                                  </Badge>
+                                </button>
+                              ))}
+                            </div>
+                          ) : (
+                            /* Desktop: Grid view */
+                            <div className="grid grid-cols-2 gap-2">
+                              {foldersWithProjects.map((folder) => (
+                                <button
+                                  key={folder.id}
+                                  onClick={() => {
+                                    navigate(`/projects/folder/${folder.id}`);
+                                    setShowFolderPicker(false);
+                                  }}
+                                  className={cn(
+                                    "group relative aspect-video rounded-lg overflow-hidden border-2 transition-all hover:scale-[1.02]",
+                                    mode === 'creative' 
+                                      ? 'border-orange-500/30 hover:border-orange-500/60' 
+                                      : 'border-purple-500/30 hover:border-purple-500/60',
+                                    "bg-card/50"
+                                  )}
+                                >
+                                  {folder.cover_image_drive_id ? (
+                                    <img
+                                      src={folder.cover_image_drive_id.startsWith('http') 
+                                        ? folder.cover_image_drive_id 
+                                        : generateDriveImageUrl(folder.cover_image_drive_id, 'small')}
+                                      alt={folder.name}
+                                      className="w-full h-full object-cover opacity-70 group-hover:opacity-90 transition-opacity"
+                                    />
+                                  ) : (
+                                    <div className={cn(
+                                      "w-full h-full flex items-center justify-center",
+                                      mode === 'creative' 
+                                        ? 'bg-gradient-to-br from-orange-500/20 to-orange-600/10' 
+                                        : 'bg-gradient-to-br from-purple-500/20 to-purple-600/10'
+                                    )}>
+                                      <Folder className={cn(
+                                        "w-8 h-8",
+                                        mode === 'creative' ? 'text-orange-400' : 'text-purple-400'
+                                      )} />
+                                    </div>
+                                  )}
+                                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-2">
+                                    <span className="text-white text-xs font-medium truncate">{folder.name}</span>
+                                    <span className="text-white/70 text-[10px]">{folder.project_count} project{folder.project_count !== 1 ? 's' : ''}</span>
+                                  </div>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </DialogContent>
+                      </Dialog>
+                    </div>
+                  )}
                   
+                  {/* Projects Grid */}
+                  <div className={`grid gap-3 sm:gap-4 md:gap-5 ${
+                    cardZoom <= 70 ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6' :
+                    cardZoom <= 85 ? 'grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5' :
+                    cardZoom <= 105 ? 'grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' :
+                    'grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3'
+                  }`}>
                   {/* Render Standalone Projects (sorted) */}
                   {sortedProjects.filter(p => !p.folder_id).map((project, index) => (
                     <motion.div
@@ -460,11 +657,11 @@ const Projects = () => {
                       viewport={{ once: true }}
                     >
                       <Card 
-                        className="h-full hover:shadow-lg transition-shadow overflow-hidden cursor-pointer"
+                        className="h-full hover:shadow-lg transition-shadow overflow-hidden cursor-pointer flex flex-col"
                         onClick={() => navigate(`/projects/${project.id}`)}
                       >
                         {/* Project Image - 16:9 Ratio */}
-                        <div className="relative aspect-video overflow-hidden">
+                        <div className="relative aspect-video overflow-hidden flex-shrink-0">
                           {project.image_drive_id ? (
                             <img 
                               src={project.image_drive_id.startsWith('http') 
@@ -494,7 +691,7 @@ const Projects = () => {
                           )}
                         </div>
 
-                        <CardHeader className="p-3 sm:p-4 md:p-6">
+                        <CardHeader className="p-3 sm:p-4 md:p-6 flex-shrink-0">
                           {/* Position Badges for Creative Mode */}
                           {mode === 'creative' && (project.positions?.length ? project.positions : project.position ? [project.position] : []).length > 0 && (
                             <div className="flex flex-wrap gap-1 mb-1">
@@ -521,11 +718,22 @@ const Projects = () => {
                             </div>
                           </CardDescription>
                         </CardHeader>
-                        <CardContent className="p-3 sm:p-4 md:p-6 pt-0">
-                          <p 
-                            className="text-xs sm:text-sm text-muted-foreground mb-3 sm:mb-4 line-clamp-2"
+                        <CardContent className="p-3 sm:p-4 md:p-6 pt-0 flex flex-col flex-1">
+                          <div 
+                            className="text-xs sm:text-sm text-muted-foreground mb-3 sm:mb-4 line-clamp-2 prose-sm prose-p:my-0"
                             style={{ wordBreak: 'keep-all', overflowWrap: 'break-word', hyphens: 'none' }}
-                          >{project.description}</p>
+                          >
+                            <ReactMarkdown
+                              components={{
+                                p: ({ children }) => <span>{children}</span>,
+                                strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+                                em: ({ children }) => <em>{children}</em>,
+                              }}
+                            >
+                              {project.description}
+                            </ReactMarkdown>
+                          </div>
+                          
                           
                           {/* Tags */}
                           <div className="flex flex-wrap gap-1 mb-3 sm:mb-4">
@@ -545,8 +753,11 @@ const Projects = () => {
                             )}
                           </div>
 
+                          {/* Spacer to push buttons to bottom */}
+                          <div className="flex-grow" />
+
                           {/* Action Buttons */}
-                          <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex gap-2 mt-auto" onClick={(e) => e.stopPropagation()}>
                             {project.live_url && (
                               <Button size="sm" className="flex-1 h-7 sm:h-8 text-xs sm:text-sm" asChild>
                                 <a href={project.live_url} target="_blank" rel="noopener noreferrer">
@@ -577,6 +788,7 @@ const Projects = () => {
                       </Card>
                     </motion.div>
                   ))}
+                  </div>
                 </div>
               )}
             </>

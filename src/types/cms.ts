@@ -5,6 +5,12 @@ export interface CropPosition {
   zoom?: number;
 }
 
+export interface ProjectLink {
+  label: string;
+  url: string;
+  show_on_card: boolean;
+}
+
 export interface Project {
   id: string;
   title: string;
@@ -23,6 +29,7 @@ export interface Project {
   category: string;
   github_url?: string;
   live_url?: string;
+  project_links?: ProjectLink[];
   featured: boolean;
   mode: 'professional' | 'creative';
   order_index: number;
@@ -36,6 +43,7 @@ export interface Project {
   folder_id?: string | null;
   folder_name?: string;
   show_in_recent?: boolean;
+  is_active?: boolean;
 }
 
 export interface Experience {
@@ -69,6 +77,17 @@ export interface Social {
   enabled: boolean;
   order_index: number;
   mode: 'professional' | 'creative';
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProjectImageFolder {
+  id: string;
+  project_id: string;
+  name: string;
+  description?: string;
+  images: string[];
+  order_index: number;
   created_at: string;
   updated_at: string;
 }

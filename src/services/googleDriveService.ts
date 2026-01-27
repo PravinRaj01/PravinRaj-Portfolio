@@ -9,6 +9,7 @@ export interface DriveFile {
   thumbnailLink?: string;
   webViewLink: string;
   parents?: string[];
+  modifiedTime?: string;
 }
 
 export const testGoogleDriveConnection = async (): Promise<{ success: boolean; message: string }> => {

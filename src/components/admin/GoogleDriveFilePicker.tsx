@@ -1,11 +1,12 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Image, Video, FileText, Check, X, Folder, ArrowLeft } from 'lucide-react';
+import { Image, Video, FileText, Check, X, Folder, ArrowLeft, ArrowUpDown } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DriveFile, getFilesFromFolder, getFolderContents } from '@/services/googleDriveService';
 import { generateDriveImageUrl } from '@/utils/googleDrive';
 
@@ -41,6 +42,7 @@ const GoogleDriveFilePicker = ({
   const [navigationStack, setNavigationStack] = useState<FolderNavigationItem[]>([]);
   const [showAllFiles, setShowAllFiles] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<DriveFile[]>([]);
+  const [sortOrder, setSortOrder] = useState<'name-asc' | 'name-desc' | 'date-newest' | 'date-oldest'>('name-asc');
 
   const fetchFilesFromFolder = async (folderId?: string) => {
     setLoading(true);
@@ -87,11 +89,34 @@ const GoogleDriveFilePicker = ({
   }, [fileTypes, showAllFiles, currentFolderId]);
 
   useEffect(() => {
-    const filtered = files.filter(file => 
+    let filtered = files.filter(file => 
       file.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
+    
+    // Apply sorting
+    filtered = [...filtered].sort((a, b) => {
+      // Folders first
+      const aIsFolder = a.mimeType === 'application/vnd.google-apps.folder';
+      const bIsFolder = b.mimeType === 'application/vnd.google-apps.folder';
+      if (aIsFolder && !bIsFolder) return -1;
+      if (!aIsFolder && bIsFolder) return 1;
+      
+      switch (sortOrder) {
+        case 'name-asc':
+          return a.name.localeCompare(b.name);
+        case 'name-desc':
+          return b.name.localeCompare(a.name);
+        case 'date-newest':
+          return new Date(b.modifiedTime || 0).getTime() - new Date(a.modifiedTime || 0).getTime();
+        case 'date-oldest':
+          return new Date(a.modifiedTime || 0).getTime() - new Date(b.modifiedTime || 0).getTime();
+        default:
+          return 0;
+      }
+    });
+    
     setFilteredFiles(filtered);
-  }, [searchTerm, files]);
+  }, [searchTerm, files, sortOrder]);
 
   const getFileIcon = (mimeType: string) => {
     if (mimeType === 'application/vnd.google-apps.folder') return <Folder className="w-4 h-4" />;
@@ -273,6 +298,21 @@ const GoogleDriveFilePicker = ({
           >
             {showAllFiles ? 'Show Supported Only' : 'Show All Files'}
           </Button>
+          
+          {/* Sort Dropdown */}
+          <Select value={sortOrder} onValueChange={(value: typeof sortOrder) => setSortOrder(value)}>
+            <SelectTrigger className="w-[160px]">
+              <ArrowUpDown className="w-4 h-4 mr-2" />
+              <SelectValue placeholder="Sort by" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="name-asc">Name (A-Z)</SelectItem>
+              <SelectItem value="name-desc">Name (Z-A)</SelectItem>
+              <SelectItem value="date-newest">Date (Newest)</SelectItem>
+              <SelectItem value="date-oldest">Date (Oldest)</SelectItem>
+            </SelectContent>
+          </Select>
+          
           <Badge variant="secondary">
             {filteredFiles.length} files found
           </Badge>

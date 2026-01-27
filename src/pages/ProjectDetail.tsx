@@ -1,19 +1,22 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, ExternalLink, Github, Calendar, Tag, ChevronLeft, ChevronRight, User, Folder } from 'lucide-react';
+import { ArrowLeft, ExternalLink, Github, Calendar, Tag, ChevronLeft, ChevronRight, User, Folder, Images } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import Navigation from '@/components/Navigation';
 import CursorFollower from '@/components/CursorFollower';
 import RadialGradient from '@/components/RadialGradient';
 import ProjectImageGallery from '@/components/ProjectImageGallery';
+import ImageSubfolderGallery from '@/components/ImageSubfolderGallery';
 import { usePortfolio } from '@/contexts/PortfolioContext';
 import { useProjects } from '@/hooks/useProjects';
 import { useProjectFolders } from '@/hooks/useProjectFolders';
+import { useProjectImageFolders } from '@/hooks/useProjectImageFolders';
 import { generateDriveImageUrl } from '@/utils/googleDrive';
-import { Project } from '@/types/cms';
+import { Project, ProjectImageFolder } from '@/types/cms';
 import ReactMarkdown from 'react-markdown';
+import { cn } from '@/lib/utils';
 
 const ProjectDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -24,6 +27,10 @@ const ProjectDetail = () => {
   const { folders } = useProjectFolders(mode);
   const [project, setProject] = useState<Project | null>(null);
   const [adjacentProjects, setAdjacentProjects] = useState<{ prev: Project | null; next: Project | null }>({ prev: null, next: null });
+  const [selectedImageFolder, setSelectedImageFolder] = useState<ProjectImageFolder | null>(null);
+  
+  // Fetch image subfolders for this project
+  const { imageFolders } = useProjectImageFolders(id);
   
   // Check if came from folder view
   const fromFolder = (location.state as { fromFolder?: string })?.fromFolder;
@@ -80,13 +87,13 @@ const ProjectDetail = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background relative">
+    <div className="min-h-screen bg-background relative overflow-x-hidden">
       <CursorFollower />
       <RadialGradient scale="scale-y-100" opacity={darkMode ? "opacity-30" : "opacity-30"} />
       <Navigation />
 
-      <div className="pt-20 sm:pt-24 px-4">
-        <div className="container mx-auto max-w-4xl py-8">
+      <div className="pt-20 sm:pt-24 px-3 sm:px-4">
+        <div className="container mx-auto max-w-4xl py-4 sm:py-8 overflow-hidden">
           {/* Breadcrumb & Back Button */}
           <motion.div
             initial={{ opacity: 0, x: -20 }}
@@ -211,7 +218,7 @@ const ProjectDetail = () => {
             })()}
 
             {/* Project Title & Meta */}
-            <div className="mb-8">
+            <div className="mb-1">
               {/* Position Badges for Creative Mode */}
               {mode === 'creative' && (project.positions?.length ? project.positions : project.position ? [project.position] : []).length > 0 && (
                 <div className="flex flex-wrap gap-2 mb-3">
@@ -224,32 +231,32 @@ const ProjectDetail = () => {
                 </div>
               )}
               
-              <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4 text-foreground">
+              <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-3 sm:mb-4 text-foreground break-words">
                 {project.title}
               </h1>
               
-              <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-muted-foreground mb-6">
-                <span className="flex items-center text-sm sm:text-base">
-                  <Tag className="w-4 h-4 mr-1.5 flex-shrink-0" />
-                  <span className="truncate max-w-[150px] sm:max-w-none">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-muted-foreground mb-4 sm:mb-6">
+                <span className="flex items-center text-xs sm:text-sm md:text-base min-w-0">
+                  <Tag className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-1.5 flex-shrink-0" />
+                  <span className="truncate">
                     {(project.categories?.length ? project.categories : [project.category]).join(' / ')}
                   </span>
                 </span>
                 {project.project_date && (
-                  <span className="flex items-center text-sm sm:text-base">
-                    <Calendar className="w-4 h-4 mr-1.5 flex-shrink-0" />
+                  <span className="flex items-center text-xs sm:text-sm md:text-base">
+                    <Calendar className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-1.5 flex-shrink-0" />
                     {project.project_date}
                   </span>
                 )}
               </div>
 
               {/* Tags */}
-              <div className="flex flex-wrap gap-2 mb-6">
+              <div className="flex flex-wrap gap-1.5 sm:gap-2 mb-4 sm:mb-6">
                 {project.tags.map((tag) => (
                   <Badge
                     key={tag}
                     variant="secondary"
-                    className="text-sm px-3 py-1"
+                    className="text-xs sm:text-sm px-2 sm:px-3 py-0.5 sm:py-1"
                   >
                     {tag}
                   </Badge>
@@ -257,19 +264,20 @@ const ProjectDetail = () => {
               </div>
 
               {/* Action Buttons */}
-              <div className="flex flex-wrap gap-3">
+              <div className="flex flex-wrap gap-2 sm:gap-3">
                 {project.live_url && (
-                  <Button className="gap-2" asChild>
+                  <Button className="gap-1.5 sm:gap-2 text-xs sm:text-sm h-8 sm:h-10" asChild>
                     <a href={project.live_url} target="_blank" rel="noopener noreferrer">
-                      <ExternalLink className="w-4 h-4" />
-                      {mode === 'professional' ? 'View Live Demo' : 'View Project'}
+                      <ExternalLink className="w-3 h-3 sm:w-4 sm:h-4" />
+                      <span className="hidden xs:inline">{mode === 'professional' ? 'View Live Demo' : 'View Project'}</span>
+                      <span className="xs:hidden">Live</span>
                     </a>
                   </Button>
                 )}
                 {project.github_url && (
                   <Button 
                     variant="outline" 
-                    className={`gap-2 ${
+                    className={`gap-1.5 sm:gap-2 text-xs sm:text-sm h-8 sm:h-10 ${
                       mode === 'creative' 
                         ? 'border-orange-500 text-orange-500 hover:bg-orange-500/10' 
                         : 'border-purple-500 text-purple-500 hover:bg-purple-500/10'
@@ -277,16 +285,78 @@ const ProjectDetail = () => {
                     asChild
                   >
                     <a href={project.github_url} target="_blank" rel="noopener noreferrer">
-                      <Github className="w-4 h-4" />
-                      View Source Code
+                      <Github className="w-3 h-3 sm:w-4 sm:h-4" />
+                      <span className="hidden xs:inline">View Source Code</span>
+                      <span className="xs:hidden">Code</span>
                     </a>
                   </Button>
                 )}
               </div>
             </div>
 
+            {/* Image Subfolders Section */}
+            {imageFolders.length > 0 && (
+              <div className="mb-6">
+                <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                  <Images className={cn(
+                    "w-5 h-5",
+                    mode === 'creative' ? 'text-orange-400' : 'text-purple-400'
+                  )} />
+                  Media Folders
+                </h2>
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2">
+                  {imageFolders.map((folder) => {
+                    const firstImage = folder.images?.[0];
+                    const imageCount = folder.images?.length || 0;
+                    const thumbnailUrl = firstImage 
+                      ? (firstImage.startsWith('http') ? firstImage : generateDriveImageUrl(firstImage, 'small'))
+                      : null;
+                    
+                    return (
+                      <button
+                        key={folder.id}
+                        onClick={() => setSelectedImageFolder(folder)}
+                        className={cn(
+                          "group relative aspect-video rounded-lg overflow-hidden border-2 transition-all hover:scale-105",
+                          mode === 'creative' 
+                            ? 'border-orange-500/30 hover:border-orange-500/60' 
+                            : 'border-purple-500/30 hover:border-purple-500/60',
+                          "bg-card/50 backdrop-blur-sm"
+                        )}
+                      >
+                        {/* Thumbnail or placeholder */}
+                        {thumbnailUrl ? (
+                          <img
+                            src={thumbnailUrl}
+                            alt={folder.name}
+                            className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity"
+                          />
+                        ) : (
+                          <div className={cn(
+                            "w-full h-full flex items-center justify-center",
+                            mode === 'creative' ? 'bg-orange-500/10' : 'bg-purple-500/10'
+                          )}>
+                            <Folder className={cn(
+                              "w-6 h-6",
+                              mode === 'creative' ? 'text-orange-400' : 'text-purple-400'
+                            )} />
+                          </div>
+                        )}
+                        
+                        {/* Overlay */}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-2">
+                          <span className="text-white text-xs font-medium truncate">{folder.name}</span>
+                          <span className="text-white/70 text-[10px]">{imageCount} image{imageCount !== 1 ? 's' : ''}</span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* Project Description */}
-            <div className="prose prose-lg dark:prose-invert max-w-none mb-12">
+            <div className="prose prose-lg dark:prose-invert max-w-none mb-8">
               <h2 className="text-xl font-semibold mb-4">About This Project</h2>
               {mode === 'creative' ? (
                 <div className="text-muted-foreground leading-relaxed prose-headings:text-foreground prose-strong:text-foreground prose-ul:text-muted-foreground prose-ol:text-muted-foreground">
@@ -357,6 +427,16 @@ const ProjectDetail = () => {
           </motion.div>
         </div>
       </div>
+      
+      {/* Image Subfolder Gallery Popup */}
+      {selectedImageFolder && (
+        <ImageSubfolderGallery
+          folder={selectedImageFolder}
+          isOpen={!!selectedImageFolder}
+          onClose={() => setSelectedImageFolder(null)}
+          mode={mode}
+        />
+      )}
     </div>
   );
 };

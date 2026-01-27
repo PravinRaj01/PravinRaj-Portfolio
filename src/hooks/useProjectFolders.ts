@@ -11,6 +11,7 @@ export interface ProjectFolder {
   created_at: string;
   updated_at: string;
   project_count?: number;
+  is_active?: boolean;
 }
 
 export const useProjectFolders = (mode?: 'professional' | 'creative') => {

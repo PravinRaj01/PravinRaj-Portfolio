@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Grid, List, Folder, ExternalLink, Github, Calendar, Tag, Filter, ArrowUpDown, Search } from 'lucide-react';
+import { ArrowLeft, Grid, List, Folder, ExternalLink, Github, Calendar, Tag, Filter, ArrowUpDown, Search, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,6 +18,7 @@ import { useSiteSettings } from '@/hooks/useSiteSettings';
 import { generateDriveImageUrl } from '@/utils/googleDrive';
 import { Project } from '@/types/cms';
 import { parse } from 'date-fns';
+import ReactMarkdown from 'react-markdown';
 
 const ProjectFolderPage = () => {
   const { folderId } = useParams<{ folderId: string }>();
@@ -282,14 +283,14 @@ const ProjectFolderPage = () => {
                     onClick={() => navigate(`/projects/${project.id}`, { state: { fromFolder: folderId } })}
                   >
                     <div className="relative aspect-video overflow-hidden">
-                      {project.image_drive_id ? (
-                        <img 
-                          src={project.image_drive_id.startsWith('http') 
-                            ? project.image_drive_id 
-                            : generateDriveImageUrl(project.image_drive_id, 'medium')} 
-                          alt={project.title}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                        />
+                        {project.image_drive_id ? (
+                          <img 
+                            src={project.image_drive_id.startsWith('http') 
+                              ? project.image_drive_id 
+                              : generateDriveImageUrl(project.image_drive_id, 'medium')} 
+                            alt={project.title}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          />
                       ) : (
                         <div className="w-full h-full bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center">
                           <span className="text-muted-foreground">No Image</span>
@@ -306,6 +307,16 @@ const ProjectFolderPage = () => {
                       )}
                     </div>
                     <CardHeader className="p-4">
+                      {/* Position Badges for Creative Mode */}
+                      {mode === 'creative' && (project.positions?.length ? project.positions : project.position ? [project.position] : []).length > 0 && (
+                        <div className="flex flex-wrap gap-1 mb-1">
+                          {(project.positions?.length ? project.positions : project.position ? [project.position] : []).map((pos, idx) => (
+                            <Badge key={idx} className="text-[10px] sm:text-xs bg-orange-500/20 text-orange-400 border-orange-500/30">
+                              {pos}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
                       <CardTitle className="text-lg">{project.title}</CardTitle>
                       <CardDescription className="flex items-center gap-2 text-sm">
                         <Tag className="w-3 h-3" />
@@ -320,7 +331,17 @@ const ProjectFolderPage = () => {
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="p-4 pt-0">
-                      <p className="text-sm text-muted-foreground line-clamp-2 mb-3">{project.description}</p>
+                      <div className="text-sm text-muted-foreground line-clamp-2 mb-3 prose-sm prose-p:my-0">
+                        <ReactMarkdown
+                          components={{
+                            p: ({ children }) => <span>{children}</span>,
+                            strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+                            em: ({ children }) => <em>{children}</em>,
+                          }}
+                        >
+                          {project.description}
+                        </ReactMarkdown>
+                      </div>
                       <div className="flex flex-wrap gap-1.5">
                         {project.tags.slice(0, 3).map((tag) => (
                           <Badge key={tag} variant="secondary" className="text-xs">{tag}</Badge>
