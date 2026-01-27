@@ -27,12 +27,10 @@ import {
   Plus, 
   Folder, 
   GripVertical, 
-  X, 
-  Image, 
   ChevronDown, 
   ChevronRight, 
-  Images,
-  Trash2
+  Trash2,
+  Video
 } from 'lucide-react';
 import { useProjectImageFolders } from '@/hooks/useProjectImageFolders';
 import { ProjectImageFolder } from '@/types/cms';
@@ -40,6 +38,7 @@ import { generateDriveImageUrl } from '@/utils/googleDrive';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import GoogleDriveFilePicker from './GoogleDriveFilePicker';
+import FolderMediaManager from './FolderMediaManager';
 import { DriveFile } from '@/services/googleDriveService';
 
 interface ProjectImageFolderManagerProps {
@@ -50,15 +49,15 @@ interface SortableFolderItemProps {
   folder: ProjectImageFolder;
   onUpdate: (id: string, updates: Partial<ProjectImageFolder>) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
-  onOpenFilePicker: (folderId: string, isMulti: boolean) => void;
+  onOpenFilePicker: (folderId: string, target: 'image' | 'video' | 'thumbnail') => void;
+  onOpenMultiFilePicker: (folderId: string) => void;
 }
 
-const SortableFolderItem = ({ folder, onUpdate, onDelete, onOpenFilePicker }: SortableFolderItemProps) => {
+const SortableFolderItem = ({ folder, onUpdate, onDelete, onOpenFilePicker, onOpenMultiFilePicker }: SortableFolderItemProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [name, setName] = useState(folder.name);
   const [description, setDescription] = useState(folder.description || '');
-  const [newImageUrl, setNewImageUrl] = useState('');
 
   const {
     attributes,
@@ -84,26 +83,29 @@ const SortableFolderItem = ({ folder, onUpdate, onDelete, onOpenFilePicker }: So
     toast.success('Folder updated');
   };
 
-  const handleAddImageUrl = async () => {
-    if (!newImageUrl.trim()) return;
-    const updatedImages = [...(folder.images || []), newImageUrl.trim()];
-    await onUpdate(folder.id, { images: updatedImages });
-    setNewImageUrl('');
-    toast.success('Image added');
-  };
-
-  const handleRemoveImage = async (index: number) => {
-    const updatedImages = [...(folder.images || [])];
-    updatedImages.splice(index, 1);
-    await onUpdate(folder.id, { images: updatedImages });
-    toast.success('Image removed');
-  };
-
   const handleDeleteFolder = async () => {
     if (confirm(`Delete folder "${folder.name}"? This cannot be undone.`)) {
       await onDelete(folder.id);
       toast.success('Folder deleted');
     }
+  };
+
+  // Calculate media counts
+  const imageCount = folder.images?.filter(img => img !== '__VIDEO__').length || 0;
+  const hasVideo = !!folder.video_url;
+  const mediaType = folder.media_type || 'images';
+
+  const getMediaBadgeText = () => {
+    if (mediaType === 'none') return '0 items';
+    if (mediaType === 'video' && hasVideo) return '1 video';
+    if (mediaType === 'images') return `${imageCount} image${imageCount !== 1 ? 's' : ''}`;
+    if (mediaType === 'both') {
+      const parts = [];
+      if (imageCount > 0) parts.push(`${imageCount} image${imageCount !== 1 ? 's' : ''}`);
+      if (hasVideo) parts.push('1 video');
+      return parts.join(', ') || '0 items';
+    }
+    return `${imageCount} image${imageCount !== 1 ? 's' : ''}`;
   };
 
   return (
@@ -135,8 +137,9 @@ const SortableFolderItem = ({ folder, onUpdate, onDelete, onOpenFilePicker }: So
               )}
               <Folder className="w-4 h-4 text-orange-500" />
               <span className="font-medium">{folder.name}</span>
-              <Badge variant="secondary" className="ml-2 text-xs">
-                {folder.images?.length || 0} images
+              <Badge variant="secondary" className="ml-2 text-xs flex items-center gap-1">
+                {hasVideo && <Video className="w-3 h-3" />}
+                {getMediaBadgeText()}
               </Badge>
             </button>
           </CollapsibleTrigger>
@@ -210,81 +213,13 @@ const SortableFolderItem = ({ folder, onUpdate, onDelete, onOpenFilePicker }: So
               </div>
             )}
 
-            {/* Images Grid */}
-            {folder.images && folder.images.length > 0 && (
-              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                {folder.images.map((img, idx) => {
-                  const imgUrl = img.startsWith('http') ? img : generateDriveImageUrl(img, 'small');
-                  return (
-                    <div key={idx} className="relative group aspect-video rounded overflow-hidden border bg-muted">
-                      <img
-                        src={imgUrl}
-                        alt={`Folder image ${idx + 1}`}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).src = '/placeholder.svg';
-                        }}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveImage(idx)}
-                        className="absolute top-1 right-1 p-1 bg-destructive rounded opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <X className="w-3 h-3 text-white" />
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-            {/* Add Images */}
-            <div className="space-y-2 pt-2 border-t">
-              <Label className="text-xs font-medium">Add Images</Label>
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Enter image URL"
-                  value={newImageUrl}
-                  onChange={(e) => setNewImageUrl(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      handleAddImageUrl();
-                    }
-                  }}
-                  className="flex-1"
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handleAddImageUrl}
-                  disabled={!newImageUrl.trim()}
-                >
-                  <Plus className="w-4 h-4" />
-                </Button>
-              </div>
-              <div className="flex gap-2 flex-wrap">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => onOpenFilePicker(folder.id, false)}
-                >
-                  <Image className="w-4 h-4 mr-2" />
-                  Add Single
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => onOpenFilePicker(folder.id, true)}
-                >
-                  <Images className="w-4 h-4 mr-2" />
-                  Add Multiple
-                </Button>
-              </div>
-            </div>
+            {/* Media Manager */}
+            <FolderMediaManager
+              folder={folder}
+              onUpdate={onUpdate}
+              onOpenFilePicker={(target) => onOpenFilePicker(folder.id, target)}
+              onOpenMultiFilePicker={() => onOpenMultiFilePicker(folder.id)}
+            />
           </div>
         </CollapsibleContent>
       </Collapsible>
@@ -306,6 +241,7 @@ const ProjectImageFolderManager = ({ projectId }: ProjectImageFolderManagerProps
   const [newFolderDescription, setNewFolderDescription] = useState('');
   const [showFilePicker, setShowFilePicker] = useState(false);
   const [filePickerFolderId, setFilePickerFolderId] = useState<string | null>(null);
+  const [filePickerTarget, setFilePickerTarget] = useState<'image' | 'video' | 'thumbnail'>('image');
   const [isMultiSelect, setIsMultiSelect] = useState(false);
 
   const sensors = useSensors(
@@ -380,9 +316,17 @@ const ProjectImageFolderManager = ({ projectId }: ProjectImageFolderManagerProps
     }
   };
 
-  const openFilePicker = (folderId: string, isMulti: boolean) => {
+  const openFilePicker = (folderId: string, target: 'image' | 'video' | 'thumbnail') => {
     setFilePickerFolderId(folderId);
-    setIsMultiSelect(isMulti);
+    setFilePickerTarget(target);
+    setIsMultiSelect(false);
+    setShowFilePicker(true);
+  };
+
+  const openMultiFilePicker = (folderId: string) => {
+    setFilePickerFolderId(folderId);
+    setFilePickerTarget('image');
+    setIsMultiSelect(true);
     setShowFilePicker(true);
   };
 
@@ -392,13 +336,25 @@ const ProjectImageFolderManager = ({ projectId }: ProjectImageFolderManagerProps
     const folder = imageFolders.find(f => f.id === filePickerFolderId);
     if (!folder) return;
 
-    const imageUrl = generateDriveImageUrl(file.id, 'large');
-    const updatedImages = [...(folder.images || []), imageUrl];
-    await updateImageFolder(filePickerFolderId, { images: updatedImages });
+    if (filePickerTarget === 'video') {
+      // Video file from Drive
+      const videoUrl = `https://drive.google.com/file/d/${file.id}/preview`;
+      await updateImageFolder(filePickerFolderId, { video_url: videoUrl });
+      toast.success('Video added');
+    } else if (filePickerTarget === 'thumbnail') {
+      const thumbnailUrl = generateDriveImageUrl(file.id, 'large');
+      await updateImageFolder(filePickerFolderId, { video_thumbnail: thumbnailUrl });
+      toast.success('Thumbnail added');
+    } else {
+      // Image
+      const imageUrl = generateDriveImageUrl(file.id, 'large');
+      const updatedImages = [...(folder.images || []), imageUrl];
+      await updateImageFolder(filePickerFolderId, { images: updatedImages });
+      toast.success('Image added');
+    }
     
     setShowFilePicker(false);
     setFilePickerFolderId(null);
-    toast.success('Image added');
   };
 
   const handleMultiFileSelect = async (files: DriveFile[]) => {
@@ -425,7 +381,7 @@ const ProjectImageFolderManager = ({ projectId }: ProjectImageFolderManagerProps
           setShowFilePicker(false);
           setFilePickerFolderId(null);
         }}
-        fileTypes={['image']}
+        fileTypes={filePickerTarget === 'video' ? ['video'] : ['image']}
         multiSelect={isMultiSelect}
       />
     );
@@ -436,7 +392,7 @@ const ProjectImageFolderManager = ({ projectId }: ProjectImageFolderManagerProps
       <Card className="border-dashed">
         <CardContent className="py-6 text-center text-muted-foreground">
           <Folder className="w-8 h-8 mx-auto mb-2 opacity-50" />
-          <p className="text-sm">Save the project first to add image subfolders.</p>
+          <p className="text-sm">Save the project first to add media subfolders.</p>
         </CardContent>
       </Card>
     );
@@ -446,9 +402,9 @@ const ProjectImageFolderManager = ({ projectId }: ProjectImageFolderManagerProps
     <div className="space-y-4 border rounded-lg p-4 bg-muted/30">
       <div className="flex items-center justify-between">
         <div>
-          <Label className="text-base font-semibold">Image Subfolders</Label>
+          <Label className="text-base font-semibold">Media Subfolders</Label>
           <p className="text-xs text-muted-foreground mt-1">
-            Organize project images into folders (e.g., Teasers, Assets, Behind the Scenes)
+            Organize project media into folders (e.g., Teasers, Assets, Behind the Scenes)
           </p>
         </div>
         <Button
@@ -521,7 +477,7 @@ const ProjectImageFolderManager = ({ projectId }: ProjectImageFolderManagerProps
       ) : imageFolders.length === 0 && !showNewFolder ? (
         <div className="text-center py-6 text-muted-foreground border-2 border-dashed rounded-lg">
           <Folder className="w-8 h-8 mx-auto mb-2 opacity-50" />
-          <p className="text-sm">No image folders yet.</p>
+          <p className="text-sm">No media folders yet.</p>
           <p className="text-xs mt-1">Click "Add Folder" to create one.</p>
         </div>
       ) : (
@@ -542,6 +498,7 @@ const ProjectImageFolderManager = ({ projectId }: ProjectImageFolderManagerProps
                   onUpdate={handleUpdate}
                   onDelete={handleDelete}
                   onOpenFilePicker={openFilePicker}
+                  onOpenMultiFilePicker={openMultiFilePicker}
                 />
               ))}
             </div>

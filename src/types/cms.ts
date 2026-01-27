@@ -87,6 +87,9 @@ export interface ProjectImageFolder {
   name: string;
   description?: string;
   images: string[];
+  video_url?: string;
+  video_thumbnail?: string;
+  media_type?: 'none' | 'images' | 'video' | 'both';
   order_index: number;
   created_at: string;
   updated_at: string;

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, ExternalLink, Github, Calendar, Tag, ChevronLeft, ChevronRight, User, Folder, Images } from 'lucide-react';
+import { ArrowLeft, ExternalLink, Github, Calendar, Tag, ChevronLeft, ChevronRight, User, Folder, Images, Video, Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import Navigation from '@/components/Navigation';
@@ -306,11 +306,33 @@ const ProjectDetail = () => {
                 </h2>
                 <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2">
                   {imageFolders.map((folder) => {
-                    const firstImage = folder.images?.[0];
-                    const imageCount = folder.images?.length || 0;
-                    const thumbnailUrl = firstImage 
-                      ? (firstImage.startsWith('http') ? firstImage : generateDriveImageUrl(firstImage, 'small'))
-                      : null;
+                    const imageCount = folder.images?.filter(img => img !== '__VIDEO__').length || 0;
+                    const hasVideo = !!folder.video_url && (folder.media_type === 'video' || folder.media_type === 'both');
+                    const mediaType = folder.media_type || 'images';
+                    
+                    // Get first media item as thumbnail
+                    const firstImage = folder.images?.find(img => img !== '__VIDEO__');
+                    const thumbnailUrl = hasVideo && folder.video_thumbnail
+                      ? (folder.video_thumbnail.startsWith('http') ? folder.video_thumbnail : generateDriveImageUrl(folder.video_thumbnail, 'small'))
+                      : firstImage 
+                        ? (firstImage.startsWith('http') ? firstImage : generateDriveImageUrl(firstImage, 'small'))
+                        : null;
+                    
+                    // Build media count text
+                    const getMediaCountText = () => {
+                      if (mediaType === 'none') return 'Empty';
+                      if (mediaType === 'video' && hasVideo) return '1 video';
+                      if (mediaType === 'images') return `${imageCount} image${imageCount !== 1 ? 's' : ''}`;
+                      if (mediaType === 'both') {
+                        const parts = [];
+                        if (imageCount > 0) parts.push(`${imageCount}`);
+                        if (hasVideo) parts.push('1 video');
+                        if (parts.length === 0) return 'Empty';
+                        if (imageCount > 0 && hasVideo) return `${imageCount} + video`;
+                        return parts.join(', ');
+                      }
+                      return `${imageCount} image${imageCount !== 1 ? 's' : ''}`;
+                    };
                     
                     return (
                       <button
@@ -343,10 +365,20 @@ const ProjectDetail = () => {
                           </div>
                         )}
                         
+                        {/* Video badge */}
+                        {hasVideo && (
+                          <div className={cn(
+                            "absolute top-1 right-1 p-1 rounded",
+                            mode === 'creative' ? 'bg-orange-500/90' : 'bg-purple-500/90'
+                          )}>
+                            <Play className="w-3 h-3 text-white" fill="white" />
+                          </div>
+                        )}
+                        
                         {/* Overlay */}
                         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-2">
                           <span className="text-white text-xs font-medium truncate">{folder.name}</span>
-                          <span className="text-white/70 text-[10px]">{imageCount} image{imageCount !== 1 ? 's' : ''}</span>
+                          <span className="text-white/70 text-[10px]">{getMediaCountText()}</span>
                         </div>
                       </button>
                     );
