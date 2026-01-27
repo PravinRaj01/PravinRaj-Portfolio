@@ -24,13 +24,10 @@ const ProjectManager = () => {
   // Get unique categories
   const categories = useMemo(() => {
     const cats = new Set(
-      projects
-        .map(p => p.category)
-        .filter(cat => cat && cat.trim() !== '') // Filter out empty categories
+      projects.map(p => p.category || 'uncategorized') // Convert empty to 'uncategorized'
     );
     return ['all', ...Array.from(cats)];
   }, [projects]);
-
 
   // Filter projects
   const filteredProjects = useMemo(() => {
@@ -42,12 +39,14 @@ const ProjectManager = () => {
         project.title.toLowerCase().includes(query) ||
         project.description.toLowerCase().includes(query) ||
         project.tags.some(tag => tag.toLowerCase().includes(query)) ||
-        project.category.toLowerCase().includes(query)
+        (project.category || 'uncategorized').toLowerCase().includes(query)
       );
     }
     
     if (selectedCategory !== 'all') {
-      filtered = filtered.filter(project => project.category === selectedCategory);
+      filtered = filtered.filter(project => 
+        (project.category || 'uncategorized') === selectedCategory
+      );
     }
     
     return filtered;

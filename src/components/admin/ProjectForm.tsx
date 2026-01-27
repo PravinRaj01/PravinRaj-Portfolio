@@ -328,14 +328,11 @@ const ProjectForm = ({ project, onClose, onSave, mode }: ProjectFormProps) => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">No Folder</SelectItem>
-                {folders
-                  .filter(folder => folder.id && folder.id.trim() !== '') // Filter out folders with empty/invalid IDs
-                  .map((folder) => (
-                    <SelectItem key={folder.id} value={folder.id}>
-                      {folder.name}
-                    </SelectItem>
-                  ))
-                }
+                {folders.map((folder) => (
+                  <SelectItem key={folder.id} value={folder.id || `temp-${folder.name}`}>
+                    {folder.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
             <p className="text-xs text-muted-foreground mt-1">
