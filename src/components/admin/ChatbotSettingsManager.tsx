@@ -32,7 +32,7 @@ const ChatbotSettingsManager = () => {
       chatbot_enabled: settings?.chatbot_enabled !== false,
       chatbot_name: settings?.chatbot_name || 'Portfolio Assistant',
       chatbot_welcome_message: settings?.chatbot_welcome_message || 'Hi there! 👋 I can help you learn about my skills, projects, and experience.',
-      chatbot_default_state: settings?.chatbot_default_state || 'mini',
+      chatbot_default_state: (settings?.chatbot_default_state || 'mini') as 'mini' | 'sidebar' | 'full',
     },
   });
 
