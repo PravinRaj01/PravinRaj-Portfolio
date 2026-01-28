@@ -23,6 +23,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { 
   Plus, 
   Folder, 
@@ -37,7 +38,7 @@ import { ProjectImageFolder } from '@/types/cms';
 import { generateDriveImageUrl } from '@/utils/googleDrive';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import GoogleDriveFilePicker from './GoogleDriveFilePicker';
+import GoogleDriveFilePicker, { FolderNavigationItem } from './GoogleDriveFilePicker';
 import FolderMediaManager from './FolderMediaManager';
 import { DriveFile } from '@/services/googleDriveService';
 
@@ -49,8 +50,8 @@ interface SortableFolderItemProps {
   folder: ProjectImageFolder;
   onUpdate: (id: string, updates: Partial<ProjectImageFolder>) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
-  onOpenFilePicker: (folderId: string, target: 'image' | 'video' | 'thumbnail') => void;
-  onOpenMultiFilePicker: (folderId: string) => void;
+  onOpenFilePicker: (folderId: string, target: 'image' | 'video' | 'thumbnail', fileTypes: ('image' | 'video')[]) => void;
+  onOpenMultiFilePicker: (folderId: string, fileTypes: ('image' | 'video')[]) => void;
 }
 
 const SortableFolderItem = ({ folder, onUpdate, onDelete, onOpenFilePicker, onOpenMultiFilePicker }: SortableFolderItemProps) => {
@@ -106,6 +107,31 @@ const SortableFolderItem = ({ folder, onUpdate, onDelete, onOpenFilePicker, onOp
       return parts.join(', ') || '0 items';
     }
     return `${imageCount} image${imageCount !== 1 ? 's' : ''}`;
+  };
+
+  // Determine file types based on folder's media_type
+  const getFileTypesForTarget = (target: 'image' | 'video' | 'thumbnail'): ('image' | 'video')[] => {
+    if (target === 'video') return ['video'];
+    if (target === 'thumbnail') return ['image'];
+    // For 'image' target, respect the folder's media_type
+    if (mediaType === 'both') return ['image', 'video'];
+    if (mediaType === 'video') return ['video'];
+    return ['image'];
+  };
+
+  const handleOpenFilePicker = (target: 'image' | 'video' | 'thumbnail') => {
+    // Use getFileTypesForTarget to respect folder's media_type
+    const fileTypes = getFileTypesForTarget(target);
+    onOpenFilePicker(folder.id, target, fileTypes);
+  };
+
+  const handleOpenMultiFilePicker = () => {
+    // Respect folder's media_type for multi-select
+    const fileTypes: ('image' | 'video')[] = 
+      mediaType === 'both' ? ['image', 'video'] :
+      mediaType === 'video' ? ['video'] :
+      ['image'];
+    onOpenMultiFilePicker(folder.id, fileTypes);
   };
 
   return (
@@ -217,8 +243,8 @@ const SortableFolderItem = ({ folder, onUpdate, onDelete, onOpenFilePicker, onOp
             <FolderMediaManager
               folder={folder}
               onUpdate={onUpdate}
-              onOpenFilePicker={(target) => onOpenFilePicker(folder.id, target)}
-              onOpenMultiFilePicker={() => onOpenMultiFilePicker(folder.id)}
+              onOpenFilePicker={handleOpenFilePicker}
+              onOpenMultiFilePicker={handleOpenMultiFilePicker}
             />
           </div>
         </CollapsibleContent>
@@ -242,7 +268,12 @@ const ProjectImageFolderManager = ({ projectId }: ProjectImageFolderManagerProps
   const [showFilePicker, setShowFilePicker] = useState(false);
   const [filePickerFolderId, setFilePickerFolderId] = useState<string | null>(null);
   const [filePickerTarget, setFilePickerTarget] = useState<'image' | 'video' | 'thumbnail'>('image');
+  const [filePickerFileTypes, setFilePickerFileTypes] = useState<('image' | 'video')[]>(['image']);
   const [isMultiSelect, setIsMultiSelect] = useState(false);
+  
+  // Store last navigation position for file picker
+  const [lastFolderId, setLastFolderId] = useState<string | null>(null);
+  const [lastNavStack, setLastNavStack] = useState<FolderNavigationItem[]>([]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -316,18 +347,25 @@ const ProjectImageFolderManager = ({ projectId }: ProjectImageFolderManagerProps
     }
   };
 
-  const openFilePicker = (folderId: string, target: 'image' | 'video' | 'thumbnail') => {
+  const openFilePicker = (folderId: string, target: 'image' | 'video' | 'thumbnail', fileTypes: ('image' | 'video')[]) => {
     setFilePickerFolderId(folderId);
     setFilePickerTarget(target);
+    setFilePickerFileTypes(fileTypes);
     setIsMultiSelect(false);
     setShowFilePicker(true);
   };
 
-  const openMultiFilePicker = (folderId: string) => {
+  const openMultiFilePicker = (folderId: string, fileTypes: ('image' | 'video')[]) => {
     setFilePickerFolderId(folderId);
     setFilePickerTarget('image');
+    setFilePickerFileTypes(fileTypes);
     setIsMultiSelect(true);
     setShowFilePicker(true);
+  };
+
+  const handleNavigationChange = (folderId: string | null, stack: FolderNavigationItem[]) => {
+    setLastFolderId(folderId);
+    setLastNavStack(stack);
   };
 
   const handleFileSelect = async (file: DriveFile) => {
@@ -372,21 +410,6 @@ const ProjectImageFolderManager = ({ projectId }: ProjectImageFolderManagerProps
     toast.success(`${files.length} images added`);
   };
 
-  if (showFilePicker) {
-    return (
-      <GoogleDriveFilePicker
-        onSelect={handleFileSelect}
-        onSelectMultiple={isMultiSelect ? handleMultiFileSelect : undefined}
-        onCancel={() => {
-          setShowFilePicker(false);
-          setFilePickerFolderId(null);
-        }}
-        fileTypes={filePickerTarget === 'video' ? ['video'] : ['image']}
-        multiSelect={isMultiSelect}
-      />
-    );
-  }
-
   if (!projectId) {
     return (
       <Card className="border-dashed">
@@ -399,113 +422,140 @@ const ProjectImageFolderManager = ({ projectId }: ProjectImageFolderManagerProps
   }
 
   return (
-    <div className="space-y-4 border rounded-lg p-4 bg-muted/30">
-      <div className="flex items-center justify-between">
-        <div>
-          <Label className="text-base font-semibold">Media Subfolders</Label>
-          <p className="text-xs text-muted-foreground mt-1">
-            Organize project media into folders (e.g., Teasers, Assets, Behind the Scenes)
-          </p>
+    <>
+      <div className="space-y-4 border rounded-lg p-4 bg-muted/30">
+        <div className="flex items-center justify-between">
+          <div>
+            <Label className="text-base font-semibold">Media Subfolders</Label>
+            <p className="text-xs text-muted-foreground mt-1">
+              Organize project media into folders (e.g., Teasers, Assets, Behind the Scenes)
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setShowNewFolder(true)}
+            disabled={showNewFolder}
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Add Folder
+          </Button>
         </div>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => setShowNewFolder(true)}
-          disabled={showNewFolder}
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Add Folder
-        </Button>
+
+        {/* New Folder Form */}
+        {showNewFolder && (
+          <Card className="border-primary/50">
+            <CardHeader className="py-3 px-4">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Folder className="w-4 h-4 text-orange-500" />
+                New Folder
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-4 pb-4 pt-0 space-y-3">
+              <div>
+                <Label className="text-xs">Folder Name</Label>
+                <Input
+                  value={newFolderName}
+                  onChange={(e) => setNewFolderName(e.target.value)}
+                  placeholder="e.g., Teaser Images"
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Description (optional)</Label>
+                <Textarea
+                  value={newFolderDescription}
+                  onChange={(e) => setNewFolderDescription(e.target.value)}
+                  placeholder="Brief description of this folder"
+                  rows={2}
+                  className="mt-1"
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button type="button" size="sm" onClick={handleCreateFolder}>
+                  Create Folder
+                </Button>
+                <Button 
+                  type="button" 
+                  size="sm" 
+                  variant="ghost" 
+                  onClick={() => {
+                    setShowNewFolder(false);
+                    setNewFolderName('');
+                    setNewFolderDescription('');
+                  }}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Folders List */}
+        {loading ? (
+          <div className="text-center py-4 text-muted-foreground text-sm">
+            Loading folders...
+          </div>
+        ) : imageFolders.length === 0 && !showNewFolder ? (
+          <div className="text-center py-6 text-muted-foreground border-2 border-dashed rounded-lg">
+            <Folder className="w-8 h-8 mx-auto mb-2 opacity-50" />
+            <p className="text-sm">No media folders yet.</p>
+            <p className="text-xs mt-1">Click "Add Folder" to create one.</p>
+          </div>
+        ) : (
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext 
+              items={imageFolders.map(f => f.id)} 
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="space-y-2">
+                {imageFolders.map((folder) => (
+                  <SortableFolderItem
+                    key={folder.id}
+                    folder={folder}
+                    onUpdate={handleUpdate}
+                    onDelete={handleDelete}
+                    onOpenFilePicker={openFilePicker}
+                    onOpenMultiFilePicker={openMultiFilePicker}
+                  />
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
+        )}
       </div>
 
-      {/* New Folder Form */}
-      {showNewFolder && (
-        <Card className="border-primary/50">
-          <CardHeader className="py-3 px-4">
-            <CardTitle className="text-sm flex items-center gap-2">
-              <Folder className="w-4 h-4 text-orange-500" />
-              New Folder
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="px-4 pb-4 pt-0 space-y-3">
-            <div>
-              <Label className="text-xs">Folder Name</Label>
-              <Input
-                value={newFolderName}
-                onChange={(e) => setNewFolderName(e.target.value)}
-                placeholder="e.g., Teaser Images"
-                className="mt-1"
-              />
-            </div>
-            <div>
-              <Label className="text-xs">Description (optional)</Label>
-              <Textarea
-                value={newFolderDescription}
-                onChange={(e) => setNewFolderDescription(e.target.value)}
-                placeholder="Brief description of this folder"
-                rows={2}
-                className="mt-1"
-              />
-            </div>
-            <div className="flex gap-2">
-              <Button type="button" size="sm" onClick={handleCreateFolder}>
-                Create Folder
-              </Button>
-              <Button 
-                type="button" 
-                size="sm" 
-                variant="ghost" 
-                onClick={() => {
-                  setShowNewFolder(false);
-                  setNewFolderName('');
-                  setNewFolderDescription('');
-                }}
-              >
-                Cancel
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Folders List */}
-      {loading ? (
-        <div className="text-center py-4 text-muted-foreground text-sm">
-          Loading folders...
-        </div>
-      ) : imageFolders.length === 0 && !showNewFolder ? (
-        <div className="text-center py-6 text-muted-foreground border-2 border-dashed rounded-lg">
-          <Folder className="w-8 h-8 mx-auto mb-2 opacity-50" />
-          <p className="text-sm">No media folders yet.</p>
-          <p className="text-xs mt-1">Click "Add Folder" to create one.</p>
-        </div>
-      ) : (
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragEnd={handleDragEnd}
-        >
-          <SortableContext 
-            items={imageFolders.map(f => f.id)} 
-            strategy={verticalListSortingStrategy}
-          >
-            <div className="space-y-2">
-              {imageFolders.map((folder) => (
-                <SortableFolderItem
-                  key={folder.id}
-                  folder={folder}
-                  onUpdate={handleUpdate}
-                  onDelete={handleDelete}
-                  onOpenFilePicker={openFilePicker}
-                  onOpenMultiFilePicker={openMultiFilePicker}
-                />
-              ))}
-            </div>
-          </SortableContext>
-        </DndContext>
-      )}
-    </div>
+      {/* File Picker Dialog - Always mounted, visibility controlled by open state */}
+      <Dialog open={showFilePicker} onOpenChange={(open) => {
+        if (!open) {
+          setShowFilePicker(false);
+          setFilePickerFolderId(null);
+        }
+      }}>
+        <DialogContent className="max-w-4xl max-h-[90vh] p-0 overflow-hidden">
+          <DialogTitle className="sr-only">Select File from Google Drive</DialogTitle>
+          <GoogleDriveFilePicker
+            onSelect={handleFileSelect}
+            onSelectMultiple={isMultiSelect ? handleMultiFileSelect : undefined}
+            onCancel={() => {
+              setShowFilePicker(false);
+              setFilePickerFolderId(null);
+            }}
+            fileTypes={filePickerFileTypes}
+            multiSelect={isMultiSelect}
+            initialFolderId={lastFolderId}
+            initialNavigationStack={lastNavStack}
+            onNavigationChange={handleNavigationChange}
+          />
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };
 

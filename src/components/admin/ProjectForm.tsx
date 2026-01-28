@@ -9,11 +9,12 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { X, Image, Folder, Plus, Link as LinkIcon, Trash2, Eye, EyeOff } from 'lucide-react';
 import { useProjects } from '@/hooks/useProjects';
 import { useProjectFolders } from '@/hooks/useProjectFolders';
 import { Project, ProjectLink } from '@/types/cms';
-import GoogleDriveFilePicker from './GoogleDriveFilePicker';
+import GoogleDriveFilePicker, { FolderNavigationItem } from './GoogleDriveFilePicker';
 import ImageCropPreview from './ImageCropPreview';
 import ProjectMediaManager from './ProjectMediaManager';
 import ProjectImageFolderManager from './ProjectImageFolderManager';
@@ -72,6 +73,10 @@ const ProjectForm = ({ project, onClose, onSave, mode }: ProjectFormProps) => {
   const [showFilePicker, setShowFilePicker] = useState(false);
   const [filePickerTarget, setFilePickerTarget] = useState<'main' | 'gallery' | 'thumbnail' | 'video'>('main');
   const [multiSelectMode, setMultiSelectMode] = useState(false);
+  
+  // Store last navigation position for file picker
+  const [lastFolderId, setLastFolderId] = useState<string | null>(null);
+  const [lastNavStack, setLastNavStack] = useState<FolderNavigationItem[]>([]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -126,7 +131,7 @@ const ProjectForm = ({ project, onClose, onSave, mode }: ProjectFormProps) => {
         setFormData(prev => ({
           ...prev,
           categories: [...prev.categories, newCategory.trim()],
-          category: prev.category || newCategory.trim() // Keep first as primary
+          category: prev.category || newCategory.trim()
         }));
       }
       setNewCategory('');
@@ -139,7 +144,7 @@ const ProjectForm = ({ project, onClose, onSave, mode }: ProjectFormProps) => {
       return {
         ...prev,
         categories: newCategories,
-        category: newCategories[0] || '' // Update primary category
+        category: newCategories[0] || ''
       };
     });
   };
@@ -151,7 +156,7 @@ const ProjectForm = ({ project, onClose, onSave, mode }: ProjectFormProps) => {
         setFormData(prev => ({
           ...prev,
           positions: [...prev.positions, newPosition.trim()],
-          position: prev.position || newPosition.trim() // Keep first as primary
+          position: prev.position || newPosition.trim()
         }));
       }
       setNewPosition('');
@@ -217,6 +222,11 @@ const ProjectForm = ({ project, onClose, onSave, mode }: ProjectFormProps) => {
     setShowFilePicker(true);
   };
 
+  const handleNavigationChange = (folderId: string | null, stack: FolderNavigationItem[]) => {
+    setLastFolderId(folderId);
+    setLastNavStack(stack);
+  };
+
   const removeImage = () => {
     setFormData(prev => ({ 
       ...prev, 
@@ -239,453 +249,465 @@ const ProjectForm = ({ project, onClose, onSave, mode }: ProjectFormProps) => {
     return ['image'] as ('image' | 'video' | 'document')[];
   };
 
-  if (showFilePicker) {
-    return (
-      <GoogleDriveFilePicker
-        onSelect={handleFileSelect}
-        onSelectMultiple={multiSelectMode ? handleMultiFileSelect : undefined}
-        onCancel={() => {
-          setShowFilePicker(false);
-          setMultiSelectMode(false);
-        }}
-        selectedFileId={filePickerTarget === 'main' ? formData.image_drive_id : undefined}
-        fileTypes={getFileTypesForPicker()}
-        multiSelect={multiSelectMode}
-      />
-    );
-  }
-
   return (
-    <div className="flex flex-col h-full max-h-[90vh]">
-      {/* Sticky Header */}
-      <div className="flex flex-row items-center justify-between bg-background px-6 py-4 border-b flex-shrink-0">
-        <div>
-          <h2 className="text-lg font-semibold">{project ? 'Edit Project' : 'Add New Project'}</h2>
-          <p className="text-sm text-muted-foreground">
-            {project ? 'Update project details' : 'Create a new project for your portfolio'}
-          </p>
+    <>
+      <div className="flex flex-col h-full max-h-[90vh]">
+        {/* Sticky Header */}
+        <div className="flex flex-row items-center justify-between bg-background px-6 py-4 border-b flex-shrink-0">
+          <div>
+            <h2 className="text-lg font-semibold">{project ? 'Edit Project' : 'Add New Project'}</h2>
+            <p className="text-sm text-muted-foreground">
+              {project ? 'Update project details' : 'Create a new project for your portfolio'}
+            </p>
+          </div>
+          <Button variant="ghost" size="sm" onClick={onClose} type="button">
+            <X className="w-4 h-4" />
+          </Button>
         </div>
-        <Button variant="ghost" size="sm" onClick={onClose} type="button">
-          <X className="w-4 h-4" />
-        </Button>
-      </div>
-      
-      {/* Scrollable Content */}
-      <div className="flex-1 overflow-y-auto px-6 py-4">
-        <form id="project-form" onSubmit={handleSubmit} className="space-y-6">
-          {/* Basic Info */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="title">Title</Label>
-              <Input
-                id="title"
-                value={formData.title}
-                onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                placeholder="Project title"
-                required
-              />
-            </div>
-            
-            <div>
-              <Label htmlFor="category">Category {mode === 'creative' && '(type & press Enter for multiple)'}</Label>
-              {mode === 'creative' ? (
-                <div className="space-y-2">
+        
+        {/* Scrollable Content */}
+        <div className="flex-1 overflow-y-auto px-6 py-4">
+          <form id="project-form" onSubmit={handleSubmit} className="space-y-6">
+            {/* Basic Info */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="title">Title</Label>
+                <Input
+                  id="title"
+                  value={formData.title}
+                  onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+                  placeholder="Project title"
+                  required
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="category">Category {mode === 'creative' && '(type & press Enter for multiple)'}</Label>
+                {mode === 'creative' ? (
+                  <div className="space-y-2">
+                    <Input
+                      id="category"
+                      value={newCategory}
+                      onChange={(e) => setNewCategory(e.target.value)}
+                      onKeyDown={addCategory}
+                      placeholder="Type category and press Enter"
+                    />
+                    <div className="flex flex-wrap gap-2">
+                      {formData.categories.map((cat) => (
+                        <Badge key={cat} variant="secondary" className="cursor-pointer" onClick={() => removeCategory(cat)}>
+                          {cat}
+                          <X className="w-3 h-3 ml-1" />
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
                   <Input
                     id="category"
-                    value={newCategory}
-                    onChange={(e) => setNewCategory(e.target.value)}
-                    onKeyDown={addCategory}
-                    placeholder="Type category and press Enter"
+                    value={formData.category}
+                    onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
+                    placeholder="e.g., Web Development"
+                    required
+                  />
+                )}
+              </div>
+            </div>
+
+            {/* Folder Selection */}
+            <div>
+              <Label>Folder (Optional)</Label>
+              <Select 
+                value={formData.folder_id || 'none'} 
+                onValueChange={(value) => setFormData(prev => ({ 
+                  ...prev, 
+                  folder_id: value === 'none' ? null : value 
+                }))}
+              >
+                <SelectTrigger>
+                  <div className="flex items-center gap-2">
+                    <Folder className="w-4 h-4 text-muted-foreground" />
+                    <SelectValue placeholder="Select a folder" />
+                  </div>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No Folder</SelectItem>
+                  {folders.map((folder) => (
+                    <SelectItem key={folder.id} value={folder.id || `temp-${folder.name}`}>
+                      {folder.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-1">
+                Organize projects into folders for better categorization
+              </p>
+            </div>
+
+            {/* Position field - Creative Mode Only */}
+            {mode === 'creative' && (
+              <div>
+                <Label htmlFor="position">Position/Role (type & press Enter for multiple)</Label>
+                <div className="space-y-2">
+                  <Input
+                    id="position"
+                    value={newPosition}
+                    onChange={(e) => setNewPosition(e.target.value)}
+                    onKeyDown={addPosition}
+                    placeholder="e.g., Chairman, Lead Designer"
                   />
                   <div className="flex flex-wrap gap-2">
-                    {formData.categories.map((cat) => (
-                      <Badge key={cat} variant="secondary" className="cursor-pointer" onClick={() => removeCategory(cat)}>
-                        {cat}
+                    {formData.positions.map((pos) => (
+                      <Badge key={pos} variant="secondary" className="cursor-pointer" onClick={() => removePosition(pos)}>
+                        {pos}
                         <X className="w-3 h-3 ml-1" />
                       </Badge>
                     ))}
                   </div>
                 </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Your role(s) or position(s) in this creative project
+                </p>
+              </div>
+            )}
+
+            <div>
+              <Label>Project Date</Label>
+              <SingleDatePicker
+                value={formData.project_date}
+                onChange={(value) => setFormData(prev => ({ ...prev, project_date: value }))}
+                placeholder="Select project date"
+                showFormatSelector={true}
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="description">Description</Label>
+              {mode === 'creative' ? (
+                <RichTextEditor
+                  id="description"
+                  value={formData.description}
+                  onChange={(value) => setFormData(prev => ({ ...prev, description: value }))}
+                  placeholder="Describe your project... Use formatting for emphasis"
+                />
               ) : (
-                <Input
-                  id="category"
-                  value={formData.category}
-                  onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
-                  placeholder="e.g., Web Development"
+                <Textarea
+                  id="description"
+                  value={formData.description}
+                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                  placeholder="Describe your project..."
+                  rows={3}
                   required
                 />
               )}
             </div>
-          </div>
 
-          {/* Folder Selection */}
-          <div>
-            <Label>Folder (Optional)</Label>
-            <Select 
-              value={formData.folder_id || 'none'} 
-              onValueChange={(value) => setFormData(prev => ({ 
-                ...prev, 
-                folder_id: value === 'none' ? null : value 
-              }))}
-            >
-              <SelectTrigger>
-                <div className="flex items-center gap-2">
-                  <Folder className="w-4 h-4 text-muted-foreground" />
-                  <SelectValue placeholder="Select a folder" />
-                </div>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">No Folder</SelectItem>
-                {folders.map((folder) => (
-                  <SelectItem key={folder.id} value={folder.id || `temp-${folder.name}`}>
-                    {folder.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground mt-1">
-              Organize projects into folders for better categorization
-            </p>
-          </div>
-
-          {/* Position field - Creative Mode Only */}
-          {mode === 'creative' && (
-            <div>
-              <Label htmlFor="position">Position/Role (type & press Enter for multiple)</Label>
-              <div className="space-y-2">
-                <Input
-                  id="position"
-                  value={newPosition}
-                  onChange={(e) => setNewPosition(e.target.value)}
-                  onKeyDown={addPosition}
-                  placeholder="e.g., Chairman, Lead Designer"
-                />
-                <div className="flex flex-wrap gap-2">
-                  {formData.positions.map((pos) => (
-                    <Badge key={pos} variant="secondary" className="cursor-pointer" onClick={() => removePosition(pos)}>
-                      {pos}
-                      <X className="w-3 h-3 ml-1" />
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Your role(s) or position(s) in this creative project
+            {/* Main Thumbnail Image */}
+            <div className="space-y-4">
+              <Label className="text-base font-semibold">Main Thumbnail Image</Label>
+              <p className="text-xs text-muted-foreground">
+                This image is used as the project card thumbnail on the Projects page and Home page.
               </p>
-            </div>
-          )}
+              
+              {formData.image_drive_id ? (
+                <div className="space-y-4">
+                  <div className="relative inline-block">
+                    <img
+                      src={getImageUrl(formData.image_drive_id)}
+                      alt="Project image"
+                      className="w-32 h-20 object-cover rounded-lg border"
+                    />
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="sm"
+                      className="absolute -top-2 -right-2"
+                      onClick={removeImage}
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
 
-          <div>
-            <Label>Project Date</Label>
-            <SingleDatePicker
-              value={formData.project_date}
-              onChange={(value) => setFormData(prev => ({ ...prev, project_date: value }))}
-              placeholder="Select project date"
-              showFormatSelector={true}
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="description">Description</Label>
-            {mode === 'creative' ? (
-              <RichTextEditor
-                id="description"
-                value={formData.description}
-                onChange={(value) => setFormData(prev => ({ ...prev, description: value }))}
-                placeholder="Describe your project... Use formatting for emphasis"
-              />
-            ) : (
-              <Textarea
-                id="description"
-                value={formData.description}
-                onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                placeholder="Describe your project..."
-                rows={3}
-                required
-              />
-            )}
-          </div>
-
-          {/* Main Thumbnail Image */}
-          <div className="space-y-4">
-            <Label className="text-base font-semibold">Main Thumbnail Image</Label>
-            <p className="text-xs text-muted-foreground">
-              This image is used as the project card thumbnail on the Projects page and Home page.
-            </p>
-            
-            {formData.image_drive_id ? (
-              <div className="space-y-4">
-                <div className="relative inline-block">
-                  <img
-                    src={getImageUrl(formData.image_drive_id)}
-                    alt="Project image"
-                    className="w-32 h-20 object-cover rounded-lg border"
+                  <ImageCropPreview
+                    imageUrl={getImageUrl(formData.image_drive_id)}
+                    cropLandscape={formData.crop_landscape}
+                    cropSquare={formData.crop_square}
+                    cropTablet={formData.crop_tablet}
+                    onCropLandscapeChange={(crop) => setFormData(prev => ({ ...prev, crop_landscape: crop }))}
+                    onCropSquareChange={(crop) => setFormData(prev => ({ ...prev, crop_square: crop }))}
+                    onCropTabletChange={(crop) => setFormData(prev => ({ ...prev, crop_tablet: crop }))}
                   />
+
                   <Button
                     type="button"
-                    variant="destructive"
+                    variant="outline"
                     size="sm"
-                    className="absolute -top-2 -right-2"
-                    onClick={removeImage}
+                    onClick={() => openFilePicker('main')}
                   >
-                    <X className="w-4 h-4" />
+                    <Image className="w-4 h-4 mr-2" />
+                    Change Image
+                  </Button>
+
+                  <div className="flex items-center space-x-2 pt-2 border-t">
+                    <Switch
+                      id="image_scroll_enabled"
+                      checked={formData.image_scroll_enabled}
+                      onCheckedChange={(checked) => setFormData(prev => ({ ...prev, image_scroll_enabled: checked }))}
+                    />
+                    <Label htmlFor="image_scroll_enabled" className="text-sm">
+                      Enable scroll effect on Projects page (for tall images)
+                    </Label>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <Input
+                    placeholder="Enter image URL"
+                    value={formData.image_drive_id}
+                    onChange={(e) => setFormData(prev => ({ ...prev, image_drive_id: e.target.value }))}
+                  />
+                  <div className="flex items-center gap-2">
+                    <div className="h-px flex-1 bg-border" />
+                    <span className="text-xs text-muted-foreground">OR</span>
+                    <div className="h-px flex-1 bg-border" />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => openFilePicker('main')}
+                    className="w-full"
+                  >
+                    <Image className="w-4 h-4 mr-2" />
+                    Select from Google Drive
                   </Button>
                 </div>
-
-                <ImageCropPreview
-                  imageUrl={getImageUrl(formData.image_drive_id)}
-                  cropLandscape={formData.crop_landscape}
-                  cropSquare={formData.crop_square}
-                  cropTablet={formData.crop_tablet}
-                  onCropLandscapeChange={(crop) => setFormData(prev => ({ ...prev, crop_landscape: crop }))}
-                  onCropSquareChange={(crop) => setFormData(prev => ({ ...prev, crop_square: crop }))}
-                  onCropTabletChange={(crop) => setFormData(prev => ({ ...prev, crop_tablet: crop }))}
-                />
-
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => openFilePicker('main')}
-                >
-                  <Image className="w-4 h-4 mr-2" />
-                  Change Image
-                </Button>
-
-                <div className="flex items-center space-x-2 pt-2 border-t">
-                  <Switch
-                    id="image_scroll_enabled"
-                    checked={formData.image_scroll_enabled}
-                    onCheckedChange={(checked) => setFormData(prev => ({ ...prev, image_scroll_enabled: checked }))}
-                  />
-                  <Label htmlFor="image_scroll_enabled" className="text-sm">
-                    Enable scroll effect on Projects page (for tall images)
-                  </Label>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                <Input
-                  placeholder="Enter image URL"
-                  value={formData.image_drive_id}
-                  onChange={(e) => setFormData(prev => ({ ...prev, image_drive_id: e.target.value }))}
-                />
-                <div className="flex items-center gap-2">
-                  <div className="h-px flex-1 bg-border" />
-                  <span className="text-xs text-muted-foreground">OR</span>
-                  <div className="h-px flex-1 bg-border" />
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => openFilePicker('main')}
-                  className="w-full"
-                >
-                  <Image className="w-4 h-4 mr-2" />
-                  Select from Google Drive
-                </Button>
-              </div>
-            )}
-          </div>
-
-          {/* Gallery & Video Media Manager */}
-          <ProjectMediaManager
-            galleryImages={formData.gallery_images}
-            videoUrl={formData.video_url}
-            videoThumbnail={formData.video_thumbnail_drive_id}
-            includeThumbnailInGallery={formData.include_thumbnail_in_gallery}
-            onGalleryImagesChange={(images) => setFormData(prev => ({ ...prev, gallery_images: images }))}
-            onVideoUrlChange={(url) => setFormData(prev => ({ ...prev, video_url: url }))}
-            onVideoThumbnailChange={(url) => setFormData(prev => ({ ...prev, video_thumbnail_drive_id: url }))}
-            onIncludeThumbnailInGalleryChange={(value) => setFormData(prev => ({ ...prev, include_thumbnail_in_gallery: value }))}
-            onOpenFilePicker={(target) => openFilePicker(target, false)}
-            onOpenMultiFilePicker={() => openFilePicker('gallery', true)}
-          />
-
-          {/* Image Subfolders - Only show when editing existing project */}
-          {project && (
-            <ProjectImageFolderManager projectId={project.id} />
-          )}
-
-          {/* Links */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="github_url">GitHub URL (Optional)</Label>
-              <Input
-                id="github_url"
-                value={formData.github_url}
-                onChange={(e) => setFormData(prev => ({ ...prev, github_url: e.target.value }))}
-                placeholder="https://github.com/username/repo"
-              />
-            </div>
-            
-            <div>
-              <Label htmlFor="live_url">Live Demo URL (Optional)</Label>
-              <Input
-                id="live_url"
-                value={formData.live_url}
-                onChange={(e) => setFormData(prev => ({ ...prev, live_url: e.target.value }))}
-                placeholder="https://yourproject.com"
-              />
-            </div>
-          </div>
-
-          {/* Tags */}
-          <div>
-            <Label htmlFor="tags">Tags</Label>
-            <Input
-              id="tags"
-              value={newTag}
-              onChange={(e) => setNewTag(e.target.value)}
-              onKeyDown={addTag}
-              placeholder="Type a tag and press Enter"
-            />
-            <div className="flex flex-wrap gap-2 mt-2">
-              {formData.tags.map((tag) => (
-                <Badge key={tag} variant="secondary" className="cursor-pointer" onClick={() => removeTag(tag)}>
-                  {tag}
-                  <X className="w-3 h-3 ml-1" />
-                </Badge>
-              ))}
-            </div>
-          </div>
-
-          {/* Featured Toggle */}
-          <div className="flex items-center space-x-2">
-            <Switch
-              id="featured"
-              checked={formData.featured}
-              onCheckedChange={(checked) => setFormData(prev => ({ ...prev, featured: checked }))}
-            />
-            <Label htmlFor="featured">Featured Project</Label>
-          </div>
-
-          {/* Show in Recent Work Toggle */}
-          <div className="flex items-center space-x-2">
-            <Switch
-              id="show_in_recent"
-              checked={formData.show_in_recent}
-              onCheckedChange={(checked) => setFormData(prev => ({ ...prev, show_in_recent: checked }))}
-            />
-            <Label htmlFor="show_in_recent">Show in Home Page "Recent Work"</Label>
-          </div>
-
-          {/* Active/Inactive Toggle */}
-          <div className="flex items-center space-x-2 p-3 rounded-lg border border-border bg-muted/30">
-            <Switch
-              id="is_active"
-              checked={formData.is_active}
-              onCheckedChange={(checked) => setFormData(prev => ({ ...prev, is_active: checked }))}
-            />
-            <Label htmlFor="is_active" className="flex items-center gap-2">
-              {formData.is_active ? (
-                <>
-                  <Eye className="w-4 h-4 text-green-500" />
-                  <span>Project is Active (visible to public)</span>
-                </>
-              ) : (
-                <>
-                  <EyeOff className="w-4 h-4 text-muted-foreground" />
-                  <span>Project is Inactive (hidden from public)</span>
-                </>
               )}
-            </Label>
-          </div>
+            </div>
 
-          {/* Project Links Section */}
-          <div className="space-y-3 border border-border rounded-lg p-4">
-            <Label className="text-base font-semibold flex items-center gap-2">
-              <LinkIcon className="w-4 h-4" />
-              Project Links
-            </Label>
-            <p className="text-xs text-muted-foreground">
-              Add custom links with custom button text. Check "Show on card" for the link to appear on project cards.
-            </p>
-            
-            {/* Existing links */}
-            {formData.project_links.map((link, index) => (
-              <div key={index} className="flex items-center gap-2 p-2 bg-muted/50 rounded">
-                <Badge variant={link.show_on_card ? "default" : "secondary"} className="text-xs">
-                  {link.show_on_card ? "Card" : "Detail"}
-                </Badge>
-                <span className="font-medium text-sm">{link.label}</span>
-                <span className="text-xs text-muted-foreground truncate flex-1">{link.url}</span>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setFormData(prev => ({
-                      ...prev,
-                      project_links: prev.project_links.filter((_, i) => i !== index)
-                    }));
-                  }}
-                >
-                  <Trash2 className="w-3 h-3 text-destructive" />
-                </Button>
-              </div>
-            ))}
-            
-            {/* Add new link */}
-            <div className="flex flex-col gap-2 pt-2 border-t">
-              <div className="grid grid-cols-2 gap-2">
+            {/* Gallery & Video Media Manager */}
+            <ProjectMediaManager
+              galleryImages={formData.gallery_images}
+              videoUrl={formData.video_url}
+              videoThumbnail={formData.video_thumbnail_drive_id}
+              includeThumbnailInGallery={formData.include_thumbnail_in_gallery}
+              onGalleryImagesChange={(images) => setFormData(prev => ({ ...prev, gallery_images: images }))}
+              onVideoUrlChange={(url) => setFormData(prev => ({ ...prev, video_url: url }))}
+              onVideoThumbnailChange={(url) => setFormData(prev => ({ ...prev, video_thumbnail_drive_id: url }))}
+              onIncludeThumbnailInGalleryChange={(value) => setFormData(prev => ({ ...prev, include_thumbnail_in_gallery: value }))}
+              onOpenFilePicker={(target) => openFilePicker(target, false)}
+              onOpenMultiFilePicker={() => openFilePicker('gallery', true)}
+            />
+
+            {/* Image Subfolders - Only show when editing existing project */}
+            {project && (
+              <ProjectImageFolderManager projectId={project.id} />
+            )}
+
+            {/* Links */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="github_url">GitHub URL (Optional)</Label>
                 <Input
-                  placeholder="Button label (e.g., View Demo)"
-                  value={newLinkLabel}
-                  onChange={(e) => setNewLinkLabel(e.target.value)}
-                />
-                <Input
-                  placeholder="URL"
-                  value={newLinkUrl}
-                  onChange={(e) => setNewLinkUrl(e.target.value)}
+                  id="github_url"
+                  value={formData.github_url}
+                  onChange={(e) => setFormData(prev => ({ ...prev, github_url: e.target.value }))}
+                  placeholder="https://github.com/username/repo"
                 />
               </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    id="show_on_card"
-                    checked={newLinkShowOnCard}
-                    onCheckedChange={(checked) => setNewLinkShowOnCard(!!checked)}
-                  />
-                  <Label htmlFor="show_on_card" className="text-sm">Show on project card</Label>
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    if (newLinkLabel && newLinkUrl) {
+              
+              <div>
+                <Label htmlFor="live_url">Live Demo URL (Optional)</Label>
+                <Input
+                  id="live_url"
+                  value={formData.live_url}
+                  onChange={(e) => setFormData(prev => ({ ...prev, live_url: e.target.value }))}
+                  placeholder="https://yourproject.com"
+                />
+              </div>
+            </div>
+
+            {/* Tags */}
+            <div>
+              <Label htmlFor="tags">Tags</Label>
+              <Input
+                id="tags"
+                value={newTag}
+                onChange={(e) => setNewTag(e.target.value)}
+                onKeyDown={addTag}
+                placeholder="Type a tag and press Enter"
+              />
+              <div className="flex flex-wrap gap-2 mt-2">
+                {formData.tags.map((tag) => (
+                  <Badge key={tag} variant="secondary" className="cursor-pointer" onClick={() => removeTag(tag)}>
+                    {tag}
+                    <X className="w-3 h-3 ml-1" />
+                  </Badge>
+                ))}
+              </div>
+            </div>
+
+            {/* Featured Toggle */}
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="featured"
+                checked={formData.featured}
+                onCheckedChange={(checked) => setFormData(prev => ({ ...prev, featured: checked }))}
+              />
+              <Label htmlFor="featured">Featured Project</Label>
+            </div>
+
+            {/* Show in Recent Work Toggle */}
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="show_in_recent"
+                checked={formData.show_in_recent}
+                onCheckedChange={(checked) => setFormData(prev => ({ ...prev, show_in_recent: checked }))}
+              />
+              <Label htmlFor="show_in_recent">Show in Home Page "Recent Work"</Label>
+            </div>
+
+            {/* Active/Inactive Toggle */}
+            <div className="flex items-center space-x-2 p-3 rounded-lg border border-border bg-muted/30">
+              <Switch
+                id="is_active"
+                checked={formData.is_active}
+                onCheckedChange={(checked) => setFormData(prev => ({ ...prev, is_active: checked }))}
+              />
+              <Label htmlFor="is_active" className="flex items-center gap-2">
+                {formData.is_active ? (
+                  <>
+                    <Eye className="w-4 h-4 text-green-500" />
+                    <span>Project is Active (visible to public)</span>
+                  </>
+                ) : (
+                  <>
+                    <EyeOff className="w-4 h-4 text-muted-foreground" />
+                    <span>Project is Inactive (hidden from public)</span>
+                  </>
+                )}
+              </Label>
+            </div>
+
+            {/* Project Links Section */}
+            <div className="space-y-3 border border-border rounded-lg p-4">
+              <Label className="text-base font-semibold flex items-center gap-2">
+                <LinkIcon className="w-4 h-4" />
+                Project Links
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Add custom links with custom button text. Check "Show on card" for the link to appear on project cards.
+              </p>
+              
+              {/* Existing links */}
+              {formData.project_links.map((link, index) => (
+                <div key={index} className="flex items-center gap-2 p-2 bg-muted/50 rounded">
+                  <Badge variant={link.show_on_card ? "default" : "secondary"} className="text-xs">
+                    {link.show_on_card ? "Card" : "Detail"}
+                  </Badge>
+                  <span className="font-medium text-sm">{link.label}</span>
+                  <span className="text-xs text-muted-foreground truncate flex-1">{link.url}</span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
                       setFormData(prev => ({
                         ...prev,
-                        project_links: [...prev.project_links, { label: newLinkLabel, url: newLinkUrl, show_on_card: newLinkShowOnCard }]
+                        project_links: prev.project_links.filter((_, i) => i !== index)
                       }));
-                      setNewLinkLabel('');
-                      setNewLinkUrl('');
-                      setNewLinkShowOnCard(false);
-                    }
-                  }}
-                  disabled={!newLinkLabel || !newLinkUrl}
-                >
-                  <Plus className="w-3 h-3 mr-1" />
-                  Add Link
-                </Button>
+                    }}
+                  >
+                    <Trash2 className="w-3 h-3 text-destructive" />
+                  </Button>
+                </div>
+              ))}
+              
+              {/* Add new link */}
+              <div className="flex flex-col gap-2 pt-2 border-t">
+                <div className="grid grid-cols-2 gap-2">
+                  <Input
+                    placeholder="Button label (e.g., View Demo)"
+                    value={newLinkLabel}
+                    onChange={(e) => setNewLinkLabel(e.target.value)}
+                  />
+                  <Input
+                    placeholder="URL"
+                    value={newLinkUrl}
+                    onChange={(e) => setNewLinkUrl(e.target.value)}
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="show_on_card"
+                      checked={newLinkShowOnCard}
+                      onCheckedChange={(checked) => setNewLinkShowOnCard(!!checked)}
+                    />
+                    <Label htmlFor="show_on_card" className="text-sm">Show on project card</Label>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      if (newLinkLabel && newLinkUrl) {
+                        setFormData(prev => ({
+                          ...prev,
+                          project_links: [...prev.project_links, { label: newLinkLabel, url: newLinkUrl, show_on_card: newLinkShowOnCard }]
+                        }));
+                        setNewLinkLabel('');
+                        setNewLinkUrl('');
+                        setNewLinkShowOnCard(false);
+                      }
+                    }}
+                    disabled={!newLinkLabel || !newLinkUrl}
+                  >
+                    <Plus className="w-3 h-3 mr-1" />
+                    Add Link
+                  </Button>
+                </div>
               </div>
             </div>
-          </div>
 
-        </form>
+          </form>
+        </div>
+
+        {/* Sticky Footer */}
+        <div className="flex justify-end space-x-4 bg-background px-6 py-4 border-t flex-shrink-0">
+          <Button type="button" variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" form="project-form" disabled={loading}>
+            {loading ? 'Saving...' : project ? 'Update Project' : 'Add Project'}
+          </Button>
+        </div>
       </div>
 
-      {/* Sticky Footer */}
-      <div className="flex justify-end space-x-4 bg-background px-6 py-4 border-t flex-shrink-0">
-        <Button type="button" variant="outline" onClick={onClose}>
-          Cancel
-        </Button>
-        <Button type="submit" form="project-form" disabled={loading}>
-          {loading ? 'Saving...' : project ? 'Update Project' : 'Add Project'}
-        </Button>
-      </div>
-    </div>
+      {/* File Picker Dialog - Always mounted, visibility controlled by open state */}
+      <Dialog open={showFilePicker} onOpenChange={(open) => {
+        if (!open) {
+          setShowFilePicker(false);
+          setMultiSelectMode(false);
+        }
+      }}>
+        <DialogContent className="max-w-4xl max-h-[90vh] p-0 overflow-hidden">
+          <DialogTitle className="sr-only">Select File from Google Drive</DialogTitle>
+          <GoogleDriveFilePicker
+            onSelect={handleFileSelect}
+            onSelectMultiple={multiSelectMode ? handleMultiFileSelect : undefined}
+            onCancel={() => {
+              setShowFilePicker(false);
+              setMultiSelectMode(false);
+            }}
+            selectedFileId={filePickerTarget === 'main' ? formData.image_drive_id : undefined}
+            fileTypes={getFileTypesForPicker()}
+            multiSelect={multiSelectMode}
+            initialFolderId={lastFolderId}
+            initialNavigationStack={lastNavStack}
+            onNavigationChange={handleNavigationChange}
+          />
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };
 

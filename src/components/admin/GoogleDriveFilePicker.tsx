@@ -1,7 +1,7 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Image, Video, FileText, Check, X, Folder, ArrowLeft, ArrowUpDown } from 'lucide-react';
+import { Image, Video, FileText, Check, X, Folder, ArrowLeft, ArrowUpDown, CheckSquare, Square } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -9,6 +9,11 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DriveFile, getFilesFromFolder, getFolderContents } from '@/services/googleDriveService';
 import { generateDriveImageUrl } from '@/utils/googleDrive';
+
+export interface FolderNavigationItem {
+  id: string;
+  name: string;
+}
 
 interface GoogleDriveFilePickerProps {
   onSelect: (file: DriveFile) => void;
@@ -18,11 +23,9 @@ interface GoogleDriveFilePickerProps {
   selectedFileIds?: string[];
   fileTypes?: ('image' | 'video' | 'document')[];
   multiSelect?: boolean;
-}
-
-interface FolderNavigationItem {
-  id: string;
-  name: string;
+  initialFolderId?: string | null;
+  initialNavigationStack?: FolderNavigationItem[];
+  onNavigationChange?: (folderId: string | null, stack: FolderNavigationItem[]) => void;
 }
 
 const GoogleDriveFilePicker = ({ 
@@ -32,14 +35,17 @@ const GoogleDriveFilePicker = ({
   selectedFileId,
   selectedFileIds = [],
   fileTypes = ['image', 'video'],
-  multiSelect = false
+  multiSelect = false,
+  initialFolderId = null,
+  initialNavigationStack = [],
+  onNavigationChange
 }: GoogleDriveFilePickerProps) => {
   const [files, setFiles] = useState<DriveFile[]>([]);
   const [filteredFiles, setFilteredFiles] = useState<DriveFile[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
-  const [navigationStack, setNavigationStack] = useState<FolderNavigationItem[]>([]);
+  const [currentFolderId, setCurrentFolderId] = useState<string | null>(initialFolderId);
+  const [navigationStack, setNavigationStack] = useState<FolderNavigationItem[]>(initialNavigationStack);
   const [showAllFiles, setShowAllFiles] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<DriveFile[]>([]);
   const [sortOrder, setSortOrder] = useState<'name-asc' | 'name-desc' | 'date-newest' | 'date-oldest'>('name-asc');
@@ -85,8 +91,15 @@ const GoogleDriveFilePicker = ({
   };
 
   useEffect(() => {
-    fetchFilesFromFolder(currentFolderId);
+    fetchFilesFromFolder(currentFolderId ?? undefined);
   }, [fileTypes, showAllFiles, currentFolderId]);
+
+  // Notify parent of navigation changes
+  useEffect(() => {
+    if (onNavigationChange) {
+      onNavigationChange(currentFolderId, navigationStack);
+    }
+  }, [currentFolderId, navigationStack, onNavigationChange]);
 
   useEffect(() => {
     let filtered = files.filter(file => 
@@ -225,6 +238,20 @@ const GoogleDriveFilePicker = ({
     });
   };
 
+  // Get all selectable files for "Select All" functionality
+  const selectableFiles = filteredFiles.filter(isFileSelectable);
+  const allSelected = selectableFiles.length > 0 && selectableFiles.every(f => selectedFiles.some(sf => sf.id === f.id));
+
+  const handleSelectAll = useCallback(() => {
+    if (allSelected) {
+      // Deselect all
+      setSelectedFiles([]);
+    } else {
+      // Select all selectable files
+      setSelectedFiles(selectableFiles);
+    }
+  }, [allSelected, selectableFiles]);
+
   if (loading) {
     return (
       <Card className="w-full max-w-4xl mx-auto">
@@ -320,15 +347,37 @@ const GoogleDriveFilePicker = ({
         {/* Multi-select action bar */}
         {multiSelect && (
           <div className="flex items-center justify-between mb-4 p-3 bg-muted/50 rounded-lg">
-            <span className="text-sm text-muted-foreground">
-              {selectedFiles.length} image{selectedFiles.length !== 1 ? 's' : ''} selected
-            </span>
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-muted-foreground">
+                {selectedFiles.length} file{selectedFiles.length !== 1 ? 's' : ''} selected
+              </span>
+              {selectableFiles.length > 0 && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSelectAll}
+                >
+                  {allSelected ? (
+                    <>
+                      <Square className="w-4 h-4 mr-2" />
+                      Deselect All
+                    </>
+                  ) : (
+                    <>
+                      <CheckSquare className="w-4 h-4 mr-2" />
+                      Select All ({selectableFiles.length})
+                    </>
+                  )}
+                </Button>
+              )}
+            </div>
             <Button 
               onClick={handleConfirmMultiSelect}
               disabled={selectedFiles.length === 0}
             >
               <Check className="w-4 h-4 mr-2" />
-              Add {selectedFiles.length} Image{selectedFiles.length !== 1 ? 's' : ''}
+              Add {selectedFiles.length} File{selectedFiles.length !== 1 ? 's' : ''}
             </Button>
           </div>
         )}
