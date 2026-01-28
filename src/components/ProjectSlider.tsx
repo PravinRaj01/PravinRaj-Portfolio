@@ -178,8 +178,8 @@ const ProjectSlider = ({ projects, mode }: ProjectSliderProps) => {
                       ? project.image_drive_id 
                       : generateDriveImageUrl(project.image_drive_id, 'large')}
                     alt={`${project.title} mockup`}
-                    className={`w-full transition-all duration-[6000ms] ${
-                      project.image_scroll_enabled ? 'h-auto transform hover:translate-y-[-50%]' : 'h-full object-cover'
+                    className={`w-full transition-all duration-[10000ms] ease-linear ${
+                      project.image_scroll_enabled ? 'h-auto transform hover:translate-y-[calc(-100%+22rem)]' : 'h-full object-cover'
                     }`}
                     style={!project.image_scroll_enabled ? {
                       objectPosition: `${project.crop_landscape?.x ?? 50}% ${project.crop_landscape?.y ?? 50}%`,

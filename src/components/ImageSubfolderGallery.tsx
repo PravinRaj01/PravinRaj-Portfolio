@@ -160,7 +160,7 @@ const ImageSubfolderGallery = ({ folder, isOpen, onClose, mode }: ImageSubfolder
       {/* Main Popup Dialog */}
       <Dialog open={isOpen && !isFullscreen} onOpenChange={(open) => !open && onClose()}>
         <DialogContent 
-          className="!max-w-4xl !w-[95vw] sm:!w-[90vw] p-0 bg-background/95 backdrop-blur-md border-border overflow-hidden"
+          className="!max-w-4xl !w-[100vw] sm:!w-[90vw] p-0 bg-background/95 backdrop-blur-md border-border overflow-hidden max-h-[95vh]"
           onKeyDown={handleKeyDown}
           hideCloseButton={true}
         >
@@ -315,7 +315,7 @@ const ImageSubfolderGallery = ({ folder, isOpen, onClose, mode }: ImageSubfolder
 
             {/* Thumbnail Strip */}
             {hasMultipleSlides && (
-              <div className="flex gap-2 p-3 overflow-x-auto bg-background/50 justify-start sm:justify-center mx-auto max-w-full">
+              <div className="flex gap-2 p-3 overflow-x-auto bg-background/50 justify-start sm:justify-center w-full max-w-full">
                 {Array.from({ length: totalSlides }).map((_, idx) => {
                   const content = getContentForIndex(idx);
                   const isVideo = content.type === 'video';

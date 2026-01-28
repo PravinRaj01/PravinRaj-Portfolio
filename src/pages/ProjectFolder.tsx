@@ -1,12 +1,13 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Grid, List, Folder, ExternalLink, Github, Calendar, Tag, Filter, ArrowUpDown, Search, User } from 'lucide-react';
+import { ArrowLeft, Grid, List, Folder, ExternalLink, Github, Calendar, Tag, Filter, ArrowUpDown, Search, User, ZoomIn, ZoomOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Slider } from '@/components/ui/slider';
 import Navigation from '@/components/Navigation';
 import CursorFollower from '@/components/CursorFollower';
 import RadialGradient from '@/components/RadialGradient';
@@ -19,6 +20,7 @@ import { generateDriveImageUrl } from '@/utils/googleDrive';
 import { Project } from '@/types/cms';
 import { parse } from 'date-fns';
 import ReactMarkdown from 'react-markdown';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const ProjectFolderPage = () => {
   const { folderId } = useParams<{ folderId: string }>();
@@ -27,6 +29,7 @@ const ProjectFolderPage = () => {
   const { projects, loading: projectsLoading } = useProjects(mode);
   const { folders, loading: foldersLoading } = useProjectFolders(mode);
   const { data: siteSettings } = useSiteSettings();
+  const isMobile = useIsMobile();
   
   const [folder, setFolder] = useState<FolderType | null>(null);
   const [folderProjects, setFolderProjects] = useState<Project[]>([]);
@@ -34,6 +37,17 @@ const ProjectFolderPage = () => {
   const [activeCategory, setActiveCategory] = useState<string>('all');
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
   const [searchQuery, setSearchQuery] = useState('');
+  
+  // Zoom state - load from localStorage
+  const [cardZoom, setCardZoom] = useState(() => {
+    const saved = localStorage.getItem('folder-projects-card-zoom');
+    return saved ? parseInt(saved, 10) : 100;
+  });
+
+  // Save zoom to localStorage when it changes
+  useEffect(() => {
+    localStorage.setItem('folder-projects-card-zoom', String(cardZoom));
+  }, [cardZoom]);
 
   // Set default view from settings
   useEffect(() => {
@@ -262,6 +276,48 @@ const ProjectFolderPage = () => {
                 className="w-[120px] sm:w-[160px] h-8 sm:h-9 text-xs sm:text-sm pl-8"
               />
             </div>
+
+            {/* Zoom Controls */}
+            {viewMode === 'cards' && (
+              <div className="flex items-center gap-2">
+                {isMobile ? (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => setCardZoom(prev => Math.max(60, prev - 10))}
+                      disabled={cardZoom <= 60}
+                    >
+                      <ZoomOut className="w-3.5 h-3.5" />
+                    </Button>
+                    <span className="text-xs text-muted-foreground w-8 text-center">{cardZoom}%</span>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => setCardZoom(prev => Math.min(120, prev + 10))}
+                      disabled={cardZoom >= 120}
+                    >
+                      <ZoomIn className="w-3.5 h-3.5" />
+                    </Button>
+                  </>
+                ) : (
+                  <div className="flex items-center gap-2 bg-muted/50 rounded-lg px-2 py-1">
+                    <ZoomOut className="w-3.5 h-3.5 text-muted-foreground" />
+                    <Slider
+                      value={[cardZoom]}
+                      onValueChange={(values) => setCardZoom(values[0])}
+                      min={60}
+                      max={120}
+                      step={5}
+                      className="w-24"
+                    />
+                    <ZoomIn className="w-3.5 h-3.5 text-muted-foreground" />
+                  </div>
+                )}
+              </div>
+            )}
           </motion.div>
 
           {/* Projects Display */}
@@ -274,35 +330,48 @@ const ProjectFolderPage = () => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.4, delay: 0.2 }}
-              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
+              className={`grid gap-3 sm:gap-4 md:gap-5 ${
+                cardZoom <= 70 ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6' :
+                cardZoom <= 85 ? 'grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5' :
+                cardZoom <= 105 ? 'grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' :
+                'grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3'
+              }`}
             >
               {filteredProjects.map((project, index) => (
                 <motion.div
                   key={project.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4, delay: index * 0.1 }}
+                  initial={{ opacity: 0, y: 30 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6, delay: index * 0.1 }}
+                  viewport={{ once: true }}
                 >
                   <Card 
-                    className="cursor-pointer hover:shadow-lg transition-all overflow-hidden group"
+                    className="h-full hover:shadow-lg transition-shadow overflow-hidden cursor-pointer flex flex-col"
                     onClick={() => navigate(`/projects/${project.id}`, { state: { fromFolder: folderId } })}
                   >
-                    <div className="relative aspect-video overflow-hidden">
-                        {project.image_drive_id ? (
-                          <img 
-                            src={project.image_drive_id.startsWith('http') 
-                              ? project.image_drive_id 
-                              : generateDriveImageUrl(project.image_drive_id, 'medium')} 
-                            alt={project.title}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                          />
+                    {/* Project Image - 16:9 Ratio */}
+                    <div className="relative aspect-video overflow-hidden flex-shrink-0">
+                      {project.image_drive_id ? (
+                        <img 
+                          src={project.image_drive_id.startsWith('http') 
+                            ? project.image_drive_id 
+                            : generateDriveImageUrl(project.image_drive_id, 'medium')} 
+                          alt={project.title}
+                          className="w-full h-full object-cover"
+                          style={{
+                            objectPosition: `${(project.crop_landscape as any)?.x ?? 50}% ${(project.crop_landscape as any)?.y ?? 50}%`,
+                            transform: `scale(${((project.crop_landscape as any)?.zoom ?? 100) / 100})`,
+                            transformOrigin: `${(project.crop_landscape as any)?.x ?? 50}% ${(project.crop_landscape as any)?.y ?? 50}%`
+                          }}
+                        />
                       ) : (
                         <div className="w-full h-full bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center">
-                          <span className="text-muted-foreground">No Image</span>
+                          <span className="text-muted-foreground text-xs sm:text-sm">No Image</span>
                         </div>
                       )}
+                      {/* Featured badge */}
                       {project.featured && (
-                        <Badge className={`absolute top-3 left-3 bg-gradient-to-r ${
+                        <Badge className={`absolute top-2 left-2 sm:top-3 sm:left-3 text-[10px] sm:text-xs bg-gradient-to-r ${
                           mode === 'creative' 
                             ? 'from-orange-500 to-orange-600' 
                             : 'from-blue-600 to-purple-600'
@@ -311,7 +380,8 @@ const ProjectFolderPage = () => {
                         </Badge>
                       )}
                     </div>
-                    <CardHeader className="p-4">
+
+                    <CardHeader className="p-3 sm:p-4 md:p-6 flex-shrink-0">
                       {/* Position Badges for Creative Mode */}
                       {mode === 'creative' && (project.positions?.length ? project.positions : project.position ? [project.position] : []).length > 0 && (
                         <div className="flex flex-wrap gap-1 mb-1">
@@ -322,21 +392,27 @@ const ProjectFolderPage = () => {
                           ))}
                         </div>
                       )}
-                      <CardTitle className="text-lg">{project.title}</CardTitle>
-                      <CardDescription className="flex items-center gap-2 text-sm">
-                        <Tag className="w-3 h-3" />
-                        {project.category}
-                        {project.project_date && (
-                          <>
-                            <span className="mx-1">•</span>
-                            <Calendar className="w-3 h-3" />
-                            {project.project_date}
-                          </>
-                        )}
+                      <CardTitle className="text-sm sm:text-base md:text-lg">{project.title}</CardTitle>
+                      <CardDescription className="text-xs sm:text-sm">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="flex items-center">
+                            <Tag className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+                            {project.category}
+                          </span>
+                          {project.project_date && (
+                            <span className="flex items-center text-muted-foreground">
+                              <Calendar className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+                              {project.project_date}
+                            </span>
+                          )}
+                        </div>
                       </CardDescription>
                     </CardHeader>
-                    <CardContent className="p-4 pt-0">
-                      <div className="text-sm text-muted-foreground line-clamp-2 mb-3 prose-sm prose-p:my-0">
+                    <CardContent className="p-3 sm:p-4 md:p-6 pt-0 flex flex-col flex-1">
+                      <div 
+                        className="text-xs sm:text-sm text-muted-foreground mb-3 sm:mb-4 line-clamp-2 prose-sm prose-p:my-0"
+                        style={{ wordBreak: 'keep-all', overflowWrap: 'break-word', hyphens: 'none' }}
+                      >
                         <ReactMarkdown
                           components={{
                             p: ({ children }) => <span>{children}</span>,
@@ -347,12 +423,22 @@ const ProjectFolderPage = () => {
                           {project.description}
                         </ReactMarkdown>
                       </div>
-                      <div className="flex flex-wrap gap-1.5">
-                        {project.tags.slice(0, 3).map((tag) => (
-                          <Badge key={tag} variant="secondary" className="text-xs">{tag}</Badge>
+                      
+                      {/* Tags */}
+                      <div className="flex flex-wrap gap-1 mb-3 sm:mb-4">
+                        {project.tags.slice(0, 2).map((tag) => (
+                          <Badge
+                            key={tag}
+                            variant="secondary"
+                            className="text-[10px] sm:text-xs px-1.5 py-0.5"
+                          >
+                            {tag}
+                          </Badge>
                         ))}
-                        {project.tags.length > 3 && (
-                          <Badge variant="outline" className="text-xs">+{project.tags.length - 3}</Badge>
+                        {project.tags.length > 2 && (
+                          <Badge variant="outline" className="text-[10px] sm:text-xs px-1.5 py-0.5">
+                            +{project.tags.length - 2}
+                          </Badge>
                         )}
                       </div>
                     </CardContent>

@@ -660,8 +660,8 @@ const Projects = () => {
                     cardZoom <= 105 ? 'grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' :
                     'grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3'
                   }`}>
-                  {/* Render Standalone Projects (sorted) */}
-                  {sortedProjects.filter(p => !p.folder_id).map((project, index) => (
+                  {/* Render Standalone Projects + Featured Folder Projects (sorted) */}
+                  {sortedProjects.filter(p => !p.folder_id || p.featured).map((project, index) => (
                     <motion.div
                       key={project.id}
                       initial={{ opacity: 0, y: 30 }}
@@ -693,6 +693,7 @@ const Projects = () => {
                               <span className="text-muted-foreground text-xs sm:text-sm">No Image</span>
                             </div>
                           )}
+                          {/* Featured badge */}
                           {project.featured && (
                             <Badge className={`absolute top-2 left-2 sm:top-3 sm:left-3 text-[10px] sm:text-xs bg-gradient-to-r ${
                               mode === 'creative' 
@@ -700,6 +701,23 @@ const Projects = () => {
                                 : 'from-blue-600 to-purple-600'
                             } text-white`}>
                               Featured
+                            </Badge>
+                          )}
+                          {/* Folder indicator for featured folder projects */}
+                          {project.folder_id && project.featured && (
+                            <Badge 
+                              className={`absolute top-2 right-2 sm:top-3 sm:right-3 text-[10px] sm:text-xs ${
+                                mode === 'creative' 
+                                  ? 'bg-orange-500/20 text-orange-300 border-orange-500/30' 
+                                  : 'bg-purple-500/20 text-purple-300 border-purple-500/30'
+                              }`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/projects/folder/${project.folder_id}`);
+                              }}
+                            >
+                              <Folder className="w-3 h-3 mr-1" />
+                              In Folder
                             </Badge>
                           )}
                         </div>

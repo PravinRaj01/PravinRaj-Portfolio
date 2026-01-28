@@ -118,14 +118,29 @@ export const PortfolioProvider: React.FC<PortfolioProviderProps> = ({ children }
           }
         }
 
+        // Check if this is a fresh page load on the base URL
+        // If so, always use the database default mode (don't use localStorage)
+        const isBaseUrlFreshLoad = window.location.pathname === '/';
+        
         // Check for saved mode preference
         const savedMode = localStorage.getItem('portfolioMode') as 'professional' | 'creative';
         
         // Determine which mode to use
         let targetMode: 'professional' | 'creative';
         
-        if (savedMode) {
-          // Check if saved mode is still enabled
+        if (isBaseUrlFreshLoad) {
+          // On base URL, always use database default mode
+          if (defaultMode === 'professional' && proEnabled) {
+            targetMode = 'professional';
+          } else if (defaultMode === 'creative' && creEnabled) {
+            targetMode = 'creative';
+          } else {
+            targetMode = proEnabled ? 'professional' : 'creative';
+          }
+          // Clear any persisted mode since we're resetting to default
+          localStorage.removeItem('portfolioMode');
+        } else if (savedMode) {
+          // On other pages, check if saved mode is still enabled
           if (savedMode === 'professional' && proEnabled) {
             targetMode = 'professional';
           } else if (savedMode === 'creative' && creEnabled) {
@@ -146,7 +161,6 @@ export const PortfolioProvider: React.FC<PortfolioProviderProps> = ({ children }
         }
 
         setMode(targetMode);
-        localStorage.setItem('portfolioMode', targetMode);
         setModeSettingsLoaded(true);
       } catch (error) {
         console.error('Error fetching mode settings:', error);
