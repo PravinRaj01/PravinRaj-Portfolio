@@ -48,11 +48,13 @@ const Navigation = () => {
     { name: 'Academic', path: '/academic', id: 'academic' },
     { name: 'Experience', path: '/experience', id: 'experience' },
     { name: 'Projects', path: '/projects', id: 'projects' },
+    { name: 'Podcast', path: '/podcast', id: 'podcast' },
     { name: 'Contact', path: '/contact', id: 'contact' },
   ];
 
   const allCreativeNavItems = [
     { name: 'Home', path: '/', id: 'home' },
+    { name: 'Academic', path: '/academic', id: 'academic' },
     { name: 'Experience', path: '/experience', id: 'experience' },
     { name: 'Projects', path: '/projects', id: 'projects' },
     { name: 'Podcast', path: '/podcast', id: 'podcast' },
