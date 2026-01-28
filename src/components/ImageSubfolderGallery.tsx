@@ -160,7 +160,7 @@ const ImageSubfolderGallery = ({ folder, isOpen, onClose, mode }: ImageSubfolder
       {/* Main Popup Dialog */}
       <Dialog open={isOpen && !isFullscreen} onOpenChange={(open) => !open && onClose()}>
         <DialogContent 
-          className="!max-w-4xl !w-[100vw] sm:!w-[90vw] p-0 bg-background/95 backdrop-blur-md border-border overflow-hidden max-h-[95vh]"
+          className="!max-w-4xl !w-[95vw] sm:!w-[90vw] p-0 bg-background/95 backdrop-blur-md border-border overflow-hidden max-h-[90vh] sm:max-h-[95vh] flex flex-col"
           onKeyDown={handleKeyDown}
           hideCloseButton={true}
         >
@@ -168,8 +168,9 @@ const ImageSubfolderGallery = ({ folder, isOpen, onClose, mode }: ImageSubfolder
             <DialogTitle>{folder.name} Gallery</DialogTitle>
           </VisuallyHidden>
           
-          {/* Header */}
+          {/* Header - fixed height */}
           <div className={cn(
+            "shrink-0",
             "flex items-center justify-between p-4 border-b",
             `border-${accentColor}-500/20`
           )}>
@@ -201,7 +202,7 @@ const ImageSubfolderGallery = ({ folder, isOpen, onClose, mode }: ImageSubfolder
             </Button>
           </div>
 
-          {/* Gallery Content */}
+          {/* Gallery Content - flexible */}
           <div className="relative">
             {/* Main Image/Video Area */}
             <div 
@@ -315,7 +316,7 @@ const ImageSubfolderGallery = ({ folder, isOpen, onClose, mode }: ImageSubfolder
 
             {/* Thumbnail Strip */}
             {hasMultipleSlides && (
-              <div className="flex gap-2 p-3 overflow-x-auto bg-background/50 justify-start sm:justify-center w-full max-w-full">
+              <div className="flex gap-2 p-2 sm:p-3 overflow-x-auto bg-background/50 justify-start sm:justify-center w-full shrink-0 max-h-[80px] sm:max-h-none">
                 {Array.from({ length: totalSlides }).map((_, idx) => {
                   const content = getContentForIndex(idx);
                   const isVideo = content.type === 'video';
@@ -328,7 +329,7 @@ const ImageSubfolderGallery = ({ folder, isOpen, onClose, mode }: ImageSubfolder
                       key={idx}
                       onClick={() => { setCurrentIndex(idx); setShowVideo(false); }}
                       className={cn(
-                        "w-14 h-14 sm:w-16 sm:h-16 rounded overflow-hidden border-2 transition-all flex-shrink-0 relative",
+                        "w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 rounded overflow-hidden border-2 transition-all flex-shrink-0 relative",
                         currentIndex === idx 
                           ? mode === 'creative' ? 'border-orange-500' : 'border-purple-500'
                           : 'border-transparent hover:border-muted-foreground/50'
