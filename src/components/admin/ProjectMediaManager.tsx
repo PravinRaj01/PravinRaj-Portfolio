@@ -224,7 +224,22 @@ const ProjectMediaManager = ({
     })
   );
 
+  const handleDragStart = useCallback(() => {
+    // Prevent any parent dialogs/sheets from closing during drag
+    document.body.style.pointerEvents = 'none';
+    document.body.style.userSelect = 'none';
+  }, []);
+
+  const handleDragCancel = useCallback(() => {
+    document.body.style.pointerEvents = '';
+    document.body.style.userSelect = '';
+  }, []);
+
   const handleDragEnd = useCallback((event: DragEndEvent) => {
+    // Re-enable pointer events after drag
+    document.body.style.pointerEvents = '';
+    document.body.style.userSelect = '';
+    
     const { active, over } = event;
 
     if (over && active.id !== over.id) {
@@ -329,7 +344,7 @@ const ProjectMediaManager = ({
         </RadioGroup>
 
         {/* Include Thumbnail Toggle */}
-        {(mediaType === 'images' || mediaType === 'both') && (
+        {(mediaType === 'images' || mediaType === 'both' || mediaType === 'video') && (
           <div className="flex items-center space-x-2 pt-2 border-t mt-3">
             <Switch
               id="include_thumbnail"
@@ -350,7 +365,9 @@ const ProjectMediaManager = ({
             <DndContext
               sensors={sensors}
               collisionDetection={closestCenter}
+              onDragStart={handleDragStart}
               onDragEnd={handleDragEnd}
+              onDragCancel={handleDragCancel}
             >
               <SortableContext items={mediaItems.map(m => m.id)} strategy={rectSortingStrategy}>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
@@ -480,18 +497,31 @@ const ProjectMediaManager = ({
                   </Button>
                 </div>
               ) : (
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="Thumbnail URL"
-                    onChange={(e) => onVideoThumbnailChange(e.target.value)}
-                  />
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Thumbnail URL"
+                      onChange={(e) => onVideoThumbnailChange(e.target.value)}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onOpenFilePicker('thumbnail')}
+                      title="Select from Google Drive"
+                    >
+                      <Image className="w-4 h-4" />
+                    </Button>
+                  </div>
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
                     onClick={() => onOpenFilePicker('thumbnail')}
+                    className="w-full"
                   >
-                    <Image className="w-4 h-4" />
+                    <Image className="w-4 h-4 mr-2" />
+                    Select from Google Drive
                   </Button>
                 </div>
               )}
