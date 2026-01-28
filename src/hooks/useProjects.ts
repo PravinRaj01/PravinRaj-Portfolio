@@ -3,7 +3,12 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/utils/supabase';
 import { Project } from '@/types/cms';
 
-export const useProjects = (mode?: 'professional' | 'creative') => {
+interface UseProjectsOptions {
+  includeInactive?: boolean;
+}
+
+export const useProjects = (mode?: 'professional' | 'creative', options: UseProjectsOptions = {}) => {
+  const { includeInactive = false } = options;
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -15,6 +20,10 @@ export const useProjects = (mode?: 'professional' | 'creative') => {
         .from('projects')
         .select('*')
         .order('order_index', { ascending: true });
+
+      if (!includeInactive) {
+        query = query.eq('is_active', true);
+      }
 
       if (mode) {
         query = query.eq('mode', mode);

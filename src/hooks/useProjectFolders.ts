@@ -14,7 +14,12 @@ export interface ProjectFolder {
   is_active?: boolean;
 }
 
-export const useProjectFolders = (mode?: 'professional' | 'creative') => {
+interface UseProjectFoldersOptions {
+  includeInactive?: boolean;
+}
+
+export const useProjectFolders = (mode?: 'professional' | 'creative', options: UseProjectFoldersOptions = {}) => {
+  const { includeInactive = false } = options;
   const [folders, setFolders] = useState<ProjectFolder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -26,6 +31,10 @@ export const useProjectFolders = (mode?: 'professional' | 'creative') => {
         .from('project_folders')
         .select('*')
         .order('order_index', { ascending: true });
+
+      if (!includeInactive) {
+        query = query.eq('is_active', true);
+      }
 
       if (mode) {
         query = query.eq('mode', mode);
@@ -41,7 +50,8 @@ export const useProjectFolders = (mode?: 'professional' | 'creative') => {
           const { count } = await supabase
             .from('projects')
             .select('*', { count: 'exact', head: true })
-            .eq('folder_id', folder.id);
+            .eq('folder_id', folder.id)
+            .eq('is_active', true);
 
           return {
             ...folder,

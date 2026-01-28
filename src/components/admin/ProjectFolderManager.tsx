@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Plus, Folder, Edit, Trash2, GripVertical, Search } from 'lucide-react';
+import { Plus, Folder, Edit, Trash2, GripVertical, Search, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
 import ProjectFolderForm from './ProjectFolderForm';
 import {
@@ -21,7 +21,7 @@ import {
 
 const ProjectFolderManager = () => {
   const { mode } = usePortfolio();
-  const { folders, loading, addFolder, updateFolder, deleteFolder, refetch } = useProjectFolders(mode);
+  const { folders, loading, addFolder, updateFolder, deleteFolder, refetch } = useProjectFolders(mode, { includeInactive: true });
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingFolder, setEditingFolder] = useState<ProjectFolder | null>(null);
   const [deleteConfirmFolder, setDeleteConfirmFolder] = useState<ProjectFolder | null>(null);
@@ -136,7 +136,7 @@ const ProjectFolderManager = () => {
       ) : (
         <div className="space-y-3">
           {filteredFolders.map((folder) => (
-            <Card key={folder.id} className="hover:bg-muted/50 transition-colors">
+            <Card key={folder.id} className={`hover:bg-muted/50 transition-colors ${folder.is_active === false ? 'opacity-60 border-dashed' : ''}`}>
               <CardContent className="flex items-center justify-between p-4">
                 <div className="flex items-center gap-4">
                   <GripVertical className="w-5 h-5 text-muted-foreground cursor-grab" />
@@ -149,6 +149,12 @@ const ProjectFolderManager = () => {
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
+                  {folder.is_active === false && (
+                    <Badge variant="outline" className="border-amber-500 text-amber-600">
+                      <EyeOff className="w-3 h-3 mr-1" />
+                      Inactive
+                    </Badge>
+                  )}
                   <Badge variant="secondary">
                     {folder.project_count} project{folder.project_count !== 1 ? 's' : ''}
                   </Badge>

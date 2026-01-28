@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Edit, Trash2, Image, ExternalLink, Github, Search, Filter, Home, Star } from 'lucide-react';
+import { Plus, Edit, Trash2, Image, ExternalLink, Github, Search, Filter, Home, Star, EyeOff } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -15,7 +15,7 @@ import { usePortfolio } from '@/contexts/PortfolioContext';
 
 const ProjectManager = () => {
   const { mode } = usePortfolio();
-  const { projects, loading, deleteProject, refetch } = useProjects(mode);
+  const { projects, loading, deleteProject, refetch } = useProjects(mode, { includeInactive: true });
   const [editingProject, setEditingProject] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -173,7 +173,7 @@ const ProjectManager = () => {
             animate={{ opacity: 1, y: 0 }}
             className="group"
           >
-            <Card className="hover:shadow-lg transition-shadow h-full flex flex-col">
+            <Card className={`hover:shadow-lg transition-shadow h-full flex flex-col ${project.is_active === false ? 'opacity-60 border-dashed' : ''}`}>
               <div className="relative">
                 {project.image_drive_id ? (
                   <img
@@ -195,6 +195,12 @@ const ProjectManager = () => {
                     <Badge className="bg-primary text-primary-foreground text-xs">
                       <Star className="w-3 h-3 mr-1" />
                       Featured
+                    </Badge>
+                  )}
+                  {project.is_active === false && (
+                    <Badge variant="outline" className="text-xs border-amber-500 text-amber-600">
+                      <EyeOff className="w-3 h-3 mr-1" />
+                      Inactive
                     </Badge>
                   )}
                   {project.show_in_recent !== false && (
