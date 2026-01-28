@@ -497,7 +497,7 @@ const ProjectForm = ({ project, onClose, onSave, mode }: ProjectFormProps) => {
               onOpenMultiFilePicker={() => openFilePicker('gallery', true)}
             />
 
-            {/* Image Subfolders - Only show when editing existing project */}
+            {/* Media Folders - Only show when editing existing project */}
             {project && (
               <ProjectImageFolderManager projectId={project.id} />
             )}

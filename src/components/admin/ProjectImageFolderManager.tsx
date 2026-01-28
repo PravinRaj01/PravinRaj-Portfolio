@@ -39,7 +39,7 @@ import { generateDriveImageUrl } from '@/utils/googleDrive';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import GoogleDriveFilePicker, { FolderNavigationItem } from './GoogleDriveFilePicker';
-import FolderMediaManager from './FolderMediaManager';
+import FolderMediaManager, { createVideoEntry, isVideoEntry } from './FolderMediaManager';
 import { DriveFile } from '@/services/googleDriveService';
 
 interface ProjectImageFolderManagerProps {
@@ -91,19 +91,20 @@ const SortableFolderItem = ({ folder, onUpdate, onDelete, onOpenFilePicker, onOp
     }
   };
 
-  // Calculate media counts
-  const imageCount = folder.images?.filter(img => img !== '__VIDEO__').length || 0;
-  const hasVideo = !!folder.video_url;
+  // Calculate media counts using new format
+  const images = folder.images || [];
+  const imageCount = images.filter(img => !isVideoEntry(img)).length;
+  const videoCount = images.filter(img => isVideoEntry(img)).length;
   const mediaType = folder.media_type || 'images';
 
   const getMediaBadgeText = () => {
     if (mediaType === 'none') return '0 items';
-    if (mediaType === 'video' && hasVideo) return '1 video';
+    if (mediaType === 'video') return `${videoCount} video${videoCount !== 1 ? 's' : ''}`;
     if (mediaType === 'images') return `${imageCount} image${imageCount !== 1 ? 's' : ''}`;
     if (mediaType === 'both') {
       const parts = [];
       if (imageCount > 0) parts.push(`${imageCount} image${imageCount !== 1 ? 's' : ''}`);
-      if (hasVideo) parts.push('1 video');
+      if (videoCount > 0) parts.push(`${videoCount} video${videoCount !== 1 ? 's' : ''}`);
       return parts.join(', ') || '0 items';
     }
     return `${imageCount} image${imageCount !== 1 ? 's' : ''}`;
@@ -164,7 +165,7 @@ const SortableFolderItem = ({ folder, onUpdate, onDelete, onOpenFilePicker, onOp
               <Folder className="w-4 h-4 text-orange-500" />
               <span className="font-medium">{folder.name}</span>
               <Badge variant="secondary" className="ml-2 text-xs flex items-center gap-1">
-                {hasVideo && <Video className="w-3 h-3" />}
+                {videoCount > 0 && <Video className="w-3 h-3" />}
                 {getMediaBadgeText()}
               </Badge>
             </button>
@@ -374,20 +375,21 @@ const ProjectImageFolderManager = ({ projectId }: ProjectImageFolderManagerProps
     const folder = imageFolders.find(f => f.id === filePickerFolderId);
     if (!folder) return;
 
-    if (filePickerTarget === 'video') {
-      // Video file from Drive
-      const videoUrl = `https://drive.google.com/file/d/${file.id}/preview`;
-      await updateImageFolder(filePickerFolderId, { video_url: videoUrl });
+    const isVideoFile = file.mimeType?.startsWith('video/');
+    const currentImages = [...(folder.images || [])];
+
+    if (filePickerTarget === 'video' || isVideoFile) {
+      // Video file - use new format: video::fileId::thumbnailUrl
+      const thumbnailUrl = file.thumbnailLink || '';
+      const videoEntry = createVideoEntry(file.id, thumbnailUrl);
+      currentImages.push(videoEntry);
+      await updateImageFolder(filePickerFolderId, { images: currentImages });
       toast.success('Video added');
-    } else if (filePickerTarget === 'thumbnail') {
-      const thumbnailUrl = generateDriveImageUrl(file.id, 'large');
-      await updateImageFolder(filePickerFolderId, { video_thumbnail: thumbnailUrl });
-      toast.success('Thumbnail added');
     } else {
-      // Image
+      // Regular image
       const imageUrl = generateDriveImageUrl(file.id, 'large');
-      const updatedImages = [...(folder.images || []), imageUrl];
-      await updateImageFolder(filePickerFolderId, { images: updatedImages });
+      currentImages.push(imageUrl);
+      await updateImageFolder(filePickerFolderId, { images: currentImages });
       toast.success('Image added');
     }
     
@@ -401,13 +403,36 @@ const ProjectImageFolderManager = ({ projectId }: ProjectImageFolderManagerProps
     const folder = imageFolders.find(f => f.id === filePickerFolderId);
     if (!folder) return;
 
-    const newUrls = files.map(file => generateDriveImageUrl(file.id, 'large'));
-    const updatedImages = [...(folder.images || []), ...newUrls];
-    await updateImageFolder(filePickerFolderId, { images: updatedImages });
+    // Separate images and videos
+    const imageFiles = files.filter(file => file.mimeType?.startsWith('image/'));
+    const videoFiles = files.filter(file => file.mimeType?.startsWith('video/'));
+
+    const currentImages = [...(folder.images || [])];
+    
+    // Add images
+    imageFiles.forEach(file => {
+      const imageUrl = generateDriveImageUrl(file.id, 'large');
+      currentImages.push(imageUrl);
+    });
+    
+    // Add ALL videos with thumbnails
+    videoFiles.forEach(file => {
+      const thumbnailUrl = file.thumbnailLink || '';
+      const videoEntry = createVideoEntry(file.id, thumbnailUrl);
+      currentImages.push(videoEntry);
+    });
+    
+    if (imageFiles.length > 0 || videoFiles.length > 0) {
+      await updateImageFolder(filePickerFolderId, { images: currentImages });
+    }
     
     setShowFilePicker(false);
     setFilePickerFolderId(null);
-    toast.success(`${files.length} images added`);
+    
+    const parts = [];
+    if (imageFiles.length > 0) parts.push(`${imageFiles.length} image${imageFiles.length !== 1 ? 's' : ''}`);
+    if (videoFiles.length > 0) parts.push(`${videoFiles.length} video${videoFiles.length !== 1 ? 's' : ''}`);
+    toast.success(`Added ${parts.join(' and ')}`);
   };
 
   if (!projectId) {

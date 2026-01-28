@@ -294,7 +294,7 @@ const ProjectDetail = () => {
               </div>
             </div>
 
-            {/* Image Subfolders Section */}
+            {/* Media Folders Section */}
             {imageFolders.length > 0 && (
               <div className="mb-6">
                 <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
@@ -306,32 +306,51 @@ const ProjectDetail = () => {
                 </h2>
                 <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2">
                   {imageFolders.map((folder) => {
-                    const imageCount = folder.images?.filter(img => img !== '__VIDEO__').length || 0;
-                    const hasVideo = !!folder.video_url && (folder.media_type === 'video' || folder.media_type === 'both');
-                    const mediaType = folder.media_type || 'images';
+                    const VIDEO_PREFIX = 'video::';
+                    const isVideoEntry = (entry: string) => entry.startsWith(VIDEO_PREFIX);
+                    const parseVideoEntry = (entry: string) => {
+                      if (!entry.startsWith(VIDEO_PREFIX)) return null;
+                      const parts = entry.slice(VIDEO_PREFIX.length).split('::');
+                      return { fileId: parts[0] || '', thumbnailUrl: parts[1] || '' };
+                    };
                     
-                    // Get first media item as thumbnail
-                    const firstImage = folder.images?.find(img => img !== '__VIDEO__');
-                    const thumbnailUrl = hasVideo && folder.video_thumbnail
-                      ? (folder.video_thumbnail.startsWith('http') ? folder.video_thumbnail : generateDriveImageUrl(folder.video_thumbnail, 'small'))
-                      : firstImage 
-                        ? (firstImage.startsWith('http') ? firstImage : generateDriveImageUrl(firstImage, 'small'))
-                        : null;
+                    const mediaType = folder.media_type || 'images';
+                    const imageCount = folder.images?.filter(img => !isVideoEntry(img)).length || 0;
+                    const videoCount = folder.images?.filter(img => isVideoEntry(img)).length || 0;
+                    const hasVideo = videoCount > 0 && (mediaType === 'video' || mediaType === 'both');
+                    
+                    // Get first image or video thumbnail
+                    const firstImageEntry = folder.images?.find(img => !isVideoEntry(img));
+                    const firstVideoEntry = folder.images?.find(img => isVideoEntry(img));
+                    const firstVideoData = firstVideoEntry ? parseVideoEntry(firstVideoEntry) : null;
+                    
+                    // Determine thumbnail URL
+                    let thumbnailUrl: string | null = null;
+                    if (firstImageEntry && (mediaType === 'images' || mediaType === 'both')) {
+                      thumbnailUrl = firstImageEntry.startsWith('http') 
+                        ? firstImageEntry 
+                        : generateDriveImageUrl(firstImageEntry, 'small');
+                    } else if (firstVideoData && firstVideoData.thumbnailUrl && (mediaType === 'video' || mediaType === 'both')) {
+                      thumbnailUrl = firstVideoData.thumbnailUrl.startsWith('http')
+                        ? firstVideoData.thumbnailUrl
+                        : generateDriveImageUrl(firstVideoData.thumbnailUrl, 'small');
+                    }
+                    
+                    // Show video placeholder when video-only folder has no valid thumbnail
+                    const showVideoPlaceholder = hasVideo && !thumbnailUrl;
                     
                     // Build media count text
                     const getMediaCountText = () => {
                       if (mediaType === 'none') return 'Empty';
-                      if (mediaType === 'video' && hasVideo) return '1 video';
+                      if (mediaType === 'video') return `${videoCount} video${videoCount !== 1 ? 's' : ''}`;
                       if (mediaType === 'images') return `${imageCount} image${imageCount !== 1 ? 's' : ''}`;
                       if (mediaType === 'both') {
                         const parts = [];
-                        if (imageCount > 0) parts.push(`${imageCount}`);
-                        if (hasVideo) parts.push('1 video');
-                        if (parts.length === 0) return 'Empty';
-                        if (imageCount > 0 && hasVideo) return `${imageCount} + video`;
-                        return parts.join(', ');
+                        if (imageCount > 0) parts.push(`${imageCount} image${imageCount !== 1 ? 's' : ''}`);
+                        if (videoCount > 0) parts.push(`${videoCount} video${videoCount !== 1 ? 's' : ''}`);
+                        return parts.join(', ') || 'Empty';
                       }
-                      return `${imageCount} image${imageCount !== 1 ? 's' : ''}`;
+                      return `${imageCount + videoCount} items`;
                     };
                     
                     return (
@@ -346,13 +365,33 @@ const ProjectDetail = () => {
                           "bg-card/50 backdrop-blur-sm"
                         )}
                       >
-                        {/* Thumbnail or placeholder */}
+                        {/* Thumbnail, video placeholder, or folder icon */}
                         {thumbnailUrl ? (
                           <img
                             src={thumbnailUrl}
                             alt={folder.name}
                             className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity"
                           />
+                        ) : showVideoPlaceholder ? (
+                          <div className={cn(
+                            "w-full h-full flex items-center justify-center",
+                            mode === 'creative' 
+                              ? 'bg-gradient-to-br from-orange-500/20 to-orange-600/30' 
+                              : 'bg-gradient-to-br from-purple-500/20 to-blue-600/30'
+                          )}>
+                            <div className="relative">
+                              <Folder className={cn(
+                                "w-8 h-8",
+                                mode === 'creative' ? 'text-orange-400' : 'text-purple-400'
+                              )} />
+                              <div className={cn(
+                                "absolute -bottom-1 -right-1 p-0.5 rounded-full",
+                                mode === 'creative' ? 'bg-orange-500' : 'bg-purple-500'
+                              )}>
+                                <Play className="w-2.5 h-2.5 text-white" fill="white" />
+                              </div>
+                            </div>
+                          </div>
                         ) : (
                           <div className={cn(
                             "w-full h-full flex items-center justify-center",
@@ -365,8 +404,8 @@ const ProjectDetail = () => {
                           </div>
                         )}
                         
-                        {/* Video badge */}
-                        {hasVideo && (
+                        {/* Video badge - show when folder has video and has image thumbnail */}
+                        {hasVideo && thumbnailUrl && (
                           <div className={cn(
                             "absolute top-1 right-1 p-1 rounded",
                             mode === 'creative' ? 'bg-orange-500/90' : 'bg-purple-500/90'
@@ -460,7 +499,7 @@ const ProjectDetail = () => {
         </div>
       </div>
       
-      {/* Image Subfolder Gallery Popup */}
+      {/* Media Gallery Popup */}
       {selectedImageFolder && (
         <ImageSubfolderGallery
           folder={selectedImageFolder}

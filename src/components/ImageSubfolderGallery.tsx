@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence, PanInfo } from 'framer-motion';
 import { X, ChevronLeft, ChevronRight, Folder, Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -15,7 +15,29 @@ interface ImageSubfolderGalleryProps {
   mode: 'professional' | 'creative';
 }
 
-const VIDEO_MARKER = '__VIDEO__';
+// Video entries in images array use format: video::driveFileId::thumbnailUrl
+const VIDEO_PREFIX = 'video::';
+
+// Parse video entry: video::fileId::thumbnailUrl
+const parseVideoEntry = (entry: string): { fileId: string; thumbnailUrl: string } | null => {
+  if (!entry.startsWith(VIDEO_PREFIX)) return null;
+  const parts = entry.slice(VIDEO_PREFIX.length).split('::');
+  return {
+    fileId: parts[0] || '',
+    thumbnailUrl: parts[1] || ''
+  };
+};
+
+// Check if entry is a video
+const isVideoEntry = (entry: string): boolean => {
+  return entry.startsWith(VIDEO_PREFIX);
+};
+
+interface MediaSlide {
+  type: 'image' | 'video';
+  url: string;
+  thumbnail?: string;
+}
 
 const ImageSubfolderGallery = ({ folder, isOpen, onClose, mode }: ImageSubfolderGalleryProps) => {
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -23,47 +45,45 @@ const ImageSubfolderGallery = ({ folder, isOpen, onClose, mode }: ImageSubfolder
   const [showVideo, setShowVideo] = useState(false);
   
   const rawImages = folder.images || [];
-  const videoUrl = folder.video_url;
-  const videoThumbnail = folder.video_thumbnail;
   const mediaType = folder.media_type || 'images';
   
-  // Filter images (remove VIDEO_MARKER)
-  const images = rawImages.filter(img => img !== VIDEO_MARKER);
-  
-  // Calculate video position from VIDEO_MARKER
-  let videoPosition = -1;
-  if (videoUrl && (mediaType === 'video' || mediaType === 'both')) {
-    const markerIndex = rawImages.indexOf(VIDEO_MARKER);
-    videoPosition = markerIndex >= 0 ? markerIndex : images.length;
-  }
-  
-  // Total slides calculation
-  const totalSlides = (mediaType === 'images' || mediaType === 'both' ? images.length : 0) + 
-                     (videoUrl && (mediaType === 'video' || mediaType === 'both') ? 1 : 0);
+  // Parse all media items - now supports multiple videos inline
+  const mediaSlides = useMemo((): MediaSlide[] => {
+    const slides: MediaSlide[] = [];
+    
+    rawImages.forEach((entry) => {
+      const videoData = parseVideoEntry(entry);
+      
+      if (videoData) {
+        // This is a video entry
+        if (mediaType === 'both' || mediaType === 'video') {
+          const videoEmbedUrl = `https://drive.google.com/file/d/${videoData.fileId}/preview`;
+          slides.push({
+            type: 'video',
+            url: videoEmbedUrl,
+            thumbnail: videoData.thumbnailUrl || undefined
+          });
+        }
+      } else {
+        // This is an image entry
+        if (mediaType === 'both' || mediaType === 'images') {
+          slides.push({
+            type: 'image',
+            url: entry
+          });
+        }
+      }
+    });
+    
+    return slides;
+  }, [rawImages, mediaType]);
+
+  const totalSlides = mediaSlides.length;
   const hasMultipleSlides = totalSlides > 1;
   
   const accentColor = mode === 'creative' ? 'orange' : 'purple';
 
-  // Map currentIndex to actual content
-  const getContentForIndex = (index: number): { type: 'image' | 'video'; url: string; thumbnail?: string } => {
-    if (!videoUrl || videoPosition === -1 || mediaType === 'images') {
-      return { type: 'image', url: images[index] || '' };
-    }
-    
-    if (mediaType === 'video') {
-      return { type: 'video', url: videoUrl, thumbnail: videoThumbnail };
-    }
-    
-    // mediaType === 'both'
-    if (index === videoPosition) {
-      return { type: 'video', url: videoUrl, thumbnail: videoThumbnail };
-    }
-    
-    const imageIndex = index < videoPosition ? index : index - 1;
-    return { type: 'image', url: images[imageIndex] || '' };
-  };
-
-  const currentContent = getContentForIndex(currentIndex);
+  const currentContent = mediaSlides[currentIndex] || { type: 'image' as const, url: '' };
   const isVideoSlide = currentContent.type === 'video';
 
   // Handle browser back button when popup is open
@@ -317,12 +337,11 @@ const ImageSubfolderGallery = ({ folder, isOpen, onClose, mode }: ImageSubfolder
             {/* Thumbnail Strip */}
             {hasMultipleSlides && (
               <div className="flex gap-2 p-2 sm:p-3 overflow-x-auto bg-background/50 justify-start sm:justify-center w-full shrink-0 max-h-[80px] sm:max-h-none">
-                {Array.from({ length: totalSlides }).map((_, idx) => {
-                  const content = getContentForIndex(idx);
-                  const isVideo = content.type === 'video';
+                {mediaSlides.map((slide, idx) => {
+                  const isVideo = slide.type === 'video';
                   const thumbUrl = isVideo 
-                    ? (content.thumbnail ? getImageUrl(content.thumbnail) : '/placeholder.svg')
-                    : getImageUrl(content.url);
+                    ? (slide.thumbnail ? getImageUrl(slide.thumbnail) : '/placeholder.svg')
+                    : getImageUrl(slide.url);
                   
                   return (
                     <button

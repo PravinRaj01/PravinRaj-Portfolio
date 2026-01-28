@@ -27,11 +27,15 @@ import { ProjectImageFolder } from '@/types/cms';
 
 export type MediaType = 'none' | 'images' | 'video' | 'both';
 
+// Video entries in images array use format: video::driveFileId::thumbnailUrl
+const VIDEO_PREFIX = 'video::';
+
 interface MediaItem {
   id: string;
   type: 'image' | 'video';
   url: string;
   thumbnailUrl?: string;
+  originalValue: string; // The raw value stored in images array
 }
 
 interface FolderMediaManagerProps {
@@ -46,7 +50,25 @@ interface SortableMediaItemProps {
   onRemove: () => void;
 }
 
-const VIDEO_MARKER = '__VIDEO__';
+// Parse video entry: video::fileId::thumbnailUrl
+const parseVideoEntry = (entry: string): { fileId: string; thumbnailUrl: string } | null => {
+  if (!entry.startsWith(VIDEO_PREFIX)) return null;
+  const parts = entry.slice(VIDEO_PREFIX.length).split('::');
+  return {
+    fileId: parts[0] || '',
+    thumbnailUrl: parts[1] || ''
+  };
+};
+
+// Create video entry string
+export const createVideoEntry = (fileId: string, thumbnailUrl: string = ''): string => {
+  return `${VIDEO_PREFIX}${fileId}::${thumbnailUrl}`;
+};
+
+// Check if entry is a video
+export const isVideoEntry = (entry: string): boolean => {
+  return entry.startsWith(VIDEO_PREFIX);
+};
 
 const SortableMediaItem = ({ item, onRemove }: SortableMediaItemProps) => {
   const {
@@ -142,55 +164,47 @@ const FolderMediaManager = ({
 
   const mediaType = folder.media_type || 'images';
   const images = folder.images || [];
-  const videoUrl = folder.video_url || '';
-  const videoThumbnail = folder.video_thumbnail || '';
 
-  // Create combined media items for display
+  // Create combined media items for display - now supports multiple videos inline
   const mediaItems = useMemo((): MediaItem[] => {
     const items: MediaItem[] = [];
     
     if (mediaType === 'none') return items;
     
-    let imageCounter = 0;
-    let videoAdded = false;
-    
-    images.forEach((img) => {
-      if (img === VIDEO_MARKER) {
-        if (videoUrl && (mediaType === 'both' || mediaType === 'video') && !videoAdded) {
+    images.forEach((entry, index) => {
+      const videoData = parseVideoEntry(entry);
+      
+      if (videoData) {
+        // This is a video entry
+        if (mediaType === 'both' || mediaType === 'video') {
+          const videoEmbedUrl = `https://drive.google.com/file/d/${videoData.fileId}/preview`;
           items.push({
-            id: 'video-0',
+            id: `video-${index}`,
             type: 'video',
-            url: videoUrl,
-            thumbnailUrl: videoThumbnail ? 
-              (videoThumbnail.startsWith('http') ? videoThumbnail : generateDriveImageUrl(videoThumbnail, 'medium')) 
-              : undefined
+            url: videoEmbedUrl,
+            thumbnailUrl: videoData.thumbnailUrl || undefined,
+            originalValue: entry
           });
-          videoAdded = true;
         }
       } else {
-        items.push({
-          id: `image-${imageCounter}`,
-          type: 'image',
-          url: img.startsWith('http') ? img : generateDriveImageUrl(img, 'small')
-        });
-        imageCounter++;
+        // This is an image entry
+        if (mediaType === 'both' || mediaType === 'images') {
+          items.push({
+            id: `image-${index}`,
+            type: 'image',
+            url: entry.startsWith('http') ? entry : generateDriveImageUrl(entry, 'small'),
+            originalValue: entry
+          });
+        }
       }
     });
     
-    // Add video at end if not already added
-    if ((mediaType === 'both' || mediaType === 'video') && videoUrl && !videoAdded) {
-      items.push({
-        id: 'video-0',
-        type: 'video',
-        url: videoUrl,
-        thumbnailUrl: videoThumbnail ? 
-          (videoThumbnail.startsWith('http') ? videoThumbnail : generateDriveImageUrl(videoThumbnail, 'medium')) 
-          : undefined
-      });
-    }
-    
     return items;
-  }, [images, videoUrl, videoThumbnail, mediaType]);
+  }, [images, mediaType]);
+
+  // Count videos and images
+  const videoCount = images.filter(img => isVideoEntry(img)).length;
+  const imageCount = images.filter(img => !isVideoEntry(img)).length;
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -205,42 +219,18 @@ const FolderMediaManager = ({
     const newIndex = mediaItems.findIndex(item => item.id === over.id);
     const newItems = arrayMove(mediaItems, oldIndex, newIndex);
     
-    // Rebuild images array with VIDEO_MARKER
-    const newImages: string[] = [];
-    newItems.forEach(item => {
-      if (item.type === 'video') {
-        newImages.push(VIDEO_MARKER);
-      } else {
-        // Find original image URL (without the preview transform)
-        const originalImg = images.find(img => 
-          img !== VIDEO_MARKER && 
-          (img.startsWith('http') ? img === item.url : generateDriveImageUrl(img, 'small') === item.url)
-        );
-        if (originalImg) newImages.push(originalImg);
-      }
-    });
+    // Rebuild images array preserving original values
+    const newImages = newItems.map(item => item.originalValue);
     
     await onUpdate(folder.id, { images: newImages });
-  }, [mediaItems, images, folder.id, onUpdate]);
+  }, [mediaItems, folder.id, onUpdate]);
 
   const handleRemoveItem = useCallback(async (itemId: string) => {
     const item = mediaItems.find(m => m.id === itemId);
     if (!item) return;
     
-    if (item.type === 'video') {
-      const newImages = images.filter(img => img !== VIDEO_MARKER);
-      await onUpdate(folder.id, { video_url: '', video_thumbnail: '', images: newImages });
-    } else {
-      // Find and remove the original image
-      const originalImg = images.find(img => 
-        img !== VIDEO_MARKER && 
-        (img.startsWith('http') ? img === item.url : generateDriveImageUrl(img, 'small') === item.url)
-      );
-      if (originalImg) {
-        const newImages = images.filter(img => img !== originalImg);
-        await onUpdate(folder.id, { images: newImages });
-      }
-    }
+    const newImages = images.filter(img => img !== item.originalValue);
+    await onUpdate(folder.id, { images: newImages });
   }, [mediaItems, images, folder.id, onUpdate]);
 
   const handleAddImage = useCallback(async () => {
@@ -252,28 +242,34 @@ const FolderMediaManager = ({
 
   const handleAddVideo = useCallback(async () => {
     if (!newVideoUrl.trim()) return;
-    await onUpdate(folder.id, { video_url: newVideoUrl.trim() });
+    // Extract file ID from Google Drive URL if provided
+    const driveMatch = newVideoUrl.match(/drive\.google\.com\/file\/d\/([^/]+)/);
+    const fileId = driveMatch ? driveMatch[1] : newVideoUrl.trim();
+    
+    const videoEntry = createVideoEntry(fileId, '');
+    const updatedImages = [...images, videoEntry];
+    await onUpdate(folder.id, { images: updatedImages });
     setNewVideoUrl('');
-  }, [newVideoUrl, folder.id, onUpdate]);
+  }, [newVideoUrl, images, folder.id, onUpdate]);
 
   const handleMediaTypeChange = useCallback(async (value: MediaType) => {
     const updates: Partial<ProjectImageFolder> = { media_type: value };
     
-    // Clear data when switching away from a type
-    if (value === 'images' || value === 'none') {
-      updates.video_url = '';
-      updates.video_thumbnail = '';
+    // Clear videos when switching to images-only
+    if (value === 'images') {
+      updates.images = images.filter(img => !isVideoEntry(img));
     }
-    if (value === 'video' || value === 'none') {
+    // Clear images when switching to video-only
+    if (value === 'video') {
+      updates.images = images.filter(img => isVideoEntry(img));
+    }
+    // Clear everything when switching to none
+    if (value === 'none') {
       updates.images = [];
     }
     
     await onUpdate(folder.id, updates);
-  }, [folder.id, onUpdate]);
-
-  const handleRemoveVideoThumbnail = useCallback(async () => {
-    await onUpdate(folder.id, { video_thumbnail: '' });
-  }, [folder.id, onUpdate]);
+  }, [folder.id, images, onUpdate]);
 
   return (
     <div className="space-y-4 pt-3">
@@ -298,7 +294,7 @@ const FolderMediaManager = ({
           <div className="flex items-center space-x-1.5">
             <RadioGroupItem value="video" id={`media-video-${folder.id}`} />
             <Label htmlFor={`media-video-${folder.id}`} className="cursor-pointer text-xs flex items-center gap-1">
-              <Video className="w-3 h-3" /> Video
+              <Video className="w-3 h-3" /> Videos
             </Label>
           </div>
           <div className="flex items-center space-x-1.5">
@@ -338,7 +334,7 @@ const FolderMediaManager = ({
           {/* Add Images Section */}
           {(mediaType === 'images' || mediaType === 'both') && (
             <div className="space-y-2 pt-2 border-t">
-              <Label className="text-xs font-medium">Add Images</Label>
+              <Label className="text-xs font-medium">Add Images ({imageCount} added)</Label>
               <div className="flex gap-2">
                 <Input
                   placeholder="Enter image URL"
@@ -367,13 +363,13 @@ const FolderMediaManager = ({
             </div>
           )}
 
-          {/* Add Video Section */}
-          {(mediaType === 'video' || mediaType === 'both') && !videoUrl && (
+          {/* Add Videos Section */}
+          {(mediaType === 'video' || mediaType === 'both') && (
             <div className="space-y-2 pt-2 border-t">
-              <Label className="text-xs font-medium">Add Video</Label>
+              <Label className="text-xs font-medium">Add Videos ({videoCount} added)</Label>
               <div className="flex gap-2">
                 <Input
-                  placeholder="YouTube, Vimeo, or Google Drive URL"
+                  placeholder="Google Drive video URL or file ID"
                   value={newVideoUrl}
                   onChange={(e) => setNewVideoUrl(e.target.value)}
                   onKeyDown={(e) => {
@@ -388,32 +384,14 @@ const FolderMediaManager = ({
                   <Plus className="w-3 h-3" />
                 </Button>
               </div>
-              <Button type="button" variant="outline" size="sm" onClick={() => onOpenFilePicker('video')} className="text-xs h-7">
-                <Video className="w-3 h-3 mr-1" /> From Google Drive
-              </Button>
-            </div>
-          )}
-
-          {/* Video Thumbnail Section */}
-          {(mediaType === 'video' || mediaType === 'both') && videoUrl && (
-            <div className="space-y-2 pt-2 border-t">
-              <Label className="text-xs font-medium">Video Thumbnail (Optional)</Label>
-              {videoThumbnail ? (
-                <div className="flex items-center gap-2">
-                  <img
-                    src={videoThumbnail.startsWith('http') ? videoThumbnail : generateDriveImageUrl(videoThumbnail, 'small')}
-                    alt="Video thumbnail"
-                    className="w-16 h-10 object-cover rounded border"
-                  />
-                  <Button type="button" variant="outline" size="sm" onClick={handleRemoveVideoThumbnail} className="text-xs h-7">
-                    <X className="w-3 h-3 mr-1" /> Remove
-                  </Button>
-                </div>
-              ) : (
-                <Button type="button" variant="outline" size="sm" onClick={() => onOpenFilePicker('thumbnail')} className="text-xs h-7">
-                  <Image className="w-3 h-3 mr-1" /> Add Thumbnail
+              <div className="flex gap-2 flex-wrap">
+                <Button type="button" variant="outline" size="sm" onClick={() => onOpenFilePicker('video')} className="text-xs h-7">
+                  <Video className="w-3 h-3 mr-1" /> Add Single
                 </Button>
-              )}
+                <Button type="button" variant="outline" size="sm" onClick={onOpenMultiFilePicker} className="text-xs h-7">
+                  <Images className="w-3 h-3 mr-1" /> Add Multiple
+                </Button>
+              </div>
             </div>
           )}
         </>
