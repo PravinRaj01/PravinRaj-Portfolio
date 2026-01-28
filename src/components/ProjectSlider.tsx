@@ -10,6 +10,7 @@ import { Project } from '@/types/cms';
 import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 import TinderProjectCards from './TinderProjectCards';
+import ReactMarkdown from 'react-markdown';
 
 // Swiper styles
 import 'swiper/css';
@@ -107,12 +108,12 @@ const ProjectSlider = ({ projects, mode }: ProjectSliderProps) => {
                       </Badge>
                     )}
                   </div>
-                  <p 
-                    className="text-muted-foreground leading-relaxed mb-4"
+                  <div 
+                    className="text-muted-foreground leading-relaxed mb-4 line-clamp-4 prose prose-sm prose-invert max-w-none"
                     style={{ wordBreak: 'keep-all', overflowWrap: 'break-word', hyphens: 'none' }}
                   >
-                    {project.description}
-                  </p>
+                    <ReactMarkdown>{project.description}</ReactMarkdown>
+                  </div>
                   {project.tags && project.tags.length > 0 && (
                     <div className="flex flex-wrap gap-2">
                       {project.tags.map((tag) => (

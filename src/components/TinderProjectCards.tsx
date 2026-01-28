@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { generateDriveImageUrl } from '@/utils/googleDrive';
 import { Project } from '@/types/cms';
+import ReactMarkdown from 'react-markdown';
 
 interface TinderProjectCardsProps {
   projects: Project[];
@@ -154,12 +155,12 @@ const TinderProjectCards = ({ projects, mode }: TinderProjectCardsProps) => {
                 <h3 className="text-lg font-semibold mb-1 line-clamp-1">
                   {project.title}
                 </h3>
-                <p 
-                  className="text-sm text-muted-foreground mb-2 line-clamp-2"
+                <div 
+                  className="text-sm text-muted-foreground mb-2 line-clamp-2 prose prose-sm prose-invert max-w-none"
                   style={{ wordBreak: 'keep-all', overflowWrap: 'break-word', hyphens: 'none' }}
                 >
-                  {project.description}
-                </p>
+                  <ReactMarkdown>{project.description}</ReactMarkdown>
+                </div>
                 {project.tags && project.tags.length > 0 && (
                   <div className="flex flex-wrap gap-1 mb-2">
                     {project.tags.slice(0, 3).map((tag) => (

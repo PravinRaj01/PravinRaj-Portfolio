@@ -67,8 +67,8 @@ const Projects = () => {
     ).filter(Boolean)
   )];
 
-  // Separate projects: standalone (no folder) vs in folders
-  const standaloneProjects = projects.filter(p => !p.folder_id);
+  // Separate projects: standalone (no folder) OR featured projects (shown outside folder too)
+  const standaloneProjects = projects.filter(p => !p.folder_id || p.featured);
   // Apply search and category filter to projects
   const searchFilteredProjects = useMemo(() => {
     let filtered = projects;
@@ -94,7 +94,12 @@ const Projects = () => {
       });
     }
     
-    return filtered;
+    // Sort: featured first, then by order_index
+    return filtered.sort((a, b) => {
+      if (a.featured && !b.featured) return -1;
+      if (!a.featured && b.featured) return 1;
+      return 0;
+    });
   }, [projects, searchQuery, selectedFilter]);
 
   // Filter folders based on whether they contain projects matching current filter
@@ -121,7 +126,15 @@ const Projects = () => {
 
   const filteredProjects = searchFilteredProjects;
 
-  const filteredStandaloneProjects = searchFilteredProjects.filter(p => !p.folder_id);
+  // Standalone = no folder OR featured (show featured outside folders too)
+  // Sort: featured first
+  const filteredStandaloneProjects = searchFilteredProjects
+    .filter(p => !p.folder_id || p.featured)
+    .sort((a, b) => {
+      if (a.featured && !b.featured) return -1;
+      if (!a.featured && b.featured) return 1;
+      return 0;
+    });
 
   // Helper function to parse project date
   const parseProjectDate = (dateStr?: string): Date => {
@@ -540,7 +553,7 @@ const Projects = () => {
                         {!isMobile && (
                           <span className="hidden sm:flex items-center text-sm text-muted-foreground">
                             <span className="mx-2">|</span>
-                            Showing unfoldered projects
+                            Showing featured & unfoldered projects
                           </span>
                         )}
                       </div>

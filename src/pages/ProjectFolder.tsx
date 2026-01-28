@@ -96,8 +96,13 @@ const ProjectFolderPage = () => {
       filtered = filtered.filter(p => p.category === activeCategory);
     }
     
-    // Sort by date
+    // Sort: featured first, then by date
     filtered = [...filtered].sort((a, b) => {
+      // Featured always comes first
+      if (a.featured && !b.featured) return -1;
+      if (!a.featured && b.featured) return 1;
+      
+      // Then sort by date
       const dateA = parseProjectDate(a.project_date);
       const dateB = parseProjectDate(b.project_date);
       return sortOrder === 'newest' 

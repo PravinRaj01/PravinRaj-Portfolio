@@ -380,30 +380,39 @@ export type Database = {
           description: string | null
           id: string
           images: string[] | null
+          media_type: string | null
           name: string
           order_index: number | null
           project_id: string
           updated_at: string | null
+          video_thumbnail: string | null
+          video_url: string | null
         }
         Insert: {
           created_at?: string | null
           description?: string | null
           id?: string
           images?: string[] | null
+          media_type?: string | null
           name: string
           order_index?: number | null
           project_id: string
           updated_at?: string | null
+          video_thumbnail?: string | null
+          video_url?: string | null
         }
         Update: {
           created_at?: string | null
           description?: string | null
           id?: string
           images?: string[] | null
+          media_type?: string | null
           name?: string
           order_index?: number | null
           project_id?: string
           updated_at?: string | null
+          video_thumbnail?: string | null
+          video_url?: string | null
         }
         Relationships: [
           {

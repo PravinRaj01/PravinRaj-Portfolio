@@ -21,15 +21,19 @@ const ProjectManager = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
 
-  // Get unique categories
+  // Get unique categories - include both category and categories array (like projects page)
   const categories = useMemo(() => {
     const cats = new Set(
-      projects.map(p => p.category || 'uncategorized') // Convert empty to 'uncategorized'
+      projects.flatMap(p => 
+        p.categories?.length 
+          ? p.categories 
+          : [p.category || 'uncategorized']
+      ).filter(Boolean)
     );
     return ['all', ...Array.from(cats)];
   }, [projects]);
 
-  // Filter projects
+  // Filter projects - check both category and categories array
   const filteredProjects = useMemo(() => {
     let filtered = projects;
     
@@ -39,14 +43,18 @@ const ProjectManager = () => {
         project.title.toLowerCase().includes(query) ||
         project.description.toLowerCase().includes(query) ||
         project.tags.some(tag => tag.toLowerCase().includes(query)) ||
-        (project.category || 'uncategorized').toLowerCase().includes(query)
+        (project.category || 'uncategorized').toLowerCase().includes(query) ||
+        project.categories?.some(cat => cat.toLowerCase().includes(query))
       );
     }
     
     if (selectedCategory !== 'all') {
-      filtered = filtered.filter(project => 
-        (project.category || 'uncategorized') === selectedCategory
-      );
+      filtered = filtered.filter(project => {
+        const projectCategories = project.categories?.length 
+          ? project.categories 
+          : [project.category || 'uncategorized'];
+        return projectCategories.includes(selectedCategory);
+      });
     }
     
     return filtered;

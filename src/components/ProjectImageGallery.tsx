@@ -300,19 +300,19 @@ const ProjectImageGallery = ({
           </VisuallyHidden>
           
           <div className="relative w-full h-full flex items-center justify-center">
-            {/* Close Button - always visible and larger for mobile */}
+            {/* Close Button - always visible, better positioned for mobile */}
             <Button
               variant="ghost"
               size="icon"
               onClick={() => setIsFullscreen(false)}
-              className="absolute top-4 right-4 z-50 bg-black/70 hover:bg-black/90 text-white rounded-full w-12 h-12 sm:w-10 sm:h-10"
+              className="absolute top-6 sm:top-4 right-4 z-[60] bg-black/70 hover:bg-black/90 text-white rounded-full w-12 h-12 sm:w-10 sm:h-10"
               aria-label="Close fullscreen"
             >
               <X className="w-6 h-6 sm:w-5 sm:h-5" />
             </Button>
 
             {/* Blurred background for fullscreen */}
-            <div className="absolute inset-0 overflow-hidden">
+            <div className="absolute inset-0 overflow-hidden z-0">
               <img
                 src={isVideoSlide ? (currentContent.thumbnail || '/placeholder.svg') : currentContent.url}
                 alt=""
@@ -321,40 +321,52 @@ const ProjectImageGallery = ({
               />
             </div>
             
-            {/* Image */}
-            <img
+            {/* Swipeable Image with drag support */}
+            <motion.img
+              key={currentIndex}
               src={isVideoSlide ? (currentContent.thumbnail || '/placeholder.svg') : currentContent.url}
               alt={`${title} - ${isVideoSlide ? 'Video' : 'Image'} ${currentIndex + 1}`}
-              className="relative z-10 max-w-[90vw] max-h-[85vh] object-contain"
+              className="relative z-10 max-w-[90vw] max-h-[80vh] object-contain touch-pan-y"
+              drag={hasMultipleSlides ? "x" : false}
+              dragConstraints={{ left: 0, right: 0 }}
+              dragElastic={0.1}
+              onDragEnd={(event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+                const threshold = 50;
+                if (info.offset.x > threshold) {
+                  goToPrev();
+                } else if (info.offset.x < -threshold) {
+                  goToNext();
+                }
+              }}
             />
 
-            {/* Navigation */}
+            {/* Navigation - higher z-index, always visible on mobile */}
             {hasMultipleSlides && (
               <>
                 <Button
                   variant="ghost"
                   size="icon"
                   onClick={goToPrev}
-                  className="absolute left-4 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full"
+                  className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-[55] bg-black/70 hover:bg-black/90 text-white rounded-full w-10 h-10 sm:w-12 sm:h-12"
                   aria-label="Previous image"
                 >
-                  <ChevronLeft className="w-6 h-6" />
+                  <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" />
                 </Button>
                 <Button
                   variant="ghost"
                   size="icon"
                   onClick={goToNext}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full"
+                  className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 z-[55] bg-black/70 hover:bg-black/90 text-white rounded-full w-10 h-10 sm:w-12 sm:h-12"
                   aria-label="Next image"
                 >
-                  <ChevronRight className="w-6 h-6" />
+                  <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6" />
                 </Button>
               </>
             )}
 
             {/* Counter */}
             {hasMultipleSlides && (
-              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/60 text-white text-sm px-4 py-2 rounded-full">
+              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[55] bg-black/60 text-white text-sm px-4 py-2 rounded-full">
                 {currentIndex + 1} / {totalSlides}
               </div>
             )}

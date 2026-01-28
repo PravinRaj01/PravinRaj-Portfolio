@@ -12,7 +12,10 @@ const ModeRouteHandler = ({ targetMode }: ModeRouteHandlerProps) => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Set the mode in localStorage
+    // Clear any existing mode to prevent conflicts
+    localStorage.removeItem('portfolioMode');
+    
+    // Set the new mode in localStorage
     localStorage.setItem('portfolioMode', targetMode);
     
     // Mark onboarding as seen to prevent popup
@@ -21,9 +24,9 @@ const ModeRouteHandler = ({ targetMode }: ModeRouteHandlerProps) => {
     // Set session flag so PortfolioContext knows this was a URL-triggered mode
     sessionStorage.setItem(MODE_FROM_URL_KEY, targetMode);
     
-    // Redirect to home page
-    navigate('/', { replace: true });
-  }, [targetMode, navigate]);
+    // Force page reload to ensure clean state with new mode
+    window.location.href = '/';
+  }, [targetMode]);
 
   // Return null since this component just handles the redirect
   return null;
