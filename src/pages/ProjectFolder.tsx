@@ -478,6 +478,52 @@ const ProjectFolderPage = () => {
                           </Badge>
                         )}
                       </div>
+                      
+                      {/* Spacer to push buttons to bottom */}
+                      <div className="flex-grow" />
+                      
+                      {/* Action Buttons */}
+                      {(project.live_url || project.github_url || project.project_links?.some(link => link.show_on_card)) && (
+                        <div className="flex flex-wrap gap-2 mt-auto" onClick={(e) => e.stopPropagation()}>
+                          {project.live_url && (
+                            <Button size="sm" className={`flex-1 min-w-0 h-7 sm:h-8 text-xs sm:text-sm ${
+                              mode === 'creative' 
+                                ? 'bg-orange-500 hover:bg-orange-600 text-white' 
+                                : 'bg-primary hover:bg-primary/90'
+                            }`} asChild>
+                              <a href={project.live_url} target="_blank" rel="noopener noreferrer">
+                                <ExternalLink className="w-3 h-3 sm:w-4 sm:h-4 mr-1 flex-shrink-0" />
+                                <span className="truncate">{mode === 'professional' ? 'Live' : 'View'}</span>
+                              </a>
+                            </Button>
+                          )}
+                          {project.github_url && (
+                            <Button size="sm" variant="outline" className={`flex-1 min-w-0 h-7 sm:h-8 text-xs sm:text-sm ${
+                              mode === 'creative' 
+                                ? 'border-orange-500/50 text-orange-400 hover:bg-orange-500/10' 
+                                : 'border-purple-500/50 text-purple-400 hover:bg-purple-500/10'
+                            }`} asChild>
+                              <a href={project.github_url} target="_blank" rel="noopener noreferrer">
+                                <Github className="w-3 h-3 sm:w-4 sm:h-4 mr-1 flex-shrink-0" />
+                                <span className="truncate">Code</span>
+                              </a>
+                            </Button>
+                          )}
+                          {/* Custom links with show_on_card */}
+                          {project.project_links?.filter(link => link.show_on_card).map((link, idx) => (
+                            <Button key={idx} size="sm" variant="outline" className={`flex-1 min-w-0 h-7 sm:h-8 text-xs sm:text-sm ${
+                              mode === 'creative' 
+                                ? 'border-orange-500/50 text-orange-400 hover:bg-orange-500/10' 
+                                : 'border-purple-500/50 text-purple-400 hover:bg-purple-500/10'
+                            }`} asChild>
+                              <a href={link.url} target="_blank" rel="noopener noreferrer">
+                                <ExternalLink className="w-3 h-3 sm:w-4 sm:h-4 mr-1 flex-shrink-0" />
+                                <span className="truncate">{link.label}</span>
+                              </a>
+                            </Button>
+                          ))}
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 </motion.div>
@@ -539,23 +585,44 @@ const ProjectFolderPage = () => {
                                 <Badge key={tag} variant="secondary" className="text-xs">{tag}</Badge>
                               ))}
                             </div>
-                            <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+                            <div className="flex flex-wrap gap-2" onClick={(e) => e.stopPropagation()}>
                               {project.live_url && (
-                                <Button size="sm" asChild>
+                                <Button size="sm" className={
+                                  mode === 'creative' 
+                                    ? 'bg-orange-500 hover:bg-orange-600 text-white' 
+                                    : 'bg-primary hover:bg-primary/90'
+                                } asChild>
                                   <a href={project.live_url} target="_blank" rel="noopener noreferrer">
                                     <ExternalLink className="w-4 h-4 mr-1" />
-                                    Demo
+                                    {mode === 'professional' ? 'Live' : 'View'}
                                   </a>
                                 </Button>
                               )}
                               {project.github_url && (
-                                <Button size="sm" variant="outline" asChild>
+                                <Button size="sm" variant="outline" className={
+                                  mode === 'creative' 
+                                    ? 'border-orange-500/50 text-orange-400 hover:bg-orange-500/10' 
+                                    : 'border-purple-500/50 text-purple-400 hover:bg-purple-500/10'
+                                } asChild>
                                   <a href={project.github_url} target="_blank" rel="noopener noreferrer">
                                     <Github className="w-4 h-4 mr-1" />
                                     Code
                                   </a>
                                 </Button>
                               )}
+                              {/* Custom links with show_on_card */}
+                              {project.project_links?.filter(link => link.show_on_card).map((link, idx) => (
+                                <Button key={idx} size="sm" variant="outline" className={
+                                  mode === 'creative' 
+                                    ? 'border-orange-500/50 text-orange-400 hover:bg-orange-500/10' 
+                                    : 'border-purple-500/50 text-purple-400 hover:bg-purple-500/10'
+                                } asChild>
+                                  <a href={link.url} target="_blank" rel="noopener noreferrer">
+                                    <ExternalLink className="w-4 h-4 mr-1" />
+                                    {link.label}
+                                  </a>
+                                </Button>
+                              ))}
                             </div>
                           </CardContent>
                         </div>
