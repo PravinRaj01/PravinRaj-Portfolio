@@ -13,6 +13,8 @@ import ExperienceModeBanner from '@/components/ExperienceModeBanner';
 import { usePortfolio } from '@/contexts/PortfolioContext';
 import { useExperience } from '@/hooks/useExperience';
 import { Experience as ExperienceType } from '@/types/cms';
+import ReactMarkdown from 'react-markdown';
+import { generateDriveImageUrl } from '@/utils/googleDrive';
 
 const Experience = () => {
   const navigate = useNavigate();
@@ -49,9 +51,8 @@ const Experience = () => {
   };
 
   const handleCardClick = (exp: ExperienceType) => {
-    if (isCreativeMode && hasDetails(exp)) {
-      navigate(`/experience/${exp.id}`);
-    }
+    // All experiences are clickable to view full details
+    navigate(`/experience/${exp.id}`);
   };
 
   // Parse date for sorting - supports both period range and event_date
@@ -253,7 +254,7 @@ const Experience = () => {
                   <div className="space-y-4 sm:space-y-8 md:space-y-12">
                     {sortedExperiences.map((exp, index) => {
                       const certificateUrl = getCertificateUrl(exp);
-                      const clickable = isCreativeMode && hasDetails(exp);
+                      const clickable = true; // All experiences are clickable
                       
                       return (
                         <motion.div
@@ -270,7 +271,7 @@ const Experience = () => {
                             currentIndex === index ? 'bg-primary scale-125' : 'bg-primary/60'
                           }`}></div>
                           <Card 
-                            className={`hover:shadow-lg transition-shadow ${clickable ? 'cursor-pointer hover:border-primary/50' : ''}`}
+                            className={`hover:shadow-lg transition-shadow flex flex-col ${clickable ? 'cursor-pointer hover:border-primary/50' : ''}`}
                             onClick={() => handleCardClick(exp)}
                           >
                             <CardHeader className="p-3 sm:p-4 md:p-6">
@@ -312,54 +313,78 @@ const Experience = () => {
                                 </div>
                               </div>
                             </CardHeader>
-                            <CardContent className="p-3 sm:p-4 md:p-6 pt-0 sm:pt-0 md:pt-0 min-w-0 overflow-hidden">
-                              <p 
-                                className="text-xs sm:text-sm md:text-base text-muted-foreground mb-3 sm:mb-4"
-                                style={{ wordBreak: 'normal', overflowWrap: 'normal', hyphens: 'none' }}
-                              >{exp.description}</p>
-                              <div className="flex flex-wrap gap-1.5 sm:gap-2 mb-3">
-                                {exp.achievements?.map((achievement, achievementIndex) => (
-                                  <span
-                                    key={achievementIndex}
-                                    className="w-full sm:w-auto max-w-full px-2 py-0.5 sm:px-3 sm:py-1 bg-primary/10 text-primary rounded-full text-xs sm:text-sm whitespace-normal break-normal leading-snug"
+                            <CardContent className="p-3 sm:p-4 md:p-6 pt-0 sm:pt-0 md:pt-0 min-w-0 overflow-hidden flex flex-col flex-1">
+                              <div className="flex-1">
+                                <div className="text-xs sm:text-sm md:text-base text-muted-foreground mb-3 sm:mb-4 line-clamp-3">
+                                  <ReactMarkdown
+                                    components={{
+                                      p: ({ children }) => <span>{children}</span>,
+                                      strong: ({ children }) => <strong className="font-semibold text-foreground">{children}</strong>,
+                                      em: ({ children }) => <em>{children}</em>,
+                                    }}
                                   >
-                                    {achievement}
-                                  </span>
-                                ))}
-                              </div>
-                              {/* Action buttons for creative mode */}
-                              {isCreativeMode && (certificateUrl || hasDetails(exp)) && (
-                                <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
-                                  {certificateUrl && (
-                                    <Button 
-                                      variant="outline" 
-                                      size="sm" 
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        window.open(certificateUrl, '_blank');
-                                      }}
-                                      className="gap-1.5 text-xs"
-                                    >
-                                      <Award className="w-3 h-3" />
-                                      View Certificate
-                                    </Button>
-                                  )}
-                                  {hasDetails(exp) && (
-                                    <Button 
-                                      variant="ghost" 
-                                      size="sm" 
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        navigate(`/experience/${exp.id}`);
-                                      }}
-                                      className="gap-1.5 text-xs text-muted-foreground hover:text-foreground"
-                                    >
-                                      View Details
-                                      <ArrowRight className="w-3 h-3" />
-                                    </Button>
-                                  )}
+                                    {exp.description}
+                                  </ReactMarkdown>
                                 </div>
-                              )}
+                                <div className="flex flex-wrap gap-1.5 sm:gap-2 mb-3">
+                                  {exp.achievements?.map((achievement, achievementIndex) => (
+                                    <span
+                                      key={achievementIndex}
+                                      className="w-full sm:w-auto max-w-full px-2 py-0.5 sm:px-3 sm:py-1 bg-primary/10 text-primary rounded-full text-xs sm:text-sm whitespace-normal break-normal leading-snug"
+                                    >
+                                      {achievement}
+                                    </span>
+                                  ))}
+                                </div>
+                                {/* Mini Image Preview Strip - Creative Mode */}
+                                {isCreativeMode && exp.event_images && exp.event_images.length > 0 && (
+                                  <div className="flex gap-1 mb-3 overflow-hidden">
+                                    {exp.event_images.slice(0, 4).map((img, idx) => (
+                                      <img
+                                        key={idx}
+                                        src={img.startsWith('http') ? img : generateDriveImageUrl(img, 'small')}
+                                        alt={`Event ${idx + 1}`}
+                                        className="w-10 h-10 sm:w-12 sm:h-12 object-cover rounded-sm flex-shrink-0"
+                                        onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }}
+                                      />
+                                    ))}
+                                    {exp.event_images.length > 4 && (
+                                      <div className="w-10 h-10 sm:w-12 sm:h-12 bg-muted rounded-sm flex items-center justify-center text-[10px] text-muted-foreground flex-shrink-0">
+                                        +{exp.event_images.length - 4}
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                              {/* Action buttons - always at bottom */}
+                              <div className="flex flex-wrap gap-2 pt-2 border-t border-border mt-auto">
+                                {certificateUrl && (
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm" 
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      window.open(certificateUrl, '_blank');
+                                    }}
+                                    className="gap-1.5 text-xs"
+                                  >
+                                    <Award className="w-3 h-3" />
+                                    View Certificate
+                                  </Button>
+                                )}
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm" 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    navigate(`/experience/${exp.id}`);
+                                  }}
+                                  className="gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+                                >
+                                  View Details
+                                  <ArrowRight className="w-3 h-3" />
+                                </Button>
+                              </div>
                             </CardContent>
                           </Card>
                         </motion.div>
@@ -374,7 +399,7 @@ const Experience = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
                   {sortedExperiences.map((exp, index) => {
                     const certificateUrl = getCertificateUrl(exp);
-                    const clickable = isCreativeMode && hasDetails(exp);
+                    const clickable = true; // All experiences are clickable
                     
                     return (
                       <motion.div
@@ -385,7 +410,7 @@ const Experience = () => {
                         viewport={{ once: true }}
                       >
                         <Card 
-                          className={`h-full hover:shadow-lg transition-shadow ${clickable ? 'cursor-pointer hover:border-primary/50' : ''}`}
+                          className={`h-full hover:shadow-lg transition-shadow flex flex-col ${clickable ? 'cursor-pointer hover:border-primary/50' : ''}`}
                           onClick={() => handleCardClick(exp)}
                         >
                           <CardHeader className="p-3 sm:p-4 md:p-6">
@@ -422,54 +447,78 @@ const Experience = () => {
                               </div>
                             </CardDescription>
                           </CardHeader>
-                          <CardContent className="p-3 sm:p-4 md:p-6 pt-0">
-                            <p 
-                              className="text-xs sm:text-sm text-muted-foreground mb-3 sm:mb-4"
-                              style={{ wordBreak: 'normal', overflowWrap: 'normal', hyphens: 'none' }}
-                            >{exp.description}</p>
-                            <div className="flex flex-wrap gap-1.5 sm:gap-2 mb-3">
-                              {exp.achievements?.map((achievement, achievementIndex) => (
-                                <span
-                                  key={achievementIndex}
-                                  className="max-w-full px-2 py-0.5 sm:py-1 bg-primary/10 text-primary rounded text-xs whitespace-normal break-normal leading-snug"
+                          <CardContent className="p-3 sm:p-4 md:p-6 pt-0 flex flex-col flex-1">
+                            <div className="flex-1">
+                              <div className="text-xs sm:text-sm text-muted-foreground mb-3 sm:mb-4 line-clamp-3">
+                                <ReactMarkdown
+                                  components={{
+                                    p: ({ children }) => <span>{children}</span>,
+                                    strong: ({ children }) => <strong className="font-semibold text-foreground">{children}</strong>,
+                                    em: ({ children }) => <em>{children}</em>,
+                                  }}
                                 >
-                                  {achievement}
-                                </span>
-                              ))}
-                            </div>
-                            {/* Action buttons for creative mode */}
-                            {isCreativeMode && (certificateUrl || hasDetails(exp)) && (
-                              <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
-                                {certificateUrl && (
-                                  <Button 
-                                    variant="outline" 
-                                    size="sm" 
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      window.open(certificateUrl, '_blank');
-                                    }}
-                                    className="gap-1.5 text-xs"
-                                  >
-                                    <Award className="w-3 h-3" />
-                                    View Certificate
-                                  </Button>
-                                )}
-                                {hasDetails(exp) && (
-                                  <Button 
-                                    variant="ghost" 
-                                    size="sm" 
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      navigate(`/experience/${exp.id}`);
-                                    }}
-                                    className="gap-1.5 text-xs text-muted-foreground hover:text-foreground"
-                                  >
-                                    View Details
-                                    <ArrowRight className="w-3 h-3" />
-                                  </Button>
-                                )}
+                                  {exp.description}
+                                </ReactMarkdown>
                               </div>
-                            )}
+                              <div className="flex flex-wrap gap-1.5 sm:gap-2 mb-3">
+                                {exp.achievements?.map((achievement, achievementIndex) => (
+                                  <span
+                                    key={achievementIndex}
+                                    className="max-w-full px-2 py-0.5 sm:py-1 bg-primary/10 text-primary rounded text-xs whitespace-normal break-normal leading-snug"
+                                  >
+                                    {achievement}
+                                  </span>
+                                ))}
+                              </div>
+                              {/* Mini Image Preview Strip - Creative Mode */}
+                              {isCreativeMode && exp.event_images && exp.event_images.length > 0 && (
+                                <div className="flex gap-1 mb-3 overflow-hidden">
+                                  {exp.event_images.slice(0, 4).map((img, idx) => (
+                                    <img
+                                      key={idx}
+                                      src={img.startsWith('http') ? img : generateDriveImageUrl(img, 'small')}
+                                      alt={`Event ${idx + 1}`}
+                                      className="w-10 h-10 sm:w-12 sm:h-12 object-cover rounded-sm flex-shrink-0"
+                                      onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }}
+                                    />
+                                  ))}
+                                  {exp.event_images.length > 4 && (
+                                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-muted rounded-sm flex items-center justify-center text-[10px] text-muted-foreground flex-shrink-0">
+                                      +{exp.event_images.length - 4}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                            {/* Action buttons - always at bottom */}
+                            <div className="flex flex-wrap gap-2 pt-2 border-t border-border mt-auto">
+                              {certificateUrl && (
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    window.open(certificateUrl, '_blank');
+                                  }}
+                                  className="gap-1.5 text-xs"
+                                >
+                                  <Award className="w-3 h-3" />
+                                  View Certificate
+                                </Button>
+                              )}
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigate(`/experience/${exp.id}`);
+                                }}
+                                className="gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+                              >
+                                View Details
+                                <ArrowRight className="w-3 h-3" />
+                              </Button>
+                            </div>
                           </CardContent>
                         </Card>
                       </motion.div>

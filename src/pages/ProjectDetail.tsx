@@ -291,6 +291,24 @@ const ProjectDetail = () => {
                     </a>
                   </Button>
                 )}
+                {/* All custom project links */}
+                {project.project_links?.map((link, idx) => (
+                  <Button 
+                    key={idx}
+                    variant="outline" 
+                    className={`gap-1.5 sm:gap-2 text-xs sm:text-sm h-8 sm:h-10 ${
+                      mode === 'creative' 
+                        ? 'border-orange-500 text-orange-500 hover:bg-orange-500/10' 
+                        : 'border-purple-500 text-purple-500 hover:bg-purple-500/10'
+                    }`}
+                    asChild
+                  >
+                    <a href={link.url} target="_blank" rel="noopener noreferrer">
+                      <ExternalLink className="w-3 h-3 sm:w-4 sm:h-4" />
+                      {link.label}
+                    </a>
+                  </Button>
+                ))}
               </div>
             </div>
 

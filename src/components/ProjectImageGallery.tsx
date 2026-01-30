@@ -193,7 +193,7 @@ const ProjectImageGallery = ({
         {isVideoSlide && !showVideo && (
           <button
             onClick={() => setShowVideo(true)}
-            className="absolute inset-0 flex items-center justify-center bg-black/30 hover:bg-black/40 transition-colors"
+            className="absolute inset-0 z-20 flex items-center justify-center bg-black/30 hover:bg-black/40 transition-colors"
             aria-label="Play video"
           >
             <div className={cn(

@@ -30,14 +30,31 @@ const Projects = () => {
   const { projects, loading } = useProjects(mode);
   const { folders, loading: foldersLoading } = useProjectFolders(mode);
   const { data: siteSettings } = useSiteSettings();
-  const [selectedFilter, setSelectedFilter] = useState('all');
-  const [searchQuery, setSearchQuery] = useState('');
+  
+  // Persist filter in localStorage
+  const [selectedFilter, setSelectedFilter] = useState(() => {
+    const saved = localStorage.getItem('projects-category-filter');
+    return saved || 'all';
+  });
+  const [searchQuery, setSearchQuery] = useState(() => {
+    const saved = localStorage.getItem('projects-search-query');
+    return saved || '';
+  });
   const [viewMode, setViewMode] = useState<'timeline' | 'cards'>('cards');
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showFolderPicker, setShowFolderPicker] = useState(false);
   const timelineRefs = useRef<(HTMLDivElement | null)[]>([]);
   const isMobile = useIsMobile();
+  
+  // Save filter state to localStorage
+  useEffect(() => {
+    localStorage.setItem('projects-category-filter', selectedFilter);
+  }, [selectedFilter]);
+  
+  useEffect(() => {
+    localStorage.setItem('projects-search-query', searchQuery);
+  }, [searchQuery]);
   
   // Zoom state - load from localStorage
   const [cardZoom, setCardZoom] = useState(() => {
@@ -279,19 +296,35 @@ const Projects = () => {
 
               {/* Category Filter */}
               {categories.length > 1 && (
-                <Select value={selectedFilter} onValueChange={setSelectedFilter}>
-                  <SelectTrigger className="w-[110px] sm:w-[140px] h-8 sm:h-9 text-xs sm:text-sm">
-                    <Filter className="w-3 h-3 sm:w-3.5 sm:h-3.5 mr-1 sm:mr-1.5" />
-                    <SelectValue placeholder="Category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categories.map((category) => (
-                      <SelectItem key={category} value={category} className="capitalize">
-                        {category}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="flex items-center gap-1">
+                  <Select value={selectedFilter} onValueChange={setSelectedFilter}>
+                    <SelectTrigger className={cn(
+                      "w-[110px] sm:w-[140px] h-8 sm:h-9 text-xs sm:text-sm",
+                      selectedFilter !== 'all' && (mode === 'creative' ? 'border-orange-500/50' : 'border-purple-500/50')
+                    )}>
+                      <Filter className="w-3 h-3 sm:w-3.5 sm:h-3.5 mr-1 sm:mr-1.5" />
+                      <SelectValue placeholder="Category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categories.map((category) => (
+                        <SelectItem key={category} value={category} className="capitalize">
+                          {category}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {selectedFilter !== 'all' && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                      onClick={() => setSelectedFilter('all')}
+                      title="Clear filter"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </Button>
+                  )}
+                </div>
               )}
 
               {/* Search Bar */}
@@ -301,8 +334,22 @@ const Projects = () => {
                   placeholder="Search..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-[120px] sm:w-[160px] h-8 sm:h-9 text-xs sm:text-sm pl-8"
+                  className={cn(
+                    "w-[120px] sm:w-[160px] h-8 sm:h-9 text-xs sm:text-sm pl-8 pr-7",
+                    searchQuery && (mode === 'creative' ? 'border-orange-500/50' : 'border-purple-500/50')
+                  )}
                 />
+                {searchQuery && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-0.5 top-1/2 -translate-y-1/2 h-7 w-7 text-muted-foreground hover:text-foreground"
+                    onClick={() => setSearchQuery('')}
+                    title="Clear search"
+                  >
+                    <X className="w-3 h-3" />
+                  </Button>
+                )}
               </div>
 
               {/* Zoom Controls */}
@@ -505,6 +552,25 @@ const Projects = () => {
                                       </a>
                                     </Button>
                                   )}
+                                  {/* Custom links with show_on_card */}
+                                  {project.project_links?.filter(link => link.show_on_card).map((link, idx) => (
+                                    <Button 
+                                      key={idx}
+                                      size="sm" 
+                                      variant="outline" 
+                                      className={`h-7 sm:h-8 text-xs sm:text-sm px-2 sm:px-3 ${
+                                        mode === 'creative' 
+                                          ? 'border-orange-400/50 text-orange-400/80 hover:bg-orange-500/5 hover:text-orange-400' 
+                                          : 'border-purple-400/50 text-purple-400/80 hover:bg-purple-500/5 hover:text-purple-400'
+                                      }`}
+                                      asChild
+                                    >
+                                      <a href={link.url} target="_blank" rel="noopener noreferrer">
+                                        <ExternalLink className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+                                        {link.label}
+                                      </a>
+                                    </Button>
+                                  ))}
                                 </div>
                               </CardContent>
                             </div>
@@ -814,6 +880,25 @@ const Projects = () => {
                                 </a>
                               </Button>
                             )}
+                            {/* Custom links with show_on_card */}
+                            {project.project_links?.filter(link => link.show_on_card).map((link, idx) => (
+                              <Button 
+                                key={idx}
+                                size="sm" 
+                                variant="outline" 
+                                className={`h-7 sm:h-8 text-xs sm:text-sm ${
+                                  mode === 'creative' 
+                                    ? 'border-orange-400/50 text-orange-400/80 hover:bg-orange-500/5 hover:text-orange-400' 
+                                    : 'border-purple-400/50 text-purple-400/80 hover:bg-purple-500/5 hover:text-purple-400'
+                                }`}
+                                asChild
+                              >
+                                <a href={link.url} target="_blank" rel="noopener noreferrer">
+                                  <ExternalLink className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+                                  {link.label}
+                                </a>
+                              </Button>
+                            ))}
                           </div>
                         </CardContent>
                       </Card>

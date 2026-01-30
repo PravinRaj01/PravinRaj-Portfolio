@@ -168,7 +168,14 @@ const ImageSubfolderGallery = ({ folder, isOpen, onClose, mode }: ImageSubfolder
 
   const getDisplayUrl = () => {
     if (isVideoSlide) {
-      return currentContent.thumbnail ? getImageUrl(currentContent.thumbnail) : '/placeholder.svg';
+      // For video slides, use the thumbnail if available
+      if (currentContent.thumbnail) {
+        // Thumbnail might be a Drive ID or full URL
+        return currentContent.thumbnail.startsWith('http') 
+          ? currentContent.thumbnail 
+          : getImageUrl(currentContent.thumbnail);
+      }
+      return '/placeholder.svg';
     }
     return getImageUrl(currentContent.url);
   };

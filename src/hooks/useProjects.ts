@@ -1,11 +1,24 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/utils/supabase';
-import { Project } from '@/types/cms';
+import { Project, ProjectLink } from '@/types/cms';
 
 interface UseProjectsOptions {
   includeInactive?: boolean;
 }
+
+// Helper to properly parse project_links from JSON
+const parseProjectLinks = (links: unknown): ProjectLink[] => {
+  if (!links) return [];
+  if (Array.isArray(links)) {
+    return links.map(link => ({
+      label: link.label || '',
+      url: link.url || '',
+      show_on_card: Boolean(link.show_on_card)
+    }));
+  }
+  return [];
+};
 
 export const useProjects = (mode?: 'professional' | 'creative', options: UseProjectsOptions = {}) => {
   const { includeInactive = false } = options;
@@ -32,7 +45,14 @@ export const useProjects = (mode?: 'professional' | 'creative', options: UseProj
       const { data, error } = await query;
 
       if (error) throw error;
-      setProjects(data || []);
+      
+      // Parse project_links properly for each project
+      const parsedProjects = (data || []).map(p => ({
+        ...p,
+        project_links: parseProjectLinks(p.project_links)
+      })) as Project[];
+      
+      setProjects(parsedProjects);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch projects');
     } finally {

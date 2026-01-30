@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Grid, List, Folder, ExternalLink, Github, Calendar, Tag, Filter, ArrowUpDown, Search, User, ZoomIn, ZoomOut } from 'lucide-react';
+import { ArrowLeft, Grid, List, Folder, ExternalLink, Github, Calendar, Tag, Filter, ArrowUpDown, Search, User, ZoomIn, ZoomOut, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -34,9 +34,15 @@ const ProjectFolderPage = () => {
   const [folder, setFolder] = useState<FolderType | null>(null);
   const [folderProjects, setFolderProjects] = useState<Project[]>([]);
   const [viewMode, setViewMode] = useState<'cards' | 'timeline'>('cards');
-  const [activeCategory, setActiveCategory] = useState<string>('all');
+  const [activeCategory, setActiveCategory] = useState<string>(() => {
+    const saved = localStorage.getItem('projects-category-filter');
+    return saved || 'all';
+  });
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(() => {
+    const saved = localStorage.getItem('projects-search-query');
+    return saved || '';
+  });
   
   // Zoom state - load from localStorage
   const [cardZoom, setCardZoom] = useState(() => {
@@ -48,6 +54,15 @@ const ProjectFolderPage = () => {
   useEffect(() => {
     localStorage.setItem('folder-projects-card-zoom', String(cardZoom));
   }, [cardZoom]);
+
+  // Sync filters to localStorage
+  useEffect(() => {
+    localStorage.setItem('projects-category-filter', activeCategory);
+  }, [activeCategory]);
+
+  useEffect(() => {
+    localStorage.setItem('projects-search-query', searchQuery);
+  }, [searchQuery]);
 
   // Set default view from settings
   useEffect(() => {
@@ -251,19 +266,31 @@ const ProjectFolderPage = () => {
 
             {/* Category Filter */}
             {categories.length > 1 && (
-              <Select value={activeCategory} onValueChange={setActiveCategory}>
-                <SelectTrigger className="w-[110px] sm:w-[140px] h-8 sm:h-9 text-xs sm:text-sm">
-                  <Filter className="w-3 h-3 sm:w-3.5 sm:h-3.5 mr-1 sm:mr-1.5" />
-                  <SelectValue placeholder="Category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map((category) => (
-                    <SelectItem key={category} value={category} className="capitalize">
-                      {category}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="flex items-center gap-1">
+                <Select value={activeCategory} onValueChange={setActiveCategory}>
+                  <SelectTrigger className="w-[110px] sm:w-[140px] h-8 sm:h-9 text-xs sm:text-sm">
+                    <Filter className="w-3 h-3 sm:w-3.5 sm:h-3.5 mr-1 sm:mr-1.5" />
+                    <SelectValue placeholder="Category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map((category) => (
+                      <SelectItem key={category} value={category} className="capitalize">
+                        {category}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {activeCategory !== 'all' && (
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-8 w-8" 
+                    onClick={() => setActiveCategory('all')}
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </Button>
+                )}
+              </div>
             )}
 
             {/* Search Bar */}
@@ -273,8 +300,18 @@ const ProjectFolderPage = () => {
                 placeholder="Search..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-[120px] sm:w-[160px] h-8 sm:h-9 text-xs sm:text-sm pl-8"
+                className="w-[120px] sm:w-[160px] h-8 sm:h-9 text-xs sm:text-sm pl-8 pr-8"
               />
+              {searchQuery && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-0 top-1/2 -translate-y-1/2 h-8 w-8"
+                  onClick={() => setSearchQuery('')}
+                >
+                  <X className="w-3.5 h-3.5" />
+                </Button>
+              )}
             </div>
 
             {/* Zoom Controls */}

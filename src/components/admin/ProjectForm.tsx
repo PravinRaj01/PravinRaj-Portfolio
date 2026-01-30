@@ -282,34 +282,24 @@ const ProjectForm = ({ project, onClose, onSave, mode }: ProjectFormProps) => {
               </div>
               
               <div>
-                <Label htmlFor="category">Category {mode === 'creative' && '(type & press Enter for multiple)'}</Label>
-                {mode === 'creative' ? (
-                  <div className="space-y-2">
-                    <Input
-                      id="category"
-                      value={newCategory}
-                      onChange={(e) => setNewCategory(e.target.value)}
-                      onKeyDown={addCategory}
-                      placeholder="Type category and press Enter"
-                    />
-                    <div className="flex flex-wrap gap-2">
-                      {formData.categories.map((cat) => (
-                        <Badge key={cat} variant="secondary" className="cursor-pointer" onClick={() => removeCategory(cat)}>
-                          {cat}
-                          <X className="w-3 h-3 ml-1" />
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                ) : (
+                <Label htmlFor="category">Category (type & press Enter for multiple)</Label>
+                <div className="space-y-2">
                   <Input
                     id="category"
-                    value={formData.category}
-                    onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
-                    placeholder="e.g., Web Development"
-                    required
+                    value={newCategory}
+                    onChange={(e) => setNewCategory(e.target.value)}
+                    onKeyDown={addCategory}
+                    placeholder="Type category and press Enter"
                   />
-                )}
+                  <div className="flex flex-wrap gap-2">
+                    {formData.categories.map((cat) => (
+                      <Badge key={cat} variant="secondary" className="cursor-pointer" onClick={() => removeCategory(cat)}>
+                        {cat}
+                        <X className="w-3 h-3 ml-1" />
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -343,32 +333,32 @@ const ProjectForm = ({ project, onClose, onSave, mode }: ProjectFormProps) => {
               </p>
             </div>
 
-            {/* Position field - Creative Mode Only */}
-            {mode === 'creative' && (
-              <div>
-                <Label htmlFor="position">Position/Role (type & press Enter for multiple)</Label>
-                <div className="space-y-2">
-                  <Input
-                    id="position"
-                    value={newPosition}
-                    onChange={(e) => setNewPosition(e.target.value)}
-                    onKeyDown={addPosition}
-                    placeholder="e.g., Chairman, Lead Designer"
-                  />
-                  <div className="flex flex-wrap gap-2">
-                    {formData.positions.map((pos) => (
-                      <Badge key={pos} variant="secondary" className="cursor-pointer" onClick={() => removePosition(pos)}>
-                        {pos}
-                        <X className="w-3 h-3 ml-1" />
-                      </Badge>
-                    ))}
-                  </div>
+            {/* Position field - Both Modes */}
+            <div>
+              <Label htmlFor="position">
+                {mode === 'creative' ? 'Position/Role' : 'Your Role'} (type & press Enter for multiple)
+              </Label>
+              <div className="space-y-2">
+                <Input
+                  id="position"
+                  value={newPosition}
+                  onChange={(e) => setNewPosition(e.target.value)}
+                  onKeyDown={addPosition}
+                  placeholder={mode === 'creative' ? "e.g., Chairman, Lead Designer" : "e.g., Lead Developer, Architect"}
+                />
+                <div className="flex flex-wrap gap-2">
+                  {formData.positions.map((pos) => (
+                    <Badge key={pos} variant="secondary" className="cursor-pointer" onClick={() => removePosition(pos)}>
+                      {pos}
+                      <X className="w-3 h-3 ml-1" />
+                    </Badge>
+                  ))}
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Your role(s) or position(s) in this creative project
-                </p>
               </div>
-            )}
+              <p className="text-xs text-muted-foreground mt-1">
+                Your role(s) or position(s) in this project
+              </p>
+            </div>
 
             <div>
               <Label>Project Date</Label>
