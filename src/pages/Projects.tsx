@@ -40,7 +40,11 @@ const Projects = () => {
     const saved = localStorage.getItem('projects-search-query');
     return saved || '';
   });
-  const [viewMode, setViewMode] = useState<'timeline' | 'cards'>('cards');
+  // Persist view mode in localStorage - user preference takes priority over admin default
+  const [viewMode, setViewMode] = useState<'timeline' | 'cards'>(() => {
+    const saved = localStorage.getItem('projects-view-mode');
+    return (saved as 'timeline' | 'cards') || 'cards';
+  });
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showFolderPicker, setShowFolderPicker] = useState(false);
@@ -67,9 +71,15 @@ const Projects = () => {
     localStorage.setItem('projects-card-zoom', String(cardZoom));
   }, [cardZoom]);
 
-  // Set default view from settings
+  // Save view mode to localStorage when it changes
   useEffect(() => {
-    if (siteSettings?.projects_default_view) {
+    localStorage.setItem('projects-view-mode', viewMode);
+  }, [viewMode]);
+
+  // Set default view from settings ONLY if no user preference exists
+  useEffect(() => {
+    const hasUserPreference = localStorage.getItem('projects-view-mode');
+    if (!hasUserPreference && siteSettings?.projects_default_view) {
       setViewMode(siteSettings.projects_default_view);
     }
   }, [siteSettings?.projects_default_view]);
@@ -526,12 +536,12 @@ const Projects = () => {
                                 </div>
 
                                 {/* Action Buttons */}
-                                <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+                                <div className="flex flex-wrap gap-2" onClick={(e) => e.stopPropagation()}>
                                   {project.live_url && (
                                     <Button size="sm" className="h-7 sm:h-8 text-xs sm:text-sm px-2 sm:px-3" asChild>
                                       <a href={project.live_url} target="_blank" rel="noopener noreferrer">
-                                        <ExternalLink className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
-                                        {mode === 'professional' ? 'Demo' : 'View'}
+                                        <ExternalLink className="w-3 h-3 sm:w-4 sm:h-4 mr-1 flex-shrink-0" />
+                                        <span className="truncate">{mode === 'professional' ? 'Demo' : 'View'}</span>
                                       </a>
                                     </Button>
                                   )}
@@ -547,8 +557,8 @@ const Projects = () => {
                                       asChild
                                     >
                                       <a href={project.github_url} target="_blank" rel="noopener noreferrer">
-                                        <Github className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
-                                        Code
+                                        <Github className="w-3 h-3 sm:w-4 sm:h-4 mr-1 flex-shrink-0" />
+                                        <span className="truncate">Code</span>
                                       </a>
                                     </Button>
                                   )}
@@ -566,8 +576,8 @@ const Projects = () => {
                                       asChild
                                     >
                                       <a href={link.url} target="_blank" rel="noopener noreferrer">
-                                        <ExternalLink className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
-                                        {link.label}
+                                        <ExternalLink className="w-3 h-3 sm:w-4 sm:h-4 mr-1 flex-shrink-0" />
+                                        <span className="truncate">{link.label}</span>
                                       </a>
                                     </Button>
                                   ))}
@@ -854,12 +864,12 @@ const Projects = () => {
                           <div className="flex-grow" />
 
                           {/* Action Buttons */}
-                          <div className="flex gap-2 mt-auto" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex flex-wrap gap-2 mt-auto" onClick={(e) => e.stopPropagation()}>
                             {project.live_url && (
-                              <Button size="sm" className="flex-1 h-7 sm:h-8 text-xs sm:text-sm" asChild>
+                              <Button size="sm" className="flex-1 min-w-0 h-7 sm:h-8 text-xs sm:text-sm" asChild>
                                 <a href={project.live_url} target="_blank" rel="noopener noreferrer">
-                                  <ExternalLink className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
-                                  {mode === 'professional' ? 'Live' : 'View'}
+                                  <ExternalLink className="w-3 h-3 sm:w-4 sm:h-4 mr-1 flex-shrink-0" />
+                                  <span className="truncate">{mode === 'professional' ? 'Live' : 'View'}</span>
                                 </a>
                               </Button>
                             )}
@@ -867,7 +877,7 @@ const Projects = () => {
                               <Button 
                                 size="sm" 
                                 variant="outline" 
-                                className={`flex-1 h-7 sm:h-8 text-xs sm:text-sm ${
+                                className={`flex-1 min-w-0 h-7 sm:h-8 text-xs sm:text-sm ${
                                   mode === 'creative' 
                                     ? 'border-orange-400/50 text-orange-400/80 hover:bg-orange-500/5 hover:text-orange-400' 
                                     : 'border-purple-400/50 text-purple-400/80 hover:bg-purple-500/5 hover:text-purple-400'
@@ -875,8 +885,8 @@ const Projects = () => {
                                 asChild
                               >
                                 <a href={project.github_url} target="_blank" rel="noopener noreferrer">
-                                  <Github className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
-                                  Code
+                                  <Github className="w-3 h-3 sm:w-4 sm:h-4 mr-1 flex-shrink-0" />
+                                  <span className="truncate">Code</span>
                                 </a>
                               </Button>
                             )}
@@ -886,7 +896,7 @@ const Projects = () => {
                                 key={idx}
                                 size="sm" 
                                 variant="outline" 
-                                className={`h-7 sm:h-8 text-xs sm:text-sm ${
+                                className={`flex-1 min-w-0 h-7 sm:h-8 text-xs sm:text-sm ${
                                   mode === 'creative' 
                                     ? 'border-orange-400/50 text-orange-400/80 hover:bg-orange-500/5 hover:text-orange-400' 
                                     : 'border-purple-400/50 text-purple-400/80 hover:bg-purple-500/5 hover:text-purple-400'
@@ -894,8 +904,8 @@ const Projects = () => {
                                 asChild
                               >
                                 <a href={link.url} target="_blank" rel="noopener noreferrer">
-                                  <ExternalLink className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
-                                  {link.label}
+                                  <ExternalLink className="w-3 h-3 sm:w-4 sm:h-4 mr-1 flex-shrink-0" />
+                                  <span className="truncate">{link.label}</span>
                                 </a>
                               </Button>
                             ))}

@@ -19,6 +19,7 @@ import { X, Plus, Image as ImageIcon, Award, Link as LinkIcon, GripVertical } fr
 import { Experience } from '@/types/cms';
 import { DateRangePicker, SingleDatePicker } from '@/components/ui/date-range-picker';
 import GoogleDriveFilePicker from './GoogleDriveFilePicker';
+import DescriptionGenerator from './DescriptionGenerator';
 import { DriveFile } from '@/services/googleDriveService';
 import { generateDriveImageUrl } from '@/utils/googleDrive';
 
@@ -457,6 +458,21 @@ const ExperienceForm = ({ onSubmit, onCancel, initialData, loading, mode }: Expe
                       />
                     )}
                   </FormControl>
+                  <DescriptionGenerator
+                    entityType="experience"
+                    mode={mode}
+                    data={{
+                      title: form.getValues('title'),
+                      company: form.getValues('company'),
+                      location: form.getValues('location'),
+                      role: form.getValues('role'),
+                      date: form.getValues('event_date'),
+                      period: form.getValues('period'),
+                      achievements,
+                      images: eventImages.slice(0, 3),
+                    }}
+                    onGenerated={(description) => form.setValue('description', description)}
+                  />
                   <FormMessage />
                 </FormItem>
               )}

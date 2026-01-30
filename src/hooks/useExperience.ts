@@ -23,12 +23,48 @@ export const useExperience = (mode?: 'professional' | 'creative') => {
 
       if (error) throw error;
       
-      // Sort experiences: by event_date for creative mode (newest first), by order_index otherwise
+      // Helper to parse start date from either event_date or period
+      const getStartDate = (exp: Experience): Date => {
+        const monthMap: Record<string, number> = {
+          'Jan': 0, 'Feb': 1, 'Mar': 2, 'Apr': 3, 'May': 4, 'Jun': 5,
+          'Jul': 6, 'Aug': 7, 'Sep': 8, 'Oct': 9, 'Nov': 10, 'Dec': 11
+        };
+        
+        // For single date type, use event_date
+        if (exp.date_type === 'single' && exp.event_date) {
+          const parts = exp.event_date.trim().split(' ');
+          if (parts.length === 3) {
+            // "15 Nov 2024" format
+            return new Date(parseInt(parts[2]), monthMap[parts[1]] || 0, parseInt(parts[0]));
+          }
+          if (parts.length === 2) {
+            // "Nov 2024" format
+            return new Date(parseInt(parts[1]), monthMap[parts[0]] || 0, 1);
+          }
+        }
+        
+        // For range type or fallback, parse start date from period "15 Nov 2024 - 6 Dec 2024"
+        if (exp.period) {
+          const startPart = exp.period.split(' - ')[0].trim();
+          const parts = startPart.split(' ');
+          if (parts.length === 3) {
+            // "15 Nov 2024" format
+            return new Date(parseInt(parts[2]), monthMap[parts[1]] || 0, parseInt(parts[0]));
+          }
+          if (parts.length === 2) {
+            // "Nov 2024" format
+            return new Date(parseInt(parts[1]), monthMap[parts[0]] || 0, 1);
+          }
+        }
+        
+        return new Date(0);
+      };
+
+      // Sort experiences: by start date for creative mode (newest first), by order_index otherwise
       const sortedData = (data || []).sort((a, b) => {
         if (mode === 'creative') {
-          // Parse event_date for proper date comparison (format: "DD MMM YYYY" or similar)
-          const dateA = a.event_date ? new Date(a.event_date) : new Date(0);
-          const dateB = b.event_date ? new Date(b.event_date) : new Date(0);
+          const dateA = getStartDate(a);
+          const dateB = getStartDate(b);
           // Newest first (descending)
           return dateB.getTime() - dateA.getTime();
         }

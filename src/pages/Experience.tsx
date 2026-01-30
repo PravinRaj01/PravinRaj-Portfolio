@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Calendar, MapPin, Building2, ArrowUpDown, Award, ArrowRight, Filter } from 'lucide-react';
@@ -18,7 +18,11 @@ import { generateDriveImageUrl } from '@/utils/googleDrive';
 
 const Experience = () => {
   const navigate = useNavigate();
-  const [viewMode, setViewMode] = useState<'timeline' | 'cards'>('timeline');
+  // Persist view mode in localStorage
+  const [viewMode, setViewMode] = useState<'timeline' | 'cards'>(() => {
+    const saved = localStorage.getItem('experience-view-mode');
+    return (saved as 'timeline' | 'cards') || 'timeline';
+  });
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
   const [selectedRole, setSelectedRole] = useState<string>('all');
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -27,7 +31,11 @@ const Experience = () => {
   const timelineRefs = useRef<(HTMLDivElement | null)[]>([]);
   const isCreativeMode = mode === 'creative';
 
-  // Get unique roles for creative mode filter
+  // Save view mode to localStorage when it changes
+  useEffect(() => {
+    localStorage.setItem('experience-view-mode', viewMode);
+  }, [viewMode]);
+
   const roles = useMemo(() => {
     if (!isCreativeMode || !experiences) return [];
     const uniqueRoles = [...new Set(experiences.map(exp => exp.role).filter(Boolean))] as string[];
@@ -449,12 +457,16 @@ const Experience = () => {
                           </CardHeader>
                           <CardContent className="p-3 sm:p-4 md:p-6 pt-0 flex flex-col flex-1">
                             <div className="flex-1">
-                              <div className="text-xs sm:text-sm text-muted-foreground mb-3 sm:mb-4 line-clamp-3">
+                              <div className="text-xs sm:text-sm text-muted-foreground mb-3 sm:mb-4 line-clamp-3 [&_ul]:list-disc [&_ul]:ml-4 [&_ol]:list-decimal [&_ol]:ml-4 [&_li]:mt-0.5">
                                 <ReactMarkdown
                                   components={{
                                     p: ({ children }) => <span>{children}</span>,
                                     strong: ({ children }) => <strong className="font-semibold text-foreground">{children}</strong>,
                                     em: ({ children }) => <em>{children}</em>,
+                                    ul: ({ children }) => <ul className="list-disc ml-4">{children}</ul>,
+                                    ol: ({ children }) => <ol className="list-decimal ml-4">{children}</ol>,
+                                    li: ({ children }) => <li className="mt-0.5">{children}</li>,
+                                    a: ({ children, href }) => <a href={href} className="text-primary underline" target="_blank" rel="noopener noreferrer">{children}</a>,
                                   }}
                                 >
                                   {exp.description}

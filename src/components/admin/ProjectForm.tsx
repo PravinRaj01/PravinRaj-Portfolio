@@ -18,6 +18,7 @@ import GoogleDriveFilePicker, { FolderNavigationItem } from './GoogleDriveFilePi
 import ImageCropPreview from './ImageCropPreview';
 import ProjectMediaManager from './ProjectMediaManager';
 import ProjectImageFolderManager from './ProjectImageFolderManager';
+import DescriptionGenerator from './DescriptionGenerator';
 import { DriveFile } from '@/services/googleDriveService';
 import { generateDriveImageUrl } from '@/utils/googleDrive';
 import { SingleDatePicker } from '@/components/ui/date-range-picker';
@@ -370,7 +371,7 @@ const ProjectForm = ({ project, onClose, onSave, mode }: ProjectFormProps) => {
               />
             </div>
 
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="description">Description</Label>
               {mode === 'creative' ? (
                 <RichTextEditor
@@ -389,6 +390,22 @@ const ProjectForm = ({ project, onClose, onSave, mode }: ProjectFormProps) => {
                   required
                 />
               )}
+              <DescriptionGenerator
+                entityType="project"
+                mode={mode}
+                data={{
+                  title: formData.title,
+                  category: formData.category,
+                  categories: formData.categories,
+                  tags: formData.tags,
+                  positions: formData.positions,
+                  date: formData.project_date,
+                  images: formData.image_drive_id 
+                    ? [generateDriveImageUrl(formData.image_drive_id, 'medium')]
+                    : formData.gallery_images?.slice(0, 3),
+                }}
+                onGenerated={(description) => setFormData(prev => ({ ...prev, description }))}
+              />
             </div>
 
             {/* Main Thumbnail Image */}
@@ -612,10 +629,10 @@ const ProjectForm = ({ project, onClose, onSave, mode }: ProjectFormProps) => {
               ))}
               
               {/* Add new link */}
-              <div className="flex flex-col gap-2 pt-2 border-t">
-                <div className="grid grid-cols-2 gap-2">
+              <div className="pt-2 border-t">
+                <div className="grid grid-cols-[1fr_1fr_auto_auto] gap-2 items-center">
                   <Input
-                    placeholder="Button label (e.g., View Demo)"
+                    placeholder="Button label"
                     value={newLinkLabel}
                     onChange={(e) => setNewLinkLabel(e.target.value)}
                   />
@@ -624,21 +641,33 @@ const ProjectForm = ({ project, onClose, onSave, mode }: ProjectFormProps) => {
                     value={newLinkUrl}
                     onChange={(e) => setNewLinkUrl(e.target.value)}
                   />
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
+                  <div 
+                    className="flex items-center gap-1.5 px-2"
+                    onClick={(e) => e.stopPropagation()}
+                    onMouseDown={(e) => e.stopPropagation()}
+                  >
                     <Checkbox
                       id="show_on_card"
                       checked={newLinkShowOnCard}
-                      onCheckedChange={(checked) => setNewLinkShowOnCard(!!checked)}
+                      onCheckedChange={(checked) => {
+                        setNewLinkShowOnCard(!!checked);
+                      }}
                     />
-                    <Label htmlFor="show_on_card" className="text-sm">Show on project card</Label>
+                    <Label 
+                      htmlFor="show_on_card" 
+                      className="text-xs whitespace-nowrap cursor-pointer"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      On card
+                    </Label>
                   </div>
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
                       if (newLinkLabel && newLinkUrl) {
                         setFormData(prev => ({
                           ...prev,
@@ -652,7 +681,7 @@ const ProjectForm = ({ project, onClose, onSave, mode }: ProjectFormProps) => {
                     disabled={!newLinkLabel || !newLinkUrl}
                   >
                     <Plus className="w-3 h-3 mr-1" />
-                    Add Link
+                    Add
                   </Button>
                 </div>
               </div>
