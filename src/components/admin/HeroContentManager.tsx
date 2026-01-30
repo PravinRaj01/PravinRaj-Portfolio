@@ -404,21 +404,12 @@ const HeroContentManager = () => {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {mode === 'professional' ? (
-                          <>
-                            <SelectItem value="/projects">Projects</SelectItem>
-                            <SelectItem value="/experience">Experience</SelectItem>
-                            <SelectItem value="/academic">Academic</SelectItem>
-                            <SelectItem value="/contact">Contact</SelectItem>
-                          </>
-                        ) : (
-                          <>
-                            <SelectItem value="/projects">Projects</SelectItem>
-                            <SelectItem value="/experience">Experience</SelectItem>
-                            <SelectItem value="/podcast">Podcast</SelectItem>
-                            <SelectItem value="/contact">Contact</SelectItem>
-                          </>
-                        )}
+                        <SelectItem value="/projects">Projects</SelectItem>
+                        <SelectItem value="/experience">Experience</SelectItem>
+                        <SelectItem value="/academic">Academic</SelectItem>
+                        <SelectItem value="/contact">Contact</SelectItem>
+                        <SelectItem value="/podcast">Podcast</SelectItem>
+                        <SelectItem value="/playground">Playground</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
