@@ -192,7 +192,7 @@ const Hero = ({ mode }: HeroProps) => {
                     onClick={handleCtaClick}
                   >
                     {content.cta_text}
-                    <ArrowDown className="ml-2 h-5 w-5" />
+
                   </Button>
                   
                   <Button
