@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { usePortfolio } from '@/contexts/PortfolioContext';
 import { useSiteSettings } from '@/hooks/useSiteSettings';
 import { useEnabledSocials } from '@/hooks/useSocials';
+import NavVisitorCounter from '@/components/NavVisitorCounter';
 
 const Navigation = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -166,6 +167,9 @@ const Navigation = () => {
                 </Link>
               ))}
 
+              {/* Desktop Visitor Counter - Left of Resume */}
+              <NavVisitorCounter />
+
               {/* Resume Button */}
               <Button 
                 variant="outline" 
@@ -179,13 +183,16 @@ const Navigation = () => {
               </Button>
             </div>
 
-            {/* Mobile menu button */}
-            <button
-              onClick={() => setIsOpen(!isOpen)}
-              className="md:hidden p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted"
-            >
-              {isOpen ? <X size={24} /> : <Menu size={24} />}
-            </button>
+            {/* Mobile: Visitor Counter + Menu button */}
+            <div className="md:hidden flex items-center gap-2">
+              <NavVisitorCounter />
+              <button
+                onClick={() => setIsOpen(!isOpen)}
+                className="p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted"
+              >
+                {isOpen ? <X size={24} /> : <Menu size={24} />}
+              </button>
+            </div>
           </div>
         </div>
 

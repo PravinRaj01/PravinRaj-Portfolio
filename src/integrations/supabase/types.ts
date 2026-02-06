@@ -588,8 +588,11 @@ export type Database = {
           professional_visible_pages: string[] | null
           projects_default_view: string | null
           resume_url: string | null
+          show_daily_visitors: boolean | null
+          show_total_visitors: boolean | null
           site_name: string
           updated_at: string
+          visitor_counter_enabled: boolean | null
         }
         Insert: {
           academic_default_view?: string | null
@@ -614,8 +617,11 @@ export type Database = {
           professional_visible_pages?: string[] | null
           projects_default_view?: string | null
           resume_url?: string | null
+          show_daily_visitors?: boolean | null
+          show_total_visitors?: boolean | null
           site_name: string
           updated_at?: string
+          visitor_counter_enabled?: boolean | null
         }
         Update: {
           academic_default_view?: string | null
@@ -640,8 +646,11 @@ export type Database = {
           professional_visible_pages?: string[] | null
           projects_default_view?: string | null
           resume_url?: string | null
+          show_daily_visitors?: boolean | null
+          show_total_visitors?: boolean | null
           site_name?: string
           updated_at?: string
+          visitor_counter_enabled?: boolean | null
         }
         Relationships: []
       }
@@ -786,6 +795,45 @@ export type Database = {
           position_y?: number | null
           position_z?: number | null
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      visitor_daily_stats: {
+        Row: {
+          created_at: string
+          date: string
+          id: string
+          view_count: number
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          id?: string
+          view_count?: number
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          id?: string
+          view_count?: number
+        }
+        Relationships: []
+      }
+      visitor_stats: {
+        Row: {
+          id: string
+          last_updated: string
+          view_count: number
+        }
+        Insert: {
+          id?: string
+          last_updated?: string
+          view_count?: number
+        }
+        Update: {
+          id?: string
+          last_updated?: string
+          view_count?: number
         }
         Relationships: []
       }

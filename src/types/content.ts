@@ -22,6 +22,9 @@ export interface SiteSettings {
   chatbot_default_state?: 'mini' | 'sidebar' | 'full';
   academic_default_view?: 'timeline' | 'cards';
   projects_default_view?: 'timeline' | 'cards';
+  visitor_counter_enabled?: boolean;
+  show_total_visitors?: boolean;
+  show_daily_visitors?: boolean;
   created_at: string;
   updated_at: string;
 }

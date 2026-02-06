@@ -68,7 +68,7 @@ const SiteSettingsManager = () => {
       const settingsData = {
         site_name: settings?.site_name || data.site_name,
         logo_url: settings?.logo_url || data.logo_url || undefined,
-        chatbot_enabled: data.chatbot_enabled,
+      chatbot_enabled: data.chatbot_enabled,
         resume_url: settings?.resume_url || undefined,
         professional_site_name: isProfessional ? data.site_name : (settings?.professional_site_name || undefined),
         professional_logo_url: isProfessional ? (data.logo_url || undefined) : (settings?.professional_logo_url || undefined),
@@ -137,6 +137,9 @@ const SiteSettingsManager = () => {
                       <Bot className="h-4 w-4" />
                       AI Portfolio Assistant
                     </FormLabel>
+                    <p className="text-sm text-muted-foreground">
+                      Enable the AI chatbot on your portfolio
+                    </p>
                   </div>
                   <FormControl>
                     <Switch
@@ -147,6 +150,8 @@ const SiteSettingsManager = () => {
                 </FormItem>
               )}
             />
+
+
 
             <Button type="submit" disabled={updateSettings.isPending}>
               {updateSettings.isPending ? 'Updating...' : 'Update Settings'}

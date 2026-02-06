@@ -25,6 +25,7 @@ import GithubTickerManager from './GithubTickerManager';
 import ViewSettingsManager from './ViewSettingsManager';
 import ChatbotSettingsManager from './ChatbotSettingsManager';
 import ProjectFolderManager from './ProjectFolderManager';
+import VisitorStatsManager from './VisitorStatsManager';
 import { useProjects } from '@/hooks/useProjects';
 import { useExperience } from '@/hooks/useExperience';
 import { useStats } from '@/hooks/useStats';
@@ -198,10 +199,11 @@ const AdminDashboard = () => {
                 </CardHeader>
                 <CardContent>
                   <Tabs defaultValue="site-settings" className="space-y-6">
-                    <TabsList className="grid grid-cols-10 w-full">
+                    <TabsList className="grid grid-cols-11 w-full">
                       <TabsTrigger value="site-settings">Site</TabsTrigger>
                       <TabsTrigger value="mode-settings">Modes</TabsTrigger>
                       <TabsTrigger value="view-settings">Views</TabsTrigger>
+                      <TabsTrigger value="visitors">Visitors</TabsTrigger>
                       <TabsTrigger value="chatbot">Chatbot</TabsTrigger>
                       <TabsTrigger value="resume">Resume</TabsTrigger>
                       <TabsTrigger value="hero-content">Hero</TabsTrigger>
@@ -221,6 +223,10 @@ const AdminDashboard = () => {
 
                     <TabsContent value="view-settings">
                       <ViewSettingsManager />
+                    </TabsContent>
+
+                    <TabsContent value="visitors">
+                      <VisitorStatsManager />
                     </TabsContent>
 
                     <TabsContent value="chatbot">
