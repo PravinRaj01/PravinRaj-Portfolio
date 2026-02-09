@@ -451,6 +451,8 @@ export type Database = {
           positions: string[] | null
           project_date: string | null
           project_links: Json | null
+          recent_order_index: number | null
+          scroll_speed: number | null
           show_in_recent: boolean | null
           tags: string[] | null
           title: string
@@ -484,6 +486,8 @@ export type Database = {
           positions?: string[] | null
           project_date?: string | null
           project_links?: Json | null
+          recent_order_index?: number | null
+          scroll_speed?: number | null
           show_in_recent?: boolean | null
           tags?: string[] | null
           title: string
@@ -517,6 +521,8 @@ export type Database = {
           positions?: string[] | null
           project_date?: string | null
           project_links?: Json | null
+          recent_order_index?: number | null
+          scroll_speed?: number | null
           show_in_recent?: boolean | null
           tags?: string[] | null
           title?: string

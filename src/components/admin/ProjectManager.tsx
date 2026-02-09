@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { useProjects } from '@/hooks/useProjects';
 import { generateDriveImageUrl } from '@/utils/googleDrive';
 import ProjectForm from './ProjectForm';
+import ProjectFilterViews from './ProjectFilterViews';
 import { usePortfolio } from '@/contexts/PortfolioContext';
 
 const ProjectManager = () => {
@@ -20,6 +21,7 @@ const ProjectManager = () => {
   const [showForm, setShowForm] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [viewFilter, setViewFilter] = useState<'all' | 'featured' | 'recent'>('all');
 
   // Get unique categories - include both category and categories array (like projects page)
   const categories = useMemo(() => {
@@ -125,6 +127,43 @@ const ProjectManager = () => {
         </p>
       </div>
 
+      {/* View Filter Buttons */}
+      <div className="flex flex-wrap gap-2">
+        <Button
+          variant={viewFilter === 'all' ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => setViewFilter('all')}
+        >
+          All ({projects.length})
+        </Button>
+        <Button
+          variant={viewFilter === 'featured' ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => setViewFilter('featured')}
+        >
+          <Star className="w-3 h-3 mr-1" />
+          Featured ({projects.filter(p => p.featured).length})
+        </Button>
+        <Button
+          variant={viewFilter === 'recent' ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => setViewFilter('recent')}
+        >
+          <Home className="w-3 h-3 mr-1" />
+          Recent Work ({projects.filter(p => p.show_in_recent !== false).length})
+        </Button>
+      </div>
+
+      {/* Featured/Recent Filter Views */}
+      {viewFilter !== 'all' && (
+        <ProjectFilterViews
+          projects={filteredProjects}
+          viewFilter={viewFilter}
+          mode={mode}
+          onRefetch={refetch}
+        />
+      )}
+
       {/* Add Project Dialog */}
       <Dialog open={showForm} onOpenChange={setShowForm}>
         <DialogContent 
@@ -164,6 +203,7 @@ const ProjectManager = () => {
         </DialogContent>
       </Dialog>
 
+      {viewFilter === 'all' && (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredProjects.filter(p => p.id !== editingProject).map((project) => (
         
@@ -280,8 +320,9 @@ const ProjectManager = () => {
           </motion.div>
         ))}
       </div>
+      )}
 
-      {filteredProjects.length === 0 && projects.length > 0 && (
+      {viewFilter === 'all' && filteredProjects.length === 0 && projects.length > 0 && (
         <Card className="text-center py-12">
           <CardContent>
             <p className="text-muted-foreground mb-4">No projects match your search criteria</p>

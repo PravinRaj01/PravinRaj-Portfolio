@@ -18,6 +18,7 @@ export interface Project {
   image_drive_id?: string;
   image_home_drive_id?: string;
   image_scroll_enabled?: boolean;
+  scroll_speed?: number;
   crop_landscape?: CropPosition;
   crop_square?: CropPosition;
   crop_phone?: CropPosition;
@@ -44,6 +45,7 @@ export interface Project {
   folder_name?: string;
   show_in_recent?: boolean;
   is_active?: boolean;
+  recent_order_index?: number;
 }
 
 export interface Experience {

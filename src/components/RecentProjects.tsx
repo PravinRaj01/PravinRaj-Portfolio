@@ -13,7 +13,7 @@ const RecentProjects = ({ mode }: RecentProjectsProps) => {
   // Then take first 5 for the slider
   const recentProjects = projects
     .filter(p => p.show_in_recent !== false)
-    .slice(0, 5);
+    .sort((a, b) => (a.recent_order_index || 0) - (b.recent_order_index || 0));
 
   if (loading) {
     return (

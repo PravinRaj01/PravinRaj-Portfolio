@@ -530,6 +530,7 @@ const ProjectImageFolderManager = ({ projectId }: ProjectImageFolderManagerProps
             <p className="text-xs mt-1">Click "Add Folder" to create one.</p>
           </div>
         ) : (
+          <div onPointerDown={(e) => e.stopPropagation()}>
           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
@@ -553,6 +554,7 @@ const ProjectImageFolderManager = ({ projectId }: ProjectImageFolderManagerProps
               </div>
             </SortableContext>
           </DndContext>
+          </div>
         )}
       </div>
 

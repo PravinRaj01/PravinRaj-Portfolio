@@ -45,6 +45,7 @@ const ProjectForm = ({ project, onClose, onSave, mode }: ProjectFormProps) => {
     is_active: project?.is_active ?? true,
     image_drive_id: project?.image_drive_id || '',
     image_scroll_enabled: project?.image_scroll_enabled || false,
+    scroll_speed: project?.scroll_speed ?? 10000,
     crop_landscape: project?.crop_landscape || { x: 50, y: 50, zoom: 100 },
     crop_square: project?.crop_square || { x: 50, y: 50, zoom: 100 },
     crop_phone: project?.crop_phone || { x: 50, y: 50, zoom: 100 },
@@ -464,6 +465,24 @@ const ProjectForm = ({ project, onClose, onSave, mode }: ProjectFormProps) => {
                       Enable scroll effect on Projects page (for tall images)
                     </Label>
                   </div>
+                  {formData.image_scroll_enabled && (
+                    <div className="pt-2 space-y-2">
+                      <Label className="text-sm">Scroll Speed: {(formData.scroll_speed / 1000).toFixed(1)}s</Label>
+                      <input
+                        type="range"
+                        min={2000}
+                        max={20000}
+                        step={500}
+                        value={formData.scroll_speed}
+                        onChange={(e) => setFormData(prev => ({ ...prev, scroll_speed: parseInt(e.target.value) }))}
+                        className="w-full accent-primary"
+                      />
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>Fast (2s)</span>
+                        <span>Slow (20s)</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -708,7 +727,10 @@ const ProjectForm = ({ project, onClose, onSave, mode }: ProjectFormProps) => {
           setMultiSelectMode(false);
         }
       }}>
-        <DialogContent className="max-w-4xl max-h-[90vh] p-0 overflow-hidden">
+        <DialogContent 
+          className="max-w-4xl max-h-[90vh] p-0 overflow-hidden"
+          onPointerDownOutside={(e) => e.preventDefault()}
+        >
           <DialogTitle className="sr-only">Select File from Google Drive</DialogTitle>
           <GoogleDriveFilePicker
             onSelect={handleFileSelect}
