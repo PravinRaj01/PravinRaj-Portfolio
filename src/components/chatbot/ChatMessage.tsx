@@ -68,7 +68,7 @@ const ChatMessage = ({ role, content, isStreaming, compact = false }: ChatMessag
       )}
       <div
         className={cn(
-          "rounded-2xl shadow-sm",
+          "rounded-2xl shadow-sm overflow-hidden",
           compact ? "px-3 py-2 text-xs max-w-[90%]" : "px-4 py-3 max-w-[85%]",
           isUser
             ? "bg-primary/80 backdrop-blur-sm text-primary-foreground"
@@ -77,7 +77,7 @@ const ChatMessage = ({ role, content, isStreaming, compact = false }: ChatMessag
       >
         <div
           className={cn(
-            "prose max-w-none",
+            "prose max-w-none break-words overflow-hidden",
             compact ? "prose-xs" : "prose-sm",
             isUser ? "prose-invert" : "prose-slate dark:prose-invert",
             // Better spacing for assistant messages
@@ -131,10 +131,10 @@ const ChatMessage = ({ role, content, isStreaming, compact = false }: ChatMessag
                     </ol>
                   ),
                   li: ({ children }) => (
-                    <li className="leading-relaxed pl-1">{children}</li>
+                    <li className="leading-relaxed pl-1 break-words">{children}</li>
                   ),
                   strong: ({ children }) => (
-                    <strong className="font-semibold text-foreground/95 block mt-3 first:mt-0 mb-1">
+                    <strong className="font-semibold text-foreground/95">
                       {children}
                     </strong>
                   ),
@@ -151,7 +151,7 @@ const ChatMessage = ({ role, content, isStreaming, compact = false }: ChatMessag
                   ),
                   code: ({ children }) => (
                     <code className={cn(
-                      "bg-background/50 rounded font-mono",
+                      "bg-background/50 rounded font-mono overflow-x-auto break-all",
                       compact ? "px-1 py-0.5 text-xs" : "px-1.5 py-0.5 text-sm"
                     )}>
                       {children}

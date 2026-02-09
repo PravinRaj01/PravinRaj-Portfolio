@@ -46,10 +46,14 @@ const Hero = ({ mode }: HeroProps) => {
     }
   };
 
+  const currentResumeUrl = mode === 'professional'
+    ? (siteSettings?.professional_resume_url || siteSettings?.resume_url)
+    : (siteSettings?.creative_resume_url || siteSettings?.resume_url);
+
   const handleDownloadCV = () => {
-    if (siteSettings?.resume_url) {
+    if (currentResumeUrl) {
       // Convert Google Drive view link to download link if needed
-      let downloadUrl = siteSettings.resume_url;
+      let downloadUrl = currentResumeUrl;
       if (downloadUrl.includes('drive.google.com/file/d/') && downloadUrl.includes('/view')) {
         // Convert Google Drive view link to direct download link
         const fileId = downloadUrl.match(/\/file\/d\/([a-zA-Z0-9_-]+)/)?.[1];
@@ -200,7 +204,7 @@ const Hero = ({ mode }: HeroProps) => {
                     size="lg"
                     className="border-2 border-white/30 text-white hover:bg-white/10 px-8 py-3 text-lg"
                     onClick={handleDownloadCV}
-                    disabled={!siteSettings?.resume_url}
+                    disabled={!currentResumeUrl}
                   >
                     <Download className="mr-2 h-5 w-5" />
                     Download CV
