@@ -172,16 +172,27 @@ ${projectSummaries}`;
 
     // Attach image drive IDs from actual projects
     const projectMap = new Map(projects.map(p => [p.id, p]));
+    // Collect all available images as fallbacks
+    const allImages = projects
+      .map(p => p.image_home_drive_id || p.image_drive_id)
+      .filter(Boolean) as string[];
+    
     for (const article of magazineContent.articles) {
       const proj = projectMap.get(article.project_id);
       if (proj) {
         article.image_drive_id = proj.image_home_drive_id || proj.image_drive_id;
       }
+      // Fallback: use any available project image
+      if (!article.image_drive_id && allImages.length > 0) {
+        const idx = magazineContent.articles.indexOf(article) % allImages.length;
+        article.image_drive_id = allImages[idx];
+      }
     }
 
-    // Use first project's image as cover if available
-    if (projects[0]) {
-      magazineContent.cover.cover_image_drive_id = projects[0].image_home_drive_id || projects[0].image_drive_id;
+    // Use first project's image as cover if available, try all projects
+    const coverImage = allImages[0];
+    if (coverImage) {
+      magazineContent.cover.cover_image_drive_id = coverImage;
     }
 
     return new Response(

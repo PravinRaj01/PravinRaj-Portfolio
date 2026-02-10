@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Gamepad2, BookOpen } from 'lucide-react';
+import { Gamepad2 } from 'lucide-react';
 import { AnimatePresence } from 'framer-motion';
 import Navigation from '@/components/Navigation';
 import CursorFollower from '@/components/CursorFollower';
@@ -16,6 +16,7 @@ import RadialGradient from '@/components/RadialGradient';
 import ScrollProgress from '@/components/ScrollProgress';
 import Footer from '@/components/Footer';
 import MagazineViewer from '@/components/MagazineViewer';
+import MagazinePopup from '@/components/MagazinePopup';
 import { usePortfolio } from '@/contexts/PortfolioContext';
 import { useAboutContent } from '@/hooks/useAboutContent';
 import { useMagazine } from '@/hooks/useMagazine';
@@ -152,15 +153,9 @@ const Index = () => {
           </section>
         </div>
 
-        {/* Magazine Button - Creative Mode only */}
+        {/* Magazine Popup - Creative Mode only */}
         {mode === 'creative' && magazineIssue && (
-          <button
-            onClick={() => setShowMagazine(true)}
-            className="fixed bottom-20 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-full bg-primary text-primary-foreground shadow-lg hover:shadow-xl transition-all hover:scale-105 font-serif"
-          >
-            <BookOpen className="w-5 h-5" />
-            <span className="text-sm font-medium">Read Magazine</span>
-          </button>
+          <MagazinePopup issue={magazineIssue} onReadNow={() => setShowMagazine(true)} />
         )}
 
         {/* Hidden Arcade Icon */}

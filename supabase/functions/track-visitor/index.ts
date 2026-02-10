@@ -5,6 +5,18 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+async function withRetry<T>(fn: () => Promise<T>, maxRetries = 2, delayMs = 500): Promise<T> {
+  for (let i = 0; i <= maxRetries; i++) {
+    try {
+      return await fn();
+    } catch (e) {
+      if (i === maxRetries) throw e;
+      await new Promise(r => setTimeout(r, delayMs));
+    }
+  }
+  throw new Error('Unreachable');
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -21,60 +33,50 @@ Deno.serve(async (req) => {
     if (action === 'increment') {
       console.log('Incrementing visitor count...');
 
-      // 1. Increment total visitor count
-      const { data: currentStats, error: fetchError } = await supabase
-        .from('visitor_stats')
-        .select('*')
-        .limit(1)
-        .single();
-
-      if (fetchError && fetchError.code !== 'PGRST116') {
-        throw fetchError;
-      }
+      const currentStats = await withRetry(async () => {
+        const { data, error } = await supabase.from('visitor_stats').select('*').limit(1).single();
+        if (error && error.code !== 'PGRST116') throw error;
+        return data;
+      });
 
       let newTotalCount = 1;
 
       if (currentStats) {
         newTotalCount = (currentStats.view_count || 0) + 1;
-        const { error: updateError } = await supabase
-          .from('visitor_stats')
-          .update({ view_count: newTotalCount, last_updated: new Date().toISOString() })
-          .eq('id', currentStats.id);
-        if (updateError) throw updateError;
+        await withRetry(async () => {
+          const { error } = await supabase.from('visitor_stats').update({ view_count: newTotalCount, last_updated: new Date().toISOString() }).eq('id', currentStats.id);
+          if (error) throw error;
+        });
       } else {
-        const { error: insertError } = await supabase
-          .from('visitor_stats')
-          .insert({ view_count: 1 });
-        if (insertError) throw insertError;
+        await withRetry(async () => {
+          const { error } = await supabase.from('visitor_stats').insert({ view_count: 1 });
+          if (error) throw error;
+        });
       }
 
-      // 2. Increment daily visitor count (upsert for today)
-      const { data: todayData, error: todayFetchError } = await supabase
-        .from('visitor_daily_stats')
-        .select('*')
-        .eq('date', today)
-        .single();
-
       let newDailyCount = 1;
+      try {
+        const todayData = await withRetry(async () => {
+          const { data, error } = await supabase.from('visitor_daily_stats').select('*').eq('date', today).single();
+          if (error && error.code === 'PGRST116') return null;
+          if (error) throw error;
+          return data;
+        });
 
-      if (todayFetchError && todayFetchError.code === 'PGRST116') {
-        // No row for today yet - insert
-        const { error: insertDailyError } = await supabase
-          .from('visitor_daily_stats')
-          .insert({ date: today, view_count: 1 });
-        if (insertDailyError) {
-          console.error('Failed to insert daily stats:', insertDailyError);
+        if (!todayData) {
+          await withRetry(async () => {
+            const { error } = await supabase.from('visitor_daily_stats').insert({ date: today, view_count: 1 });
+            if (error) throw error;
+          });
+        } else {
+          newDailyCount = (todayData.view_count || 0) + 1;
+          await withRetry(async () => {
+            const { error } = await supabase.from('visitor_daily_stats').update({ view_count: newDailyCount }).eq('id', todayData.id);
+            if (error) throw error;
+          });
         }
-      } else if (!todayFetchError && todayData) {
-        // Row exists - update
-        newDailyCount = (todayData.view_count || 0) + 1;
-        const { error: updateDailyError } = await supabase
-          .from('visitor_daily_stats')
-          .update({ view_count: newDailyCount })
-          .eq('id', todayData.id);
-        if (updateDailyError) {
-          console.error('Failed to update daily stats:', updateDailyError);
-        }
+      } catch (dailyErr) {
+        console.error('Daily stats error (non-fatal):', dailyErr);
       }
 
       console.log(`Visitor counted. Total: ${newTotalCount}, Today: ${newDailyCount}`);
@@ -85,10 +87,10 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Default: just get the current counts
+    // Default: get current counts
     const [totalResult, dailyResult] = await Promise.all([
-      supabase.from('visitor_stats').select('view_count').limit(1).single(),
-      supabase.from('visitor_daily_stats').select('view_count').eq('date', today).single()
+      withRetry(() => supabase.from('visitor_stats').select('view_count').limit(1).single()),
+      withRetry(() => supabase.from('visitor_daily_stats').select('view_count').eq('date', today).single())
     ]);
 
     return new Response(

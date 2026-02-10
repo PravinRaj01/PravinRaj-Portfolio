@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { BookOpen, Plus, Trash2, Eye, EyeOff, Loader2, Sparkles } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from '@/hooks/use-toast';
@@ -21,8 +22,25 @@ const MagazineManager = () => {
   const [themeHint, setThemeHint] = useState('');
   const [selectedProjectIds, setSelectedProjectIds] = useState<string[]>([]);
   const [previewContent, setPreviewContent] = useState<any>(null);
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
 
   const featuredProjects = projects.filter(p => p.featured);
+
+  const allCategories = useMemo(() => {
+    const cats = new Set<string>();
+    projects.forEach(p => {
+      if (p.category) cats.add(p.category);
+      if (p.categories) (p.categories as string[]).forEach(c => cats.add(c));
+    });
+    return Array.from(cats).sort();
+  }, [projects]);
+
+  const filteredProjects = useMemo(() => {
+    if (categoryFilter === 'all') return projects;
+    return projects.filter(p =>
+      p.category === categoryFilter || (p.categories as string[] | null)?.includes(categoryFilter)
+    );
+  }, [projects, categoryFilter]);
 
   const handleGenerate = async () => {
     setGenerating(true);
@@ -114,8 +132,19 @@ const MagazineManager = () => {
                 <div>
                   <label className="text-sm font-medium">Projects to include</label>
                   <p className="text-xs text-muted-foreground mb-2">Leave empty to use featured projects ({featuredProjects.length} found)</p>
+                  <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                    <SelectTrigger className="mb-2">
+                      <SelectValue placeholder="Filter by category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Categories</SelectItem>
+                      {allCategories.map(cat => (
+                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
-                    {projects.map(p => (
+                    {filteredProjects.map(p => (
                       <button
                         key={p.id}
                         onClick={() => toggleProject(p.id)}
