@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.track-visitor]
 verify_jwt = false
+
+[functions.generate-magazine]
+verify_jwt = false

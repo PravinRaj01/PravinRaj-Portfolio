@@ -338,6 +338,45 @@ export type Database = {
         }
         Relationships: []
       }
+      magazine_issues: {
+        Row: {
+          content: Json
+          cover_headline: string | null
+          cover_subhead: string | null
+          created_at: string
+          id: string
+          is_published: boolean | null
+          mode: string
+          project_ids: string[] | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          content?: Json
+          cover_headline?: string | null
+          cover_subhead?: string | null
+          created_at?: string
+          id?: string
+          is_published?: boolean | null
+          mode?: string
+          project_ids?: string[] | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          content?: Json
+          cover_headline?: string | null
+          cover_subhead?: string | null
+          created_at?: string
+          id?: string
+          is_published?: boolean | null
+          mode?: string
+          project_ids?: string[] | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       project_folders: {
         Row: {
           cover_image_drive_id: string | null

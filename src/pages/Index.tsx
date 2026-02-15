@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Gamepad2 } from 'lucide-react';
+import { AnimatePresence } from 'framer-motion';
 import Navigation from '@/components/Navigation';
 import CursorFollower from '@/components/CursorFollower';
 import ThreeBackground from '@/components/ThreeBackground';
@@ -14,14 +15,19 @@ import BannerQuote from '@/components/BannerQuote';
 import RadialGradient from '@/components/RadialGradient';
 import ScrollProgress from '@/components/ScrollProgress';
 import Footer from '@/components/Footer';
+import MagazineViewer from '@/components/MagazineViewer';
+import MagazinePopup from '@/components/MagazinePopup';
 import { usePortfolio } from '@/contexts/PortfolioContext';
 import { useAboutContent } from '@/hooks/useAboutContent';
+import { useMagazine } from '@/hooks/useMagazine';
 
 
 const Index = () => {
   const navigate = useNavigate();
   const { mode, darkMode } = usePortfolio();
   const { data: aboutContent = [] } = useAboutContent(mode);
+  const { issue: magazineIssue } = useMagazine();
+  const [showMagazine, setShowMagazine] = useState(false);
 
   // Unified divider styling for the home page (color, thickness, glow)
   const homeDividerThicknessPx = 3;
@@ -147,6 +153,11 @@ const Index = () => {
           </section>
         </div>
 
+        {/* Magazine Popup - Creative Mode only */}
+        {mode === 'creative' && magazineIssue && (
+          <MagazinePopup issue={magazineIssue} onReadNow={() => setShowMagazine(true)} />
+        )}
+
         {/* Hidden Arcade Icon */}
         <button
           onClick={() => navigate('/playground')}
@@ -157,6 +168,13 @@ const Index = () => {
         </button>
       </main>
       <Footer />
+
+      {/* Magazine Viewer Overlay */}
+      <AnimatePresence>
+        {showMagazine && magazineIssue && (
+          <MagazineViewer issue={magazineIssue} onClose={() => setShowMagazine(false)} />
+        )}
+      </AnimatePresence>
     </div>
   );
 };

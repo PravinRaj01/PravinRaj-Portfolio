@@ -25,6 +25,7 @@ import GithubTickerManager from './GithubTickerManager';
 import ViewSettingsManager from './ViewSettingsManager';
 import ChatbotSettingsManager from './ChatbotSettingsManager';
 import ProjectFolderManager from './ProjectFolderManager';
+import MagazineManager from './MagazineManager';
 import VisitorStatsManager from './VisitorStatsManager';
 import { useProjects } from '@/hooks/useProjects';
 import { useExperience } from '@/hooks/useExperience';
@@ -177,12 +178,16 @@ const AdminDashboard = () => {
                 <TabsList>
                   <TabsTrigger value="projects">Projects</TabsTrigger>
                   <TabsTrigger value="folders">Folders</TabsTrigger>
+                  <TabsTrigger value="magazine">Magazine</TabsTrigger>
                 </TabsList>
                 <TabsContent value="projects">
                   <ProjectManager />
                 </TabsContent>
                 <TabsContent value="folders">
                   <ProjectFolderManager />
+                </TabsContent>
+                <TabsContent value="magazine">
+                  <MagazineManager />
                 </TabsContent>
               </Tabs>
             </TabsContent>
