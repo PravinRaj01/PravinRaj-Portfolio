@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { motion, AnimatePresence, PanInfo } from 'framer-motion';
+import { motion, useAnimation } from 'framer-motion';
 import { X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { MagazineIssue } from '@/types/magazine';
 
@@ -8,11 +8,11 @@ interface MagazineViewerProps {
   onClose: () => void;
 }
 
-const DRIVE_PROXY = 'https://kadsdqnpxzgdxnnrdzra.supabase.co/functions/v1/google-drive-proxy?id=';
+const driveThumb = (id: string, size = 1600) =>
+  `https://drive.google.com/thumbnail?id=${id}&sz=s${size}`;
 
 const PageContent: React.FC<{ children: React.ReactNode; pageNum?: number; totalPages?: number }> = ({ children, pageNum, totalPages }) => (
   <div className="relative w-full h-full overflow-hidden" style={{ background: 'linear-gradient(135deg, #faf8f5 0%, #f5f0e8 50%, #efe9df 100%)' }}>
-    {/* Paper texture overlay */}
     <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'4\' height=\'4\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Crect width=\'1\' height=\'1\' fill=\'%23000\'/%3E%3C/svg%3E")', backgroundSize: '4px 4px' }} />
     <div className="relative w-full h-full overflow-y-auto">{children}</div>
     {pageNum !== undefined && totalPages !== undefined && (
@@ -21,14 +21,9 @@ const PageContent: React.FC<{ children: React.ReactNode; pageNum?: number; total
   </div>
 );
 
-const MagazineViewer: React.FC<MagazineViewerProps> = ({ issue, onClose }) => {
-  const [currentPage, setCurrentPage] = useState(0);
-  const [direction, setDirection] = useState(0);
-  const [isFlipping, setIsFlipping] = useState(false);
-  const { content } = issue;
-
-  // Build pages
-  const pages: { key: string; render: (pageNum: number, total: number) => React.ReactNode }[] = [];
+// Build all pages from issue content
+function buildPages(content: MagazineIssue['content']) {
+  const pages: { key: string; render: (pn: number, total: number) => React.ReactNode }[] = [];
 
   // Cover
   pages.push({
@@ -37,7 +32,7 @@ const MagazineViewer: React.FC<MagazineViewerProps> = ({ issue, onClose }) => {
       <div className="relative w-full h-full flex flex-col items-center justify-center text-center overflow-hidden bg-[#1a1a1a]">
         {content.cover.cover_image_drive_id && (
           <div className="absolute inset-0">
-            <img src={`${DRIVE_PROXY}${content.cover.cover_image_drive_id}`} alt="Cover" className="w-full h-full object-cover" style={{ filter: 'sepia(0.25) contrast(1.15) brightness(0.35) saturate(0.8)' }} />
+            <img src={driveThumb(content.cover.cover_image_drive_id)} alt="Cover" className="w-full h-full object-cover" style={{ filter: 'sepia(0.25) contrast(1.15) brightness(0.35) saturate(0.8)' }} />
           </div>
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-black/40" />
@@ -47,7 +42,7 @@ const MagazineViewer: React.FC<MagazineViewerProps> = ({ issue, onClose }) => {
           <h1 className="text-4xl md:text-6xl font-serif font-bold text-white leading-[1.1] mb-5">{content.cover.headline}</h1>
           <p className="text-base md:text-lg text-white/70 font-serif italic">{content.cover.subhead}</p>
           <div className="w-20 h-[1px] bg-white/40 mx-auto mt-8" />
-          <p className="text-[9px] uppercase tracking-[0.4em] text-white/30 mt-6 font-sans">Swipe to read →</p>
+          <p className="text-[9px] uppercase tracking-[0.4em] text-white/30 mt-6 font-sans">Swipe or click to read →</p>
         </div>
       </div>
     ),
@@ -82,7 +77,7 @@ const MagazineViewer: React.FC<MagazineViewerProps> = ({ issue, onClose }) => {
             <div className="relative w-full h-full flex flex-col justify-end min-h-full">
               {article.image_drive_id && (
                 <div className="absolute inset-0">
-                  <img src={`${DRIVE_PROXY}${article.image_drive_id}`} alt={article.headline} className="w-full h-full object-cover" style={{ filter: 'sepia(0.2) contrast(1.1) brightness(0.45) saturate(0.85)' }} />
+                  <img src={driveThumb(article.image_drive_id)} alt={article.headline} className="w-full h-full object-cover" style={{ filter: 'sepia(0.2) contrast(1.1) brightness(0.45) saturate(0.85)' }} />
                 </div>
               )}
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
@@ -99,7 +94,7 @@ const MagazineViewer: React.FC<MagazineViewerProps> = ({ issue, onClose }) => {
             <div className="flex flex-col md:flex-row w-full min-h-full">
               <div className={`w-full md:w-1/2 h-56 md:h-auto md:min-h-full ${isLeft ? 'order-1' : 'order-1 md:order-2'}`}>
                 {article.image_drive_id ? (
-                  <img src={`${DRIVE_PROXY}${article.image_drive_id}`} alt={article.headline} className="w-full h-full object-cover" style={{ filter: 'sepia(0.15) contrast(1.1) saturate(0.9)' }} />
+                  <img src={driveThumb(article.image_drive_id)} alt={article.headline} className="w-full h-full object-cover" style={{ filter: 'sepia(0.15) contrast(1.1) saturate(0.9)' }} />
                 ) : (
                   <div className="w-full h-full bg-[#e8e0d4] flex items-center justify-center"><span className="text-[#c4b8a8] text-7xl font-serif italic">{idx + 1}</span></div>
                 )}
@@ -137,18 +132,51 @@ const MagazineViewer: React.FC<MagazineViewerProps> = ({ issue, onClose }) => {
     ),
   });
 
+  return pages;
+}
+
+const FLIP_DURATION = 0.6;
+
+const MagazineViewer: React.FC<MagazineViewerProps> = ({ issue, onClose }) => {
+  const [currentPage, setCurrentPage] = useState(0);
+  const [isFlipping, setIsFlipping] = useState(false);
+  const [flipDirection, setFlipDirection] = useState<'forward' | 'backward'>('forward');
+  const [nextPage, setNextPage] = useState<number | null>(null);
+  const flipControls = useAnimation();
+  const containerRef = useRef<HTMLDivElement>(null);
+  const touchStartX = useRef(0);
+
+  const pages = buildPages(issue.content);
   const totalPages = pages.length;
 
-  const navigate = useCallback((dir: number) => {
+  const doFlip = useCallback(async (dir: 'forward' | 'backward') => {
     if (isFlipping) return;
-    const next = currentPage + dir;
-    if (next < 0 || next >= totalPages) return;
-    setIsFlipping(true);
-    setDirection(dir);
-    setCurrentPage(next);
-    setTimeout(() => setIsFlipping(false), 650);
-  }, [currentPage, totalPages, isFlipping]);
+    const target = dir === 'forward' ? currentPage + 1 : currentPage - 1;
+    if (target < 0 || target >= totalPages) return;
 
+    setIsFlipping(true);
+    setFlipDirection(dir);
+    setNextPage(target);
+
+    // Reset flip layer to 0
+    await flipControls.set({ rotateY: 0 });
+
+    // Animate the flip
+    await flipControls.start({
+      rotateY: dir === 'forward' ? -180 : 180,
+      transition: { duration: FLIP_DURATION, ease: [0.645, 0.045, 0.355, 1] },
+    });
+
+    setCurrentPage(target);
+    setNextPage(null);
+    setIsFlipping(false);
+  }, [currentPage, totalPages, isFlipping, flipControls]);
+
+  const navigate = useCallback((dir: number) => {
+    doFlip(dir > 0 ? 'forward' : 'backward');
+  }, [doFlip]);
+
+  // Keyboard navigation
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'ArrowRight' || e.key === 'ArrowDown') navigate(1);
@@ -159,34 +187,35 @@ const MagazineViewer: React.FC<MagazineViewerProps> = ({ issue, onClose }) => {
     return () => window.removeEventListener('keydown', handler);
   }, [navigate, onClose]);
 
-  const handleDragEnd = (_: any, info: PanInfo) => {
-    if (Math.abs(info.offset.x) > 60) {
-      navigate(info.offset.x < 0 ? 1 : -1);
+  // Touch swipe
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+  };
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    const diff = touchStartX.current - e.changedTouches[0].clientX;
+    if (Math.abs(diff) > 60) {
+      navigate(diff > 0 ? 1 : -1);
     }
   };
 
-  // 3D page-flip variants
-  const flipVariants = {
-    enter: (dir: number) => ({
-      rotateY: dir > 0 ? 90 : -90,
-      opacity: 0,
-      scale: 0.95,
-    }),
-    center: {
-      rotateY: 0,
-      opacity: 1,
-      scale: 1,
-    },
-    exit: (dir: number) => ({
-      rotateY: dir > 0 ? -90 : 90,
-      opacity: 0,
-      scale: 0.95,
-    }),
+  // Direct page jump (no animation)
+  const jumpToPage = (idx: number) => {
+    if (isFlipping || idx === currentPage) return;
+    setCurrentPage(idx);
   };
 
+  // Determine what the "back" (destination) page is during a flip
+  const backPageIdx = nextPage ?? currentPage;
+  const frontPageIdx = currentPage;
+
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[300] bg-black/90 flex flex-col items-center justify-center">
-      {/* Close & title bar */}
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[300] bg-black/90 flex flex-col items-center justify-center"
+    >
+      {/* Title bar */}
       <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-4 py-3 z-30">
         <span className="text-white/50 text-xs font-serif tracking-wide">{issue.title}</span>
         <div className="flex items-center gap-4">
@@ -196,33 +225,57 @@ const MagazineViewer: React.FC<MagazineViewerProps> = ({ issue, onClose }) => {
       </div>
 
       {/* Book container */}
-      <div className="relative w-[92vw] max-w-[900px] h-[75vh] max-h-[700px]" style={{ perspective: '1500px' }}>
+      <div
+        ref={containerRef}
+        className="relative w-[92vw] max-w-[900px] h-[75vh] max-h-[700px]"
+        style={{ perspective: '2000px' }}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+      >
         {/* Book shadow */}
         <div className="absolute -bottom-4 left-[10%] right-[10%] h-8 bg-black/40 rounded-[50%] blur-xl" />
 
-        {/* Book spine effect */}
-        <div className="absolute left-0 top-0 bottom-0 w-3 bg-gradient-to-r from-black/30 to-transparent z-20 rounded-l-sm pointer-events-none" />
+        {/* Spine shadow */}
+        <div className="absolute left-0 top-0 bottom-0 w-4 bg-gradient-to-r from-black/40 via-black/15 to-transparent z-20 rounded-l-sm pointer-events-none" />
 
-        {/* Pages */}
-        <AnimatePresence initial={false} custom={direction} mode="wait">
+        {/* LAYER 1: Back page (destination — static, always underneath) */}
+        <div className="absolute inset-0 rounded-sm overflow-hidden shadow-xl">
+          {pages[backPageIdx].render(backPageIdx + 1, totalPages)}
+        </div>
+
+        {/* LAYER 2: Flip layer (current page that peels away) — only visible during flip */}
+        {isFlipping && (
           <motion.div
-            key={pages[currentPage].key}
-            custom={direction}
-            variants={flipVariants}
-            initial="enter"
-            animate="center"
-            exit="exit"
-            transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
+            animate={flipControls}
             className="absolute inset-0 rounded-sm overflow-hidden shadow-2xl"
-            style={{ transformStyle: 'preserve-3d', transformOrigin: direction >= 0 ? 'left center' : 'right center', backfaceVisibility: 'hidden' }}
-            drag="x"
-            dragConstraints={{ left: 0, right: 0 }}
-            dragElastic={0.15}
-            onDragEnd={handleDragEnd}
+            style={{
+              transformStyle: 'preserve-3d',
+              transformOrigin: flipDirection === 'forward' ? 'left center' : 'right center',
+              backfaceVisibility: 'hidden',
+              zIndex: 10,
+            }}
           >
-            {pages[currentPage].render(currentPage + 1, totalPages)}
+            {pages[frontPageIdx].render(frontPageIdx + 1, totalPages)}
+            {/* Page edge shadow during flip */}
+            <div
+              className="absolute inset-y-0 pointer-events-none"
+              style={{
+                [flipDirection === 'forward' ? 'right' : 'left']: 0,
+                width: '40px',
+                background: flipDirection === 'forward'
+                  ? 'linear-gradient(to left, rgba(0,0,0,0.15), transparent)'
+                  : 'linear-gradient(to right, rgba(0,0,0,0.15), transparent)',
+              }}
+            />
           </motion.div>
-        </AnimatePresence>
+        )}
+
+        {/* LAYER 3: Static current page (when NOT flipping) */}
+        {!isFlipping && (
+          <div className="absolute inset-0 rounded-sm overflow-hidden shadow-2xl" style={{ zIndex: 5 }}>
+            {pages[currentPage].render(currentPage + 1, totalPages)}
+          </div>
+        )}
       </div>
 
       {/* Nav buttons */}
@@ -240,7 +293,11 @@ const MagazineViewer: React.FC<MagazineViewerProps> = ({ issue, onClose }) => {
       {/* Page dots */}
       <div className="flex items-center justify-center gap-1.5 mt-4">
         {pages.map((_, i) => (
-          <button key={i} onClick={() => { setDirection(i > currentPage ? 1 : -1); setCurrentPage(i); }} className={`h-1.5 rounded-full transition-all duration-300 ${i === currentPage ? 'bg-white/80 w-6' : 'bg-white/20 hover:bg-white/40 w-1.5'}`} />
+          <button
+            key={i}
+            onClick={() => jumpToPage(i)}
+            className={`h-1.5 rounded-full transition-all duration-300 ${i === currentPage ? 'bg-white/80 w-6' : 'bg-white/20 hover:bg-white/40 w-1.5'}`}
+          />
         ))}
       </div>
     </motion.div>
