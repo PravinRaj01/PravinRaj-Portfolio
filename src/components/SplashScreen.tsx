@@ -21,7 +21,7 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ load }) => {
     <div 
       id={load ? "preloader" : "preloader-none"}
       style={{ backgroundColor: bgColor }}
-      className="transition-opacity duration-500"
+      className="fixed inset-0 z-[9999] transition-opacity duration-500"
     >
       {load && (
         <div className="preloader-circles">
