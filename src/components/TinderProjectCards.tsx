@@ -67,9 +67,9 @@ const TinderProjectCards = ({ projects, mode }: TinderProjectCardsProps) => {
     }
   };
 
-  const handleCardClick = (projectId: string) => {
+  const handleCardClick = (project: { id: string; slug?: string }) => {
     if (!isDragging.current) {
-      navigate(`/projects/${projectId}`);
+      navigate(`/projects/${project.slug || project.id}`);
     }
   };
 
@@ -104,7 +104,7 @@ const TinderProjectCards = ({ projects, mode }: TinderProjectCardsProps) => {
           animate={index === 0 ? dragControls : undefined}
           whileHover={index === 0 ? { scale: 1.02 } : {}}
           transition={{ type: "spring", stiffness: 500, damping: 30 }}
-          onClick={index === 0 ? () => handleCardClick(project.id) : undefined}
+          onClick={index === 0 ? () => handleCardClick(project) : undefined}
         >
           <div className="h-full flex flex-col">
             {/* Project Image */}

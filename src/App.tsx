@@ -50,7 +50,9 @@ const AppContent = ({ load }: { load: boolean }) => {
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/creative" element={<ModeRouteHandler targetMode="creative" />} />
+            <Route path="/creative/*" element={<ModeRouteHandler targetMode="creative" />} />
             <Route path="/pro" element={<ModeRouteHandler targetMode="professional" />} />
+            <Route path="/pro/*" element={<ModeRouteHandler targetMode="professional" />} />
             <Route path="/academic" element={<Academic />} />
             <Route path="/experience" element={<Experience />} />
             <Route path="/experience/:id" element={<ExperienceDetail />} />

@@ -384,7 +384,7 @@ const ProjectFolderPage = () => {
                 >
                   <Card 
                     className="h-full hover:shadow-lg transition-shadow overflow-hidden cursor-pointer flex flex-col"
-                    onClick={() => navigate(`/projects/${project.id}`, { state: { fromFolder: folderId } })}
+                    onClick={() => navigate(`/projects/${project.slug || project.id}`, { state: { fromFolder: folderId } })}
                   >
                     {/* Project Image - 16:9 Ratio */}
                     <div className="relative aspect-video overflow-hidden flex-shrink-0">
@@ -546,7 +546,7 @@ const ProjectFolderPage = () => {
                     <div className={`absolute left-2 md:left-6 w-4 h-4 rounded-full border-4 border-background bg-primary`}></div>
                     <Card 
                       className="hover:shadow-lg transition-shadow overflow-hidden cursor-pointer"
-                      onClick={() => navigate(`/projects/${project.id}`, { state: { fromFolder: folderId } })}
+                      onClick={() => navigate(`/projects/${project.slug || project.id}`, { state: { fromFolder: folderId } })}
                     >
                       <div className="flex flex-col md:flex-row">
                         <div className="relative w-full md:w-1/3 aspect-video md:aspect-auto overflow-hidden">

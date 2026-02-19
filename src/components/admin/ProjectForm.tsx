@@ -34,8 +34,18 @@ const ProjectForm = ({ project, onClose, onSave, mode }: ProjectFormProps) => {
   const { addProject, updateProject } = useProjects();
   const { folders } = useProjectFolders(mode);
   
+  const generateSlug = (title: string) => {
+    return title
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '');
+  };
+
   const [formData, setFormData] = useState({
     title: project?.title || '',
+    slug: project?.slug || '',
     description: project?.description || '',
     category: project?.category || '',
     categories: project?.categories || [],
@@ -277,10 +287,33 @@ const ProjectForm = ({ project, onClose, onSave, mode }: ProjectFormProps) => {
                 <Input
                   id="title"
                   value={formData.title}
-                  onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+                  onChange={(e) => {
+                    const newTitle = e.target.value;
+                    setFormData(prev => ({ 
+                      ...prev, 
+                      title: newTitle,
+                      // Auto-generate slug only if slug hasn't been manually edited or is empty
+                      slug: prev.slug === generateSlug(prev.title) || !prev.slug 
+                        ? generateSlug(newTitle) 
+                        : prev.slug
+                    }));
+                  }}
                   placeholder="Project title"
                   required
                 />
+              </div>
+              
+              <div>
+                <Label htmlFor="slug">URL Slug</Label>
+                <Input
+                  id="slug"
+                  value={formData.slug}
+                  onChange={(e) => setFormData(prev => ({ ...prev, slug: generateSlug(e.target.value) }))}
+                  placeholder="project-url-slug"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  URL: /projects/{formData.slug || 'auto-generated'}
+                </p>
               </div>
               
               <div>

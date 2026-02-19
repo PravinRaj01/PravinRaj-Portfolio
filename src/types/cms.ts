@@ -46,6 +46,7 @@ export interface Project {
   show_in_recent?: boolean;
   is_active?: boolean;
   recent_order_index?: number;
+  slug?: string;
 }
 
 export interface Experience {

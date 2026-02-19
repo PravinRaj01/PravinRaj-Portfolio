@@ -493,6 +493,7 @@ export type Database = {
           recent_order_index: number | null
           scroll_speed: number | null
           show_in_recent: boolean | null
+          slug: string | null
           tags: string[] | null
           title: string
           updated_at: string | null
@@ -528,6 +529,7 @@ export type Database = {
           recent_order_index?: number | null
           scroll_speed?: number | null
           show_in_recent?: boolean | null
+          slug?: string | null
           tags?: string[] | null
           title: string
           updated_at?: string | null
@@ -563,6 +565,7 @@ export type Database = {
           recent_order_index?: number | null
           scroll_speed?: number | null
           show_in_recent?: boolean | null
+          slug?: string | null
           tags?: string[] | null
           title?: string
           updated_at?: string | null

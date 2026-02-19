@@ -37,7 +37,11 @@ const ProjectDetail = () => {
 
   useEffect(() => {
     if (projects.length > 0 && id) {
-      const currentIndex = projects.findIndex(p => p.id === id);
+      // Try to find by slug first, then fall back to UUID
+      let currentIndex = projects.findIndex(p => p.slug === id);
+      if (currentIndex === -1) {
+        currentIndex = projects.findIndex(p => p.id === id);
+      }
       if (currentIndex !== -1) {
         setProject(projects[currentIndex]);
         setAdjacentProjects({
@@ -477,7 +481,7 @@ const ProjectDetail = () => {
                 {adjacentProjects.prev ? (
                   <Button 
                     variant="ghost" 
-                    onClick={() => navigate(`/projects/${adjacentProjects.prev!.id}`)}
+                    onClick={() => navigate(`/projects/${adjacentProjects.prev!.slug || adjacentProjects.prev!.id}`)}
                     className="flex items-center gap-1 sm:gap-2 hover:bg-muted min-w-0 flex-1 justify-start px-2 sm:px-4"
                   >
                     <ChevronLeft className="w-4 h-4 flex-shrink-0" />
@@ -496,7 +500,7 @@ const ProjectDetail = () => {
                 {adjacentProjects.next ? (
                   <Button 
                     variant="ghost" 
-                    onClick={() => navigate(`/projects/${adjacentProjects.next!.id}`)}
+                    onClick={() => navigate(`/projects/${adjacentProjects.next!.slug || adjacentProjects.next!.id}`)}
                     className="flex items-center gap-1 sm:gap-2 hover:bg-muted min-w-0 flex-1 justify-end px-2 sm:px-4"
                   >
                     <span className="sm:hidden text-xs">Next</span>

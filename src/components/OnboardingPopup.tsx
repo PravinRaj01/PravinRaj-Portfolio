@@ -20,6 +20,12 @@ const OnboardingPopup = () => {
     
     // Don't show popup if only one mode is enabled
     if (!bothModesEnabled) return;
+
+    // Bot bypass: never show popup to search engine crawlers (SEO fix)
+    const isBot = /bot|googlebot|crawler|spider|robot|crawling|bingbot|slurp|duckduckbot|baidu|yandex|sogou|facebookexternalhit|twitterbot|linkedinbot/i.test(
+      navigator.userAgent
+    );
+    if (isBot) return;
     
     const hasSeenOnboarding = localStorage.getItem(ONBOARDING_KEY);
     

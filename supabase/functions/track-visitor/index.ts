@@ -89,8 +89,14 @@ Deno.serve(async (req) => {
 
     // Default: get current counts
     const [totalResult, dailyResult] = await Promise.all([
-      withRetry(() => supabase.from('visitor_stats').select('view_count').limit(1).single()),
-      withRetry(() => supabase.from('visitor_daily_stats').select('view_count').eq('date', today).single())
+      withRetry(async () => {
+        const { data, error } = await supabase.from('visitor_stats').select('view_count').limit(1).single();
+        return { data, error };
+      }),
+      withRetry(async () => {
+        const { data, error } = await supabase.from('visitor_daily_stats').select('view_count').eq('date', today).single();
+        return { data, error };
+      })
     ]);
 
     return new Response(

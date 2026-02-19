@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useMemo, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Filter, ExternalLink, Github, Calendar, Tag, ArrowUpDown, Star, Folder, Search, ZoomIn, ZoomOut, User, ChevronDown, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -26,39 +26,47 @@ import { cn } from '@/lib/utils';
 
 const Projects = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { mode, darkMode } = usePortfolio();
   const { projects, loading } = useProjects(mode);
   const { folders, loading: foldersLoading } = useProjectFolders(mode);
   const { data: siteSettings } = useSiteSettings();
   
-  // Persist filter in localStorage
+  // Initialize from URL params, fallback to localStorage
   const [selectedFilter, setSelectedFilter] = useState(() => {
-    const saved = localStorage.getItem('projects-category-filter');
-    return saved || 'all';
+    return searchParams.get('category') || localStorage.getItem('projects-category-filter') || 'all';
   });
   const [searchQuery, setSearchQuery] = useState(() => {
-    const saved = localStorage.getItem('projects-search-query');
-    return saved || '';
+    return searchParams.get('search') || localStorage.getItem('projects-search-query') || '';
   });
-  // Persist view mode in localStorage - user preference takes priority over admin default
   const [viewMode, setViewMode] = useState<'timeline' | 'cards'>(() => {
+    const urlView = searchParams.get('view') as 'timeline' | 'cards' | null;
+    if (urlView) return urlView;
     const saved = localStorage.getItem('projects-view-mode');
     return (saved as 'timeline' | 'cards') || 'cards';
   });
-  const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
+  const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>(() => {
+    return (searchParams.get('sort') as 'newest' | 'oldest') || 'newest';
+  });
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showFolderPicker, setShowFolderPicker] = useState(false);
   const timelineRefs = useRef<(HTMLDivElement | null)[]>([]);
   const isMobile = useIsMobile();
   
-  // Save filter state to localStorage
+  // Sync state to URL params and localStorage
   useEffect(() => {
     localStorage.setItem('projects-category-filter', selectedFilter);
-  }, [selectedFilter]);
-  
-  useEffect(() => {
     localStorage.setItem('projects-search-query', searchQuery);
-  }, [searchQuery]);
+    localStorage.setItem('projects-view-mode', viewMode);
+    
+    const params: Record<string, string> = {};
+    if (selectedFilter !== 'all') params.category = selectedFilter;
+    if (searchQuery.trim()) params.search = searchQuery;
+    if (viewMode !== 'cards') params.view = viewMode;
+    if (sortOrder !== 'newest') params.sort = sortOrder;
+    
+    setSearchParams(params, { replace: true });
+  }, [selectedFilter, searchQuery, viewMode, sortOrder, setSearchParams]);
   
   // Zoom state - load from localStorage
   const [cardZoom, setCardZoom] = useState(() => {
@@ -71,10 +79,7 @@ const Projects = () => {
     localStorage.setItem('projects-card-zoom', String(cardZoom));
   }, [cardZoom]);
 
-  // Save view mode to localStorage when it changes
-  useEffect(() => {
-    localStorage.setItem('projects-view-mode', viewMode);
-  }, [viewMode]);
+  // (viewMode is now synced in the combined effect above)
 
   // Set default view from settings ONLY if no user preference exists
   useEffect(() => {
@@ -433,7 +438,7 @@ const Projects = () => {
                         }`}></div>
                         <Card 
                           className="hover:shadow-lg transition-shadow overflow-hidden cursor-pointer"
-                          onClick={() => navigate(`/projects/${project.id}`)}
+                          onClick={() => navigate(`/projects/${project.slug || project.id}`)}
                         >
                           <div className="flex flex-col md:flex-row">
                             {/* Project Image - Square Crop */}
@@ -747,7 +752,7 @@ const Projects = () => {
                     >
                       <Card 
                         className="h-full hover:shadow-lg transition-shadow overflow-hidden cursor-pointer flex flex-col"
-                        onClick={() => navigate(`/projects/${project.id}`)}
+                        onClick={() => navigate(`/projects/${project.slug || project.id}`)}
                       >
                         {/* Project Image - 16:9 Ratio */}
                         <div className="relative aspect-video overflow-hidden flex-shrink-0">
