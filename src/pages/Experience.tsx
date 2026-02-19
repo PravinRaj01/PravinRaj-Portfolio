@@ -15,6 +15,7 @@ import { useExperience } from '@/hooks/useExperience';
 import { Experience as ExperienceType } from '@/types/cms';
 import ReactMarkdown from 'react-markdown';
 import { generateDriveImageUrl } from '@/utils/googleDrive';
+import { usePageMeta } from '@/hooks/usePageMeta';
 
 const Experience = () => {
   const navigate = useNavigate();
@@ -27,6 +28,12 @@ const Experience = () => {
   const [selectedRole, setSelectedRole] = useState<string>('all');
   const [currentIndex, setCurrentIndex] = useState(0);
   const { mode, darkMode } = usePortfolio();
+
+  usePageMeta({
+    title: 'Experience — Pravin Raj Muralitharan',
+    description: 'Professional experience and achievements of Pravin Raj — AI engineering roles, design work, and leadership across industry and academia.',
+    url: 'https://pravinraj.dev/experience',
+  });
   const { experiences, loading } = useExperience(mode);
   const timelineRefs = useRef<(HTMLDivElement | null)[]>([]);
   const isCreativeMode = mode === 'creative';

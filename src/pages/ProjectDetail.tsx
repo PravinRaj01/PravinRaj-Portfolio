@@ -17,6 +17,7 @@ import { generateDriveImageUrl } from '@/utils/googleDrive';
 import { Project, ProjectImageFolder } from '@/types/cms';
 import ReactMarkdown from 'react-markdown';
 import { cn } from '@/lib/utils';
+import { usePageMeta } from '@/hooks/usePageMeta';
 
 const ProjectDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -34,6 +35,20 @@ const ProjectDetail = () => {
   
   // Check if came from folder view
   const fromFolder = (location.state as { fromFolder?: string })?.fromFolder;
+
+  // Dynamic meta tags — update as project resolves
+  const projectImageUrl = project?.image_drive_id
+    ? `https://drive.google.com/uc?export=view&id=${project.image_drive_id}`
+    : 'https://pravinraj.dev/og-image.png';
+  const projectDesc = project
+    ? project.description.replace(/[#*_`]/g, '').slice(0, 155) + (project.description.length > 155 ? '…' : '')
+    : 'Explore this project by Pravin Raj Muralitharan — AI Engineer & UI/UX Designer.';
+  usePageMeta({
+    title: project ? `${project.title} — Pravin Raj Portfolio` : 'Project — Pravin Raj Portfolio',
+    description: projectDesc,
+    image: projectImageUrl,
+    url: project ? `https://pravinraj.dev/projects/${project.slug || project.id}` : 'https://pravinraj.dev/projects',
+  });
 
   useEffect(() => {
     if (projects.length > 0 && id) {

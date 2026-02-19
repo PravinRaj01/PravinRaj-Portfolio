@@ -20,6 +20,7 @@ import MagazinePopup from '@/components/MagazinePopup';
 import { usePortfolio } from '@/contexts/PortfolioContext';
 import { useAboutContent } from '@/hooks/useAboutContent';
 import { useMagazine } from '@/hooks/useMagazine';
+import { usePageMeta } from '@/hooks/usePageMeta';
 
 
 const Index = () => {
@@ -28,6 +29,12 @@ const Index = () => {
   const { data: aboutContent = [] } = useAboutContent(mode);
   const { issue: magazineIssue } = useMagazine();
   const [showMagazine, setShowMagazine] = useState(false);
+
+  usePageMeta({
+    title: 'Pravin Raj Muralitharan | AI Engineer & UI/UX Designer',
+    description: 'AI Engineer & UI/UX Designer passionate about creating intelligent, user-centered digital experiences. Skilled in machine learning, visual design, and crafting intuitive interfaces.',
+    url: 'https://pravinraj.dev/',
+  });
 
   // Unified divider styling for the home page (color, thickness, glow)
   const homeDividerThicknessPx = 3;

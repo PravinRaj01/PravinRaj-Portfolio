@@ -23,11 +23,18 @@ import { parse } from 'date-fns';
 import ReactMarkdown from 'react-markdown';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
+import { usePageMeta } from '@/hooks/usePageMeta';
 
 const Projects = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { mode, darkMode } = usePortfolio();
+
+  usePageMeta({
+    title: 'Projects — Pravin Raj Muralitharan',
+    description: 'Explore AI engineering and UI/UX design projects by Pravin Raj — from machine learning pipelines to polished product interfaces.',
+    url: 'https://pravinraj.dev/projects',
+  });
   const { projects, loading } = useProjects(mode);
   const { folders, loading: foldersLoading } = useProjectFolders(mode);
   const { data: siteSettings } = useSiteSettings();

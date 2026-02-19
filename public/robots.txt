@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://pravin-raj-portfolio.vercel.app/sitemap.xml
+Sitemap: https://pravinraj.dev/sitemap.xml

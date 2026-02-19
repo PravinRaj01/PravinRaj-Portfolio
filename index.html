@@ -1,6 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
+    <!-- Google Tag Manager -->
+    <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+    new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+    j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+    'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+    })(window,document,'script','dataLayer','GTM-PLQVKR2S');</script>
+    <!-- End Google Tag Manager -->
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Pravin Raj Muralitharan | AI Engineer & UI/UX Designer</title>
@@ -27,7 +34,7 @@
     [
       {
         "@context": "https://schema.org",
-        "@type": "Person",
+        "@type": ["Person", "ProfilePage"],
         "name": "Pravin Raj Muralitharan",
         "url": "https://pravinraj.dev/",
         "alternateName": [
@@ -38,11 +45,29 @@
         "image": "https://pravinraj.dev/og-image.png",
         "jobTitle": "AI Engineer & UI/UX Designer",
         "description": "AI Engineer & UI/UX Designer passionate about creating intelligent, user-centered digital experiences.",
+        "knowsAbout": [
+          "Artificial Intelligence",
+          "Machine Learning",
+          "UI/UX Design",
+          "Computer Vision",
+          "Natural Language Processing",
+          "Deep Learning",
+          "User Research",
+          "Interaction Design",
+          "Python",
+          "React",
+          "TypeScript",
+          "Figma"
+        ],
         "sameAs": [
           "https://www.linkedin.com/in/pravin-raj-muralitharan",
           "https://github.com/PravinRaj01"
         ],
         "alumniOf": {
+          "@type": "CollegeOrUniversity",
+          "name": "Universiti Malaya"
+        },
+        "affiliation": {
           "@type": "CollegeOrUniversity",
           "name": "Universiti Malaya"
         }
@@ -52,6 +77,14 @@
         "@type": "WebSite",
         "name": "Pravin Raj Portfolio",
         "url": "https://pravinraj.dev/"
+      },
+      {
+        "@context": "https://schema.org",
+        "@type": "ItemList",
+        "name": "Projects by Pravin Raj Muralitharan",
+        "description": "Portfolio of AI engineering and UI/UX design projects",
+        "url": "https://pravinraj.dev/projects",
+        "numberOfItems": 10
       }
     ]
     </script>
@@ -64,6 +97,10 @@
   </head>
 
   <body>
+    <!-- Google Tag Manager (noscript) -->
+    <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-PLQVKR2S"
+    height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+    <!-- End Google Tag Manager (noscript) -->
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
