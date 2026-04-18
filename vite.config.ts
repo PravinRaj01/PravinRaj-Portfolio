@@ -28,5 +28,61 @@ export default defineConfig(({ mode }) => ({
       { find: "@", replacement: srcPath },
     ],
   },
-}));
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: (id) => {
+          if (!id.includes("node_modules")) return undefined;
 
+          // Heavy 3D libraries — only loaded when ThreeBackground mounts
+          if (
+            id.includes("/three/") ||
+            id.includes("@react-three/fiber") ||
+            id.includes("@react-three/drei")
+          ) {
+            return "three-vendor";
+          }
+
+          // Charts (recharts is huge)
+          if (id.includes("recharts") || id.includes("d3-")) {
+            return "chart-vendor";
+          }
+
+          // Animation library
+          if (id.includes("framer-motion")) {
+            return "motion-vendor";
+          }
+
+          // Carousel
+          if (id.includes("swiper")) {
+            return "swiper-vendor";
+          }
+
+          // Radix UI components
+          if (id.includes("@radix-ui")) {
+            return "ui-vendor";
+          }
+
+          // Supabase client
+          if (id.includes("@supabase")) {
+            return "supabase-vendor";
+          }
+
+          // Markdown rendering
+          if (
+            id.includes("react-markdown") ||
+            id.includes("remark-") ||
+            id.includes("rehype-") ||
+            id.includes("micromark") ||
+            id.includes("mdast-")
+          ) {
+            return "markdown-vendor";
+          }
+
+          // React core stays in main vendor for fastest startup
+          return undefined;
+        },
+      },
+    },
+  },
+}));

@@ -1,27 +1,28 @@
-import React, { useState } from 'react';
+import React, { useState, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Gamepad2 } from 'lucide-react';
 import { AnimatePresence } from 'framer-motion';
 import Navigation from '@/components/Navigation';
 import CursorFollower from '@/components/CursorFollower';
-import ThreeBackground from '@/components/ThreeBackground';
 import Hero from '@/components/Hero';
-import Skills from '@/components/Skills';
-import RecentProjects from '@/components/RecentProjects';
 import SideFloatingButtons from '@/components/SideFloatingButtons';
-import GithubTicker from '@/components/GithubTicker';
 import Divider from '@/components/Divider';
 import BannerQuote from '@/components/BannerQuote';
 import RadialGradient from '@/components/RadialGradient';
 import ScrollProgress from '@/components/ScrollProgress';
 import Footer from '@/components/Footer';
-import MagazineViewer from '@/components/MagazineViewer';
-import MagazinePopup from '@/components/MagazinePopup';
 import { usePortfolio } from '@/contexts/PortfolioContext';
 import { useAboutContent } from '@/hooks/useAboutContent';
 import { useMagazine } from '@/hooks/useMagazine';
 import { usePageMeta } from '@/hooks/usePageMeta';
 
+// Lazy-load below-the-fold + heavy components so the hero paints first.
+const ThreeBackground = lazy(() => import('@/components/ThreeBackground'));
+const Skills = lazy(() => import('@/components/Skills'));
+const RecentProjects = lazy(() => import('@/components/RecentProjects'));
+const GithubTicker = lazy(() => import('@/components/GithubTicker'));
+const MagazinePopup = lazy(() => import('@/components/MagazinePopup'));
+const MagazineViewer = lazy(() => import('@/components/MagazineViewer'));
 
 const Index = () => {
   const navigate = useNavigate();
@@ -57,8 +58,10 @@ const Index = () => {
       {/* Scroll Progress Bar */}
       <ScrollProgress position="left" height={4} smoothness={true} />
       
-      {/* Three.js Background */}
-      <ThreeBackground />
+      {/* Three.js Background — lazy so it doesn't block FCP */}
+      <Suspense fallback={null}>
+        <ThreeBackground />
+      </Suspense>
       
       {/* Main RadialGradient Background - extends across entire page */}
       <div className="fixed inset-0 z-0">
@@ -103,7 +106,9 @@ const Index = () => {
 
         {/* TechStack & Skills Section */}
         <section className="relative z-10" id="skills">
-          <Skills mode={mode} />
+          <Suspense fallback={<div className="min-h-[400px]" />}>
+            <Skills mode={mode} />
+          </Suspense>
         </section>
         
         {/* Line path behind GitHub ticker - step pattern */}
@@ -149,20 +154,26 @@ const Index = () => {
 
           {/* GithubTicker - sits on top of the line */}
           <div className="relative z-10 py-16">
-            <GithubTicker />
+            <Suspense fallback={<div className="min-h-[120px]" />}>
+              <GithubTicker />
+            </Suspense>
           </div>
         </div>
 
         {/* Projects Section - like reference 1 */}
         <div className="relative -mb-24 pb-32 mt-8 z-10">
           <section id="projects" className="relative z-10">
-            <RecentProjects mode={mode} />
+            <Suspense fallback={<div className="min-h-[500px]" />}>
+              <RecentProjects mode={mode} />
+            </Suspense>
           </section>
         </div>
 
         {/* Magazine Popup - Creative Mode only */}
         {mode === 'creative' && magazineIssue && (
-          <MagazinePopup issue={magazineIssue} onReadNow={() => setShowMagazine(true)} />
+          <Suspense fallback={null}>
+            <MagazinePopup issue={magazineIssue} onReadNow={() => setShowMagazine(true)} />
+          </Suspense>
         )}
 
         {/* Hidden Arcade Icon */}
@@ -179,7 +190,9 @@ const Index = () => {
       {/* Magazine Viewer Overlay */}
       <AnimatePresence>
         {showMagazine && magazineIssue && (
-          <MagazineViewer issue={magazineIssue} onClose={() => setShowMagazine(false)} />
+          <Suspense fallback={null}>
+            <MagazineViewer issue={magazineIssue} onClose={() => setShowMagazine(false)} />
+          </Suspense>
         )}
       </AnimatePresence>
     </div>

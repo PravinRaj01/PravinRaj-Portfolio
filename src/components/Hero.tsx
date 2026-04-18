@@ -115,6 +115,9 @@ const Hero = ({ mode }: HeroProps) => {
                     alt={content.name}
                     width={192}
                     height={192}
+                    loading="eager"
+                    fetchPriority="high"
+                    decoding="async"
                     className="w-full h-full object-cover rounded-full"
                   />
                 </motion.div>
@@ -229,6 +232,9 @@ const Hero = ({ mode }: HeroProps) => {
                     alt={content.name}
                     width={384}
                     height={384}
+                    loading="eager"
+                    fetchPriority="high"
+                    decoding="async"
                     className="w-full h-full object-cover rounded-full"
                   />
                 </motion.div>
