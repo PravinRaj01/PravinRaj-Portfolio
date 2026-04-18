@@ -14,8 +14,8 @@ const AnimatedQuoteText: React.FC<{ text: string; className?: string; style?: Re
   const [isInView, setIsInView] = useState(false);
   const [isScrolling, setIsScrolling] = useState(false);
   const [autoProgress, setAutoProgress] = useState(0);
-  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const autoAnimationRef = useRef<NodeJS.Timeout | null>(null);
+  const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const autoAnimationRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastScrollProgressRef = useRef(0);
   
   const { scrollYProgress } = useScroll({

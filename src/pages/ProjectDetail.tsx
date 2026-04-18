@@ -31,7 +31,7 @@ const ProjectDetail = () => {
   const [selectedImageFolder, setSelectedImageFolder] = useState<ProjectImageFolder | null>(null);
   
   // Fetch image subfolders for this project
-  const { imageFolders } = useProjectImageFolders(id);
+  const { imageFolders } = useProjectImageFolders(project?.id);
   
   // Check if came from folder view
   const fromFolder = (location.state as { fromFolder?: string })?.fromFolder;
