@@ -361,20 +361,17 @@ const ProjectDetail = () => {
                     const firstVideoEntry = folder.images?.find(img => isVideoEntry(img));
                     const firstVideoData = firstVideoEntry ? parseVideoEntry(firstVideoEntry) : null;
                     
-                    // Determine thumbnail URL
+                    // Determine thumbnail URL — only use image thumbnails.
+                    // Video-only folders always show the standard video folder icon for consistency.
                     let thumbnailUrl: string | null = null;
                     if (firstImageEntry && (mediaType === 'images' || mediaType === 'both')) {
                       thumbnailUrl = firstImageEntry.startsWith('http') 
                         ? firstImageEntry 
                         : generateDriveImageUrl(firstImageEntry, 'small');
-                    } else if (firstVideoData && firstVideoData.thumbnailUrl && (mediaType === 'video' || mediaType === 'both')) {
-                      thumbnailUrl = firstVideoData.thumbnailUrl.startsWith('http')
-                        ? firstVideoData.thumbnailUrl
-                        : generateDriveImageUrl(firstVideoData.thumbnailUrl, 'small');
                     }
                     
-                    // Show video placeholder when video-only folder has no valid thumbnail
-                    const showVideoPlaceholder = hasVideo && !thumbnailUrl;
+                    // Show standard video folder icon for any video-only folder
+                    const showVideoPlaceholder = mediaType === 'video' && videoCount > 0;
                     
                     // Build media count text
                     const getMediaCountText = () => {
