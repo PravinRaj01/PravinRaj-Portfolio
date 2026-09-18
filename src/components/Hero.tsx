@@ -14,10 +14,52 @@ interface HeroProps {
 
 const Hero = ({ mode }: HeroProps) => {
   const navigate = useNavigate();
-  const { data: heroContent = [] } = useHeroContent(mode);
+  const { data: heroContent = [], isLoading: isHeroLoading } = useHeroContent(mode);
   const { data: siteSettings } = useSiteSettings();
-  
-  // Use the first hero content entry for the current mode, or fallback to defaults
+
+  // Only true on a first-ever visit with nothing cached yet (see
+  // useHeroContent.ts's localStorage initialData) -- everyone else gets
+  // real content immediately, even before the network responds. This is
+  // what stops "Your Name" / "Full Stack Developer" from ever being shown
+  // as if it were real: that fallback below is for a genuinely empty
+  // hero_content table, not "still loading".
+  if (isHeroLoading && heroContent.length === 0) {
+    return (
+      <section
+        className="min-h-screen flex items-center px-4 sm:px-6 md:px-8 relative overflow-visible pt-8 md:pt-0 pb-8 md:pb-0"
+        style={{ touchAction: 'pan-y' }}
+      >
+        <div
+          className={`absolute inset-0 ${
+            mode === 'creative'
+              ? 'bg-gradient-to-br from-[#1a2238]/70 via-[#ff6a3d]/30 to-[#1a2238]/70'
+              : 'bg-gradient-to-br from-purple-900/70 via-blue-900/50 to-purple-900/70'
+          }`}
+        />
+        <div className="container mx-auto relative z-10">
+          <div className="max-w-7xl">
+            <div className="md:col-span-7 space-y-4 md:space-y-6 max-w-3xl">
+              <div className="h-6 w-32 rounded bg-white/10 animate-pulse" />
+              <div className="h-12 md:h-16 w-3/4 rounded bg-white/10 animate-pulse" />
+              <div className="h-8 md:h-10 w-2/3 rounded bg-white/10 animate-pulse" />
+              <div className="space-y-2">
+                <div className="h-5 w-full rounded bg-white/10 animate-pulse" />
+                <div className="h-5 w-5/6 rounded bg-white/10 animate-pulse" />
+              </div>
+              <div className="flex gap-4 pt-4">
+                <div className="h-12 w-40 rounded bg-white/10 animate-pulse" />
+                <div className="h-12 w-40 rounded bg-white/10 animate-pulse" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  // Use the first hero content entry for the current mode, or fallback to
+  // defaults -- reached only once loading has actually finished, so this
+  // fallback now means "the table really is empty," not "still fetching."
   const content = heroContent[0] || {
     greeting: mode === 'professional' ? "Hello, I'm" : "Hey there! I'm",
     name: "Your Name",
