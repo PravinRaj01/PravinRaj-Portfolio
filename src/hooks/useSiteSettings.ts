@@ -1,6 +1,6 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/utils/supabase';
+import { apiClient } from '@/services/apiClient';
 import { SiteSettings } from '@/types/content';
 
 const SETTINGS_STORAGE_KEY = 'portfolio_site_settings';
@@ -29,12 +29,13 @@ export const useSiteSettings = () => {
     queryKey: ['site-settings'],
     queryFn: async () => {
       console.log('Fetching site settings...');
-      const { data, error } = await supabase
-        .from('site_settings')
-        .select('*')
-        .single();
-      
-      if (error) {
+      try {
+        const data = await apiClient.get<SiteSettings>('/site-settings');
+        console.log('Site settings fetched:', data);
+        // Save to localStorage for persistence
+        saveToLocalStorage(data);
+        return data;
+      } catch (error) {
         console.log('Error fetching from database, checking localStorage...');
         const localData = getFromLocalStorage();
         if (localData) {
@@ -43,11 +44,6 @@ export const useSiteSettings = () => {
         }
         throw error;
       }
-      
-      console.log('Site settings fetched:', data);
-      // Save to localStorage for persistence
-      saveToLocalStorage(data);
-      return data as SiteSettings;
     },
     staleTime: 0,
     refetchOnMount: true,
@@ -64,25 +60,10 @@ export const useUpdateSiteSettings = () => {
   return useMutation({
     mutationFn: async (settings: Omit<SiteSettings, 'id' | 'created_at' | 'updated_at'> & { id?: string }) => {
       console.log('Updating site settings:', settings);
-      
-      // First, get the existing settings to find the ID
-      const { data: existingData } = await supabase
-        .from('site_settings')
-        .select('id')
-        .limit(1)
-        .maybeSingle();
-      
-      const settingsWithId = existingData?.id 
-        ? { ...settings, id: existingData.id }
-        : settings;
-      
-      const { data, error } = await supabase
-        .from('site_settings')
-        .upsert(settingsWithId, { onConflict: 'id' })
-        .select()
-        .single();
-      
-      if (error) throw error;
+      // PUT /site-settings upserts the singleton row directly -- no id
+      // lookup needed, the backend finds (or creates) the one row itself.
+      const { id: _id, ...payload } = settings;
+      const data = await apiClient.put<SiteSettings>('/site-settings', payload);
       console.log('Site settings updated:', data);
       return data;
     },

@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/utils/supabase';
+import { apiClient } from '@/services/apiClient';
 
 export interface GithubTickerContent {
   id: string;
@@ -14,34 +14,22 @@ export const useGithubTicker = (mode: 'professional' | 'creative' = 'professiona
   return useQuery({
     queryKey: ['github-ticker', mode],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('github_ticker')
-        .select('*')
-        .eq('mode', mode)
-        .maybeSingle();
-      
-      if (error) throw error;
-      return data as GithubTickerContent | null;
+      // GET /github-ticker/{mode} returns a null body (not 404) when
+      // absent, matching Supabase's .maybeSingle() -- apiClient.get
+      // resolves that straight to null.
+      return apiClient.get<GithubTickerContent | null>(`/github-ticker/${mode}`);
     },
   });
 };
 
 export const useUpdateGithubTicker = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async ({ id, text, url }: { id: string; text: string; url: string }) => {
-      const { data, error } = await supabase
-        .from('github_ticker')
-        .update({ text, url, updated_at: new Date().toISOString() })
-        .eq('id', id)
-        .select()
-        .single();
-      
-      if (error) throw error;
-      return data;
+      return apiClient.patch<GithubTickerContent>(`/github-ticker/${id}`, { text, url });
     },
-    onSuccess: (data) => {
+    onSuccess: () => {
       // Invalidate both modes to ensure fresh data
       queryClient.invalidateQueries({ queryKey: ['github-ticker'] });
     },

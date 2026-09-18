@@ -1,37 +1,25 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/utils/supabase';
+import { apiClient } from '@/services/apiClient';
 import { AboutContent } from '@/types/content';
 
+// Fully cut over to the new FastAPI backend (MIGRATION_PLAN.md §7/§11) --
+// no Supabase import remains in this file.
 export const useAboutContent = (mode: 'professional' | 'creative') => {
   return useQuery({
     queryKey: ['about-content', mode],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('about_content')
-        .select('*')
-        .eq('mode', mode)
-        .order('order_index');
-      
-      if (error) throw error;
-      return data as AboutContent[];
+      return apiClient.get<AboutContent[]>('/about', { params: { mode } });
     },
   });
 };
 
 export const useCreateAboutContent = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async (content: Omit<AboutContent, 'id' | 'created_at' | 'updated_at'>) => {
-      const { data, error } = await supabase
-        .from('about_content')
-        .insert(content)
-        .select()
-        .single();
-      
-      if (error) throw error;
-      return data;
+      return apiClient.post<AboutContent>('/about', content);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['about-content'] });
@@ -41,18 +29,10 @@ export const useCreateAboutContent = () => {
 
 export const useUpdateAboutContent = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async ({ id, ...content }: Partial<AboutContent> & { id: string }) => {
-      const { data, error } = await supabase
-        .from('about_content')
-        .update(content)
-        .eq('id', id)
-        .select()
-        .single();
-      
-      if (error) throw error;
-      return data;
+      return apiClient.patch<AboutContent>(`/about/${id}`, content);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['about-content'] });
@@ -62,15 +42,10 @@ export const useUpdateAboutContent = () => {
 
 export const useDeleteAboutContent = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('about_content')
-        .delete()
-        .eq('id', id);
-      
-      if (error) throw error;
+      await apiClient.delete(`/about/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['about-content'] });

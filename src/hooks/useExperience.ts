@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { supabase } from '@/utils/supabase';
+import { apiClient } from '@/services/apiClient';
 import { Experience } from '@/types/cms';
 
 export const useExperience = (mode?: 'professional' | 'creative') => {
@@ -11,18 +11,10 @@ export const useExperience = (mode?: 'professional' | 'creative') => {
   const fetchExperiences = async () => {
     try {
       setLoading(true);
-      let query = supabase
-        .from('experiences')
-        .select('*');
+      const data = await apiClient.get<Experience[]>('/experiences', {
+        params: mode ? { mode } : undefined,
+      });
 
-      if (mode) {
-        query = query.eq('mode', mode);
-      }
-
-      const { data, error } = await query;
-
-      if (error) throw error;
-      
       // Helper to parse start date from either event_date or period
       const getStartDate = (exp: Experience): Date => {
         const monthMap: Record<string, number> = {
@@ -86,13 +78,7 @@ export const useExperience = (mode?: 'professional' | 'creative') => {
 
   const addExperience = async (experience: Omit<Experience, 'id' | 'created_at' | 'updated_at'>) => {
     try {
-      const { data, error } = await supabase
-        .from('experiences')
-        .insert([experience])
-        .select()
-        .single();
-
-      if (error) throw error;
+      const data = await apiClient.post<Experience>('/experiences', experience);
       setExperiences(prev => [...prev, data]);
       return data;
     } catch (err) {
@@ -102,14 +88,7 @@ export const useExperience = (mode?: 'professional' | 'creative') => {
 
   const updateExperience = async (id: string, updates: Partial<Experience>) => {
     try {
-      const { data, error } = await supabase
-        .from('experiences')
-        .update(updates)
-        .eq('id', id)
-        .select()
-        .single();
-
-      if (error) throw error;
+      const data = await apiClient.patch<Experience>(`/experiences/${id}`, updates);
       setExperiences(prev => prev.map(e => e.id === id ? data : e));
       return data;
     } catch (err) {
@@ -119,12 +98,7 @@ export const useExperience = (mode?: 'professional' | 'creative') => {
 
   const deleteExperience = async (id: string) => {
     try {
-      const { error } = await supabase
-        .from('experiences')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
+      await apiClient.delete(`/experiences/${id}`);
       setExperiences(prev => prev.filter(e => e.id !== id));
     } catch (err) {
       throw err instanceof Error ? err : new Error('Failed to delete experience');

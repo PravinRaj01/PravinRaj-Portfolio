@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '@/utils/supabase';
+import { apiClient } from '@/services/apiClient';
 
 export interface ProjectFolder {
   id: string;
@@ -18,6 +18,9 @@ interface UseProjectFoldersOptions {
   includeInactive?: boolean;
 }
 
+// Fully cut over to the new FastAPI backend (MIGRATION_PLAN.md §7/§11) --
+// unlike earlier phases, every operation this hook needs now has a real
+// backend endpoint, so there's no reason to keep any of it on Supabase.
 export const useProjectFolders = (mode?: 'professional' | 'creative', options: UseProjectFoldersOptions = {}) => {
   const { includeInactive = false } = options;
   const [folders, setFolders] = useState<ProjectFolder[]>([]);
@@ -27,40 +30,15 @@ export const useProjectFolders = (mode?: 'professional' | 'creative', options: U
   const fetchFolders = async () => {
     try {
       setLoading(true);
-      let query = supabase
-        .from('project_folders')
-        .select('*')
-        .order('order_index', { ascending: true });
-
-      if (!includeInactive) {
-        query = query.eq('is_active', true);
-      }
-
-      if (mode) {
-        query = query.eq('mode', mode);
-      }
-
-      const { data, error } = await query;
-
-      if (error) throw error;
-
-      // Get project counts for each folder
-      const foldersWithCounts = await Promise.all(
-        (data || []).map(async (folder) => {
-          const { count } = await supabase
-            .from('projects')
-            .select('*', { count: 'exact', head: true })
-            .eq('folder_id', folder.id)
-            .eq('is_active', true);
-
-          return {
-            ...folder,
-            project_count: count || 0,
-          } as ProjectFolder;
-        })
-      );
-
-      setFolders(foldersWithCounts);
+      // The backend computes project_count itself via one GROUP BY join
+      // (MIGRATION_PLAN.md §1 finding 8 -- the original N+1 count query per
+      // folder is gone). include_inactive is only honored when the caller
+      // holds a valid admin token (apiClient attaches it automatically when
+      // present); an unauthenticated request silently gets the public view.
+      const data = await apiClient.get<ProjectFolder[]>('/project-folders', {
+        params: { mode, include_inactive: includeInactive },
+      });
+      setFolders(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch folders');
     } finally {
@@ -73,70 +51,33 @@ export const useProjectFolders = (mode?: 'professional' | 'creative', options: U
   }, [mode]);
 
   const addFolder = async (folder: Omit<ProjectFolder, 'id' | 'created_at' | 'updated_at' | 'project_count'>) => {
-    try {
-      const { data, error } = await supabase
-        .from('project_folders')
-        .insert([folder])
-        .select()
-        .single();
-
-      if (error) throw error;
-      setFolders(prev => [...prev, { ...data, project_count: 0 }]);
-      return data;
-    } catch (err) {
-      throw err instanceof Error ? err : new Error('Failed to add folder');
-    }
+    const data = await apiClient.post<ProjectFolder>('/project-folders', folder);
+    setFolders(prev => [...prev, { ...data, project_count: 0 }]);
+    return data;
   };
 
   const updateFolder = async (id: string, updates: Partial<ProjectFolder>) => {
-    try {
-      const { data, error } = await supabase
-        .from('project_folders')
-        .update(updates)
-        .eq('id', id)
-        .select()
-        .single();
-
-      if (error) throw error;
-      setFolders(prev => prev.map(f => f.id === id ? { ...f, ...data } : f));
-      return data;
-    } catch (err) {
-      throw err instanceof Error ? err : new Error('Failed to update folder');
-    }
+    const data = await apiClient.patch<ProjectFolder>(`/project-folders/${id}`, updates);
+    setFolders(prev => prev.map(f => f.id === id ? { ...f, ...data } : f));
+    return data;
   };
 
   const deleteFolder = async (id: string) => {
-    try {
-      const { error } = await supabase
-        .from('project_folders')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
-      setFolders(prev => prev.filter(f => f.id !== id));
-    } catch (err) {
-      throw err instanceof Error ? err : new Error('Failed to delete folder');
-    }
+    await apiClient.delete(`/project-folders/${id}`);
+    setFolders(prev => prev.filter(f => f.id !== id));
   };
 
   const reorderFolders = async (reorderedFolders: ProjectFolder[]) => {
-    try {
-      const updates = reorderedFolders.map((folder, index) => ({
-        id: folder.id,
-        order_index: index,
-      }));
+    const items = reorderedFolders.map((folder, index) => ({
+      id: folder.id,
+      order_index: index,
+    }));
 
-      for (const update of updates) {
-        await supabase
-          .from('project_folders')
-          .update({ order_index: update.order_index })
-          .eq('id', update.id);
-      }
+    // One request, one transaction on the backend, instead of the original
+    // N sequential UPDATE calls (MIGRATION_PLAN.md §1 finding 8).
+    await apiClient.put('/project-folders/reorder', items);
 
-      setFolders(reorderedFolders.map((f, i) => ({ ...f, order_index: i })));
-    } catch (err) {
-      throw err instanceof Error ? err : new Error('Failed to reorder folders');
-    }
+    setFolders(reorderedFolders.map((f, i) => ({ ...f, order_index: i })));
   };
 
   return {

@@ -15,31 +15,49 @@ A modern, dual-mode portfolio website showcasing professional and creative work.
 
 ## Tech Stack
 
-- **Frontend**: React, TypeScript, Vite
+- **Frontend**: React, TypeScript, Vite, Bun
 - **Styling**: Tailwind CSS, shadcn/ui
-- **Backend**: Supabase (Database, Auth, Storage, Edge Functions)
+- **Backend**: FastAPI (Python, async), Neon Postgres, Cloudflare R2 storage
 - **Animations**: Framer Motion
 - **3D Graphics**: Three.js, React Three Fiber
 
+See `MIGRATION_PLAN.md` for the full backend architecture and schema.
+
 ## Getting Started
+
+### Frontend
 
 ```bash
 # Clone the repository
 git clone <YOUR_GIT_URL>
-
-# Navigate to project directory
-cd <YOUR_PROJECT_NAME>
+cd gg-portfolio
 
 # Install dependencies
-npm install
+bun install
 
-# Set up environment variables
-# Create a .env file with your Supabase credentials:
-# VITE_SUPABASE_URL=your_supabase_url
-# VITE_SUPABASE_PUBLISHABLE_KEY=your_anon_key
+# Optional: point at a non-default backend URL (defaults to
+# http://localhost:8000/api/v1 in dev, https://api.pravinraj.dev/api/v1
+# in production builds)
+# echo "VITE_API_BASE_URL=http://localhost:8000/api/v1" > .env.local
 
 # Start development server
-npm run dev
+bun run dev
+```
+
+### Backend
+
+```bash
+cd backend
+python -m venv .venv
+.venv/Scripts/activate   # .venv/bin/activate on macOS/Linux
+
+pip install -e .
+cp .env.example .env     # fill in DATABASE_URL, R2, JWT, etc.
+
+alembic upgrade head
+python scripts/create_admin.py
+
+uvicorn main:app --reload
 ```
 
 ## Project Structure
@@ -73,19 +91,20 @@ Access the admin dashboard at `/admin` to manage:
 
 ## Deployment
 
-### Vercel (Recommended)
-1. Connect your GitHub repository to Vercel
-2. Configure build settings:
-   - Framework: Vite
-   - Build Command: `npm run build`
-   - Output Directory: `dist`
-3. Add environment variables
+The frontend and backend deploy as **two separate Vercel projects** from this same repository.
+
+### Frontend (Vercel)
+1. Connect this GitHub repository to a Vercel project (Root Directory: repo root)
+2. Framework: Vite, Build Command: `bun run build`, Output Directory: `dist`
+3. No environment variables are required — the production API URL is baked into `src/services/apiClient.ts`. Set `VITE_API_BASE_URL` only to override it.
 4. Deploy
 
-### Environment Variables
-- `VITE_SUPABASE_URL` - Supabase project URL
-- `VITE_SUPABASE_PUBLISHABLE_KEY` - Supabase anon/public key
-- `VITE_SUPABASE_PROJECT_ID` - Supabase project reference ID
+### Backend (Vercel)
+1. Connect the same repository to a **second** Vercel project, with Root Directory `backend`
+2. FastAPI is auto-detected (see `backend/vercel.json`)
+3. Add environment variables from `backend/.env.example`: `DATABASE_URL`, `DATABASE_URL_DIRECT`, `JWT_SECRET`, `R2_*`, `CORS_ORIGINS`, `CORS_ORIGIN_REGEX`, `GOOGLE_DRIVE_API_KEY`, `LOVABLE_API_KEY`, and `ENVIRONMENT=production`
+4. Add a custom domain (e.g. `api.pravinraj.dev`) and point a CNAME at it from your DNS provider
+5. Run `alembic upgrade head` against `DATABASE_URL_DIRECT` before the first deploy
 
 ## License
 

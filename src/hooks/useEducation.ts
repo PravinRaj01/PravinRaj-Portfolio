@@ -1,35 +1,23 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/utils/supabase';
+import { apiClient } from '@/services/apiClient';
 import { Education } from '@/types/academic';
 
 export const useEducation = () => {
   return useQuery({
     queryKey: ['education'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('education')
-        .select('*');
-      
-      if (error) throw error;
-      return data as Education[];
+      return apiClient.get<Education[]>('/education');
     },
   });
 };
 
 export const useCreateEducation = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async (education: Omit<Education, 'id' | 'created_at' | 'updated_at'>) => {
-      const { data, error } = await supabase
-        .from('education')
-        .insert([education])
-        .select()
-        .single();
-      
-      if (error) throw error;
-      return data;
+      return apiClient.post<Education>('/education', education);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['education'] });
@@ -39,18 +27,10 @@ export const useCreateEducation = () => {
 
 export const useUpdateEducation = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async ({ id, ...education }: Partial<Education> & { id: string }) => {
-      const { data, error } = await supabase
-        .from('education')
-        .update(education)
-        .eq('id', id)
-        .select()
-        .single();
-      
-      if (error) throw error;
-      return data;
+      return apiClient.patch<Education>(`/education/${id}`, education);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['education'] });
@@ -60,15 +40,10 @@ export const useUpdateEducation = () => {
 
 export const useDeleteEducation = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('education')
-        .delete()
-        .eq('id', id);
-      
-      if (error) throw error;
+      await apiClient.delete(`/education/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['education'] });

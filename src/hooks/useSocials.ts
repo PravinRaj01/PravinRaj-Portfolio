@@ -1,6 +1,6 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/utils/supabase';
+import { apiClient } from '@/services/apiClient';
 
 export interface Social {
   id: string;
@@ -18,19 +18,7 @@ export const useSocials = (mode?: 'professional' | 'creative') => {
   return useQuery({
     queryKey: ['socials', mode],
     queryFn: async () => {
-      let query = supabase
-        .from('socials')
-        .select('*')
-        .order('order_index', { ascending: true });
-      
-      if (mode) {
-        query = query.eq('mode', mode);
-      }
-      
-      const { data, error } = await query;
-      
-      if (error) throw error;
-      return data as Social[];
+      return apiClient.get<Social[]>('/socials', { params: { mode } });
     },
   });
 };
@@ -39,38 +27,17 @@ export const useEnabledSocials = (mode?: 'professional' | 'creative') => {
   return useQuery({
     queryKey: ['socials', 'enabled', mode],
     queryFn: async () => {
-      let query = supabase
-        .from('socials')
-        .select('*')
-        .eq('enabled', true)
-        .order('order_index', { ascending: true });
-      
-      if (mode) {
-        query = query.eq('mode', mode);
-      }
-      
-      const { data, error } = await query;
-      
-      if (error) throw error;
-      return data as Social[];
+      return apiClient.get<Social[]>('/socials', { params: { mode, enabled_only: true } });
     },
   });
 };
 
 export const useUpdateSocial = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async ({ id, ...updates }: Partial<Social> & { id: string }) => {
-      const { data, error } = await supabase
-        .from('socials')
-        .update(updates)
-        .eq('id', id)
-        .select()
-        .single();
-      
-      if (error) throw error;
-      return data;
+      return apiClient.patch<Social>(`/socials/${id}`, updates);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['socials'] });
@@ -80,17 +47,10 @@ export const useUpdateSocial = () => {
 
 export const useCreateSocial = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async (social: Omit<Social, 'id' | 'created_at' | 'updated_at'>) => {
-      const { data, error } = await supabase
-        .from('socials')
-        .insert(social)
-        .select()
-        .single();
-      
-      if (error) throw error;
-      return data;
+      return apiClient.post<Social>('/socials', social);
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['socials'] });
@@ -101,15 +61,10 @@ export const useCreateSocial = () => {
 
 export const useDeleteSocial = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('socials')
-        .delete()
-        .eq('id', id);
-      
-      if (error) throw error;
+      await apiClient.delete(`/socials/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['socials'] });

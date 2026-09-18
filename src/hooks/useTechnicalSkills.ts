@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { supabase } from '@/utils/supabase';
+import { apiClient } from '@/services/apiClient';
 
 export interface TechnicalSkill {
   id: string;
@@ -24,13 +24,9 @@ export const useTechnicalSkills = () => {
   const fetchSkills = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('technical_skills')
-        .select('*')
-        .eq('is_active', true)
-        .order('name');
-
-      if (error) throw error;
+      // Reads from the new FastAPI backend (MIGRATION_PLAN.md §7). No
+      // mutations exist for this resource in the frontend today.
+      const data = await apiClient.get<TechnicalSkill[]>('/technical-skills');
       setSkills(data || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch technical skills');

@@ -1,9 +1,20 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { supabase } from '@/utils/supabase';
+import { apiClient } from '@/services/apiClient';
 import { SiteSettings } from '@/types/content';
 import { toast } from 'sonner';
+
+// The exact 5-column subset GET /site-settings/modes returns
+// (MIGRATION_PLAN.md §7 / Appendix A.3 SiteSettingsModeRead).
+type SiteSettingsModeSubset = Pick<
+  SiteSettings,
+  | 'professional_mode_enabled'
+  | 'creative_mode_enabled'
+  | 'default_mode'
+  | 'professional_visible_pages'
+  | 'creative_visible_pages'
+>;
 
 interface PortfolioContextType {
   mode: 'professional' | 'creative';
@@ -78,15 +89,15 @@ export const PortfolioProvider: React.FC<PortfolioProviderProps> = ({ children }
     setDarkMode(true);
     document.documentElement.classList.add('dark');
 
-    // Fetch mode settings from database
+    // Fetch mode settings from the new FastAPI backend (MIGRATION_PLAN.md §7);
+    // on any failure this falls back to the already-initialized defaults
+    // above, exactly as the Supabase error path did before.
     const fetchModeSettings = async () => {
       try {
-        const { data, error } = await supabase
-          .from('site_settings')
-          .select('professional_mode_enabled, creative_mode_enabled, default_mode, professional_visible_pages, creative_visible_pages')
-          .single();
-
-        if (error) {
+        let data: SiteSettingsModeSubset;
+        try {
+          data = await apiClient.get<SiteSettingsModeSubset>('/site-settings/modes');
+        } catch {
           console.log('Using default mode settings');
           setModeSettingsLoaded(true);
           return;

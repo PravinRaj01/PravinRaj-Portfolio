@@ -4,6 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { usePortfolio } from "@/contexts/PortfolioContext";
+import { API_BASE_URL } from "@/services/apiClient";
 import ChatbotMiniView from "./ChatbotMiniView";
 import ChatbotFullView from "./ChatbotFullView";
 
@@ -29,7 +30,7 @@ interface ChatbotDrawerProps {
 }
 
 const STORAGE_KEY = 'portfolio_chatbot_conversations';
-const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/portfolio-chat`;
+const CHAT_URL = `${API_BASE_URL}/ai/chat`;
 const CONVERSATION_EXPIRY_DAYS = 30;
 
 // Cleanup old conversations (older than 30 days)
@@ -166,7 +167,6 @@ const ChatbotDrawer = ({ state, onStateChange }: ChatbotDrawerProps) => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
         body: JSON.stringify({
           message: messageToSend,

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { apiClient } from '@/services/apiClient';
 
 export type GameType = 'terminal_quest' | 'neon_breakout';
 
@@ -66,14 +66,8 @@ export const useGlobalLeaderboard = (gameType: GameType) => {
   const fetchLeaderboard = useCallback(async () => {
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('game_scores')
-        .select('*')
-        .eq('game_type', gameType)
-        .order('score', { ascending: false })
-        .limit(10);
-
-      if (error) throw error;
+      // Reads from the new FastAPI backend (MIGRATION_PLAN.md §7).
+      const data = await apiClient.get<GameScore[]>(`/game-scores/${gameType}/leaderboard`);
       setLeaderboard(data || []);
     } catch (error) {
       console.error('Failed to fetch leaderboard:', error);
@@ -89,18 +83,23 @@ export const useGlobalLeaderboard = (gameType: GameType) => {
 
   const submitScore = useCallback(async (nickname: string, score: number) => {
     try {
-      // Validate nickname (max 10 chars, alphanumeric + spaces)
+      // Validate nickname (max 10 chars, alphanumeric + spaces). The
+      // backend re-sanitizes independently (app/services/game_scores.py,
+      // a verbatim port of the real submit_game_score RPC body), so this
+      // client-side pass is defense-in-depth, not load-bearing.
       const cleanNickname = nickname.slice(0, 10).replace(/[^a-zA-Z0-9 ]/g, '').trim() || 'Anonymous';
-      
-      // Use the RPC function to bypass RLS restrictions
-      const { error } = await supabase.rpc('submit_game_score', {
-        p_game_type: gameType,
-        p_nickname: cleanNickname,
-        p_score: Math.floor(score),
+
+      // Posts to the new FastAPI backend (MIGRATION_PLAN.md §7). Matching
+      // the original code exactly: the response body (which may carry
+      // {success: false, error: "..."} for a rejected submission -- an
+      // invalid score or a rate limit -- returned with HTTP 200, same as
+      // the real RPC) is intentionally not inspected here, same as before.
+      await apiClient.post('/game-scores', {
+        game_type: gameType,
+        nickname: cleanNickname,
+        score: Math.floor(score),
       });
 
-      if (error) throw error;
-      
       // Refresh leaderboard
       await fetchLeaderboard();
       return true;

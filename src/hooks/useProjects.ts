@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { supabase } from '@/utils/supabase';
+import { apiClient } from '@/services/apiClient';
 import { Project, ProjectLink } from '@/types/cms';
 
 interface UseProjectsOptions {
@@ -20,6 +20,11 @@ const parseProjectLinks = (links: unknown): ProjectLink[] => {
   return [];
 };
 
+// Fully cut over to the new FastAPI backend (MIGRATION_PLAN.md §7/§11) --
+// no Supabase import remains in this file. GET /projects now honors
+// include_inactive for an authenticated admin (apiClient attaches the
+// bearer token automatically when present); an unauthenticated caller
+// passing the flag silently gets the public (active-only) view instead.
 export const useProjects = (mode?: 'professional' | 'creative', options: UseProjectsOptions = {}) => {
   const { includeInactive = false } = options;
   const [projects, setProjects] = useState<Project[]>([]);
@@ -29,29 +34,17 @@ export const useProjects = (mode?: 'professional' | 'creative', options: UseProj
   const fetchProjects = async () => {
     try {
       setLoading(true);
-      let query = supabase
-        .from('projects')
-        .select('*')
-        .order('order_index', { ascending: true });
+      const data = await apiClient.get<Project[]>('/projects', {
+        params: { mode, include_inactive: includeInactive },
+      });
 
-      if (!includeInactive) {
-        query = query.eq('is_active', true);
-      }
-
-      if (mode) {
-        query = query.eq('mode', mode);
-      }
-
-      const { data, error } = await query;
-
-      if (error) throw error;
-      
-      // Parse project_links properly for each project
-      const parsedProjects = (data || []).map(p => ({
+      // Parse project_links properly for each project (defensive; a
+      // harmless no-op for the already-validated API response).
+      const parsedProjects = data.map(p => ({
         ...p,
         project_links: parseProjectLinks(p.project_links)
-      })) as Project[];
-      
+      }));
+
       setProjects(parsedProjects);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch projects');
@@ -65,50 +58,20 @@ export const useProjects = (mode?: 'professional' | 'creative', options: UseProj
   }, [mode]);
 
   const addProject = async (project: Omit<Project, 'id' | 'created_at' | 'updated_at'>) => {
-    try {
-      const { data, error } = await supabase
-        .from('projects')
-        .insert([project])
-        .select()
-        .single();
-
-      if (error) throw error;
-      setProjects(prev => [...prev, data]);
-      return data;
-    } catch (err) {
-      throw err instanceof Error ? err : new Error('Failed to add project');
-    }
+    const data = await apiClient.post<Project>('/projects', project);
+    setProjects(prev => [...prev, data]);
+    return data;
   };
 
   const updateProject = async (id: string, updates: Partial<Project>) => {
-    try {
-      const { data, error } = await supabase
-        .from('projects')
-        .update(updates)
-        .eq('id', id)
-        .select()
-        .single();
-
-      if (error) throw error;
-      setProjects(prev => prev.map(p => p.id === id ? data : p));
-      return data;
-    } catch (err) {
-      throw err instanceof Error ? err : new Error('Failed to update project');
-    }
+    const data = await apiClient.patch<Project>(`/projects/${id}`, updates);
+    setProjects(prev => prev.map(p => p.id === id ? data : p));
+    return data;
   };
 
   const deleteProject = async (id: string) => {
-    try {
-      const { error } = await supabase
-        .from('projects')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
-      setProjects(prev => prev.filter(p => p.id !== id));
-    } catch (err) {
-      throw err instanceof Error ? err : new Error('Failed to delete project');
-    }
+    await apiClient.delete(`/projects/${id}`);
+    setProjects(prev => prev.filter(p => p.id !== id));
   };
 
   return {

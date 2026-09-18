@@ -1,36 +1,25 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/utils/supabase';
+import { apiClient } from '@/services/apiClient';
 import { Service } from '@/types/content';
 
+// Fully cut over to the new FastAPI backend (MIGRATION_PLAN.md §7/§11) --
+// no Supabase import remains in this file.
 export const useServices = () => {
   return useQuery({
     queryKey: ['services'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('services')
-        .select('*')
-        .order('order_index');
-      
-      if (error) throw error;
-      return data as Service[];
+      return apiClient.get<Service[]>('/services');
     },
   });
 };
 
 export const useCreateService = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async (service: Omit<Service, 'id' | 'created_at' | 'updated_at'>) => {
-      const { data, error } = await supabase
-        .from('services')
-        .insert(service)
-        .select()
-        .single();
-      
-      if (error) throw error;
-      return data;
+      return apiClient.post<Service>('/services', service);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['services'] });
@@ -40,18 +29,10 @@ export const useCreateService = () => {
 
 export const useUpdateService = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async ({ id, ...service }: Partial<Service> & { id: string }) => {
-      const { data, error } = await supabase
-        .from('services')
-        .update(service)
-        .eq('id', id)
-        .select()
-        .single();
-      
-      if (error) throw error;
-      return data;
+      return apiClient.patch<Service>(`/services/${id}`, service);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['services'] });
@@ -61,15 +42,10 @@ export const useUpdateService = () => {
 
 export const useDeleteService = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('services')
-        .delete()
-        .eq('id', id);
-      
-      if (error) throw error;
+      await apiClient.delete(`/services/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['services'] });

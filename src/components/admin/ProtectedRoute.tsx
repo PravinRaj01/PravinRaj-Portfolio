@@ -11,19 +11,20 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Set up auth state listener FIRST (critical for catching login events)
-    const { data: { subscription } } = onAuthStateChange((user) => {
+    // Set up the auth state listener FIRST (critical for catching login
+    // events from other tabs -- see authService.ts's onAuthStateChange).
+    const unsubscribe = onAuthStateChange((user) => {
       setUser(user);
       setLoading(false);
     });
 
-    // THEN check for existing session
+    // THEN check for an existing session (a stored token from a prior visit).
     getCurrentUser().then((currentUser) => {
       setUser(currentUser);
       setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    return unsubscribe;
   }, []);
 
   // Handle successful login - the auth state listener will update user automatically

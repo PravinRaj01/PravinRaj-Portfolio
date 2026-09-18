@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { toast } from '@/hooks/use-toast';
 import { useMagazineAdmin } from '@/hooks/useMagazine';
 import { useProjects } from '@/hooks/useProjects';
-import { supabase } from '@/utils/supabase';
+import { apiClient } from '@/services/apiClient';
 
 const MagazineManager = () => {
   const { issues, loading, publishIssue, unpublishIssue, deleteIssue, saveIssue } = useMagazineAdmin();
@@ -45,15 +45,10 @@ const MagazineManager = () => {
   const handleGenerate = async () => {
     setGenerating(true);
     try {
-      const { data, error } = await supabase.functions.invoke('generate-magazine', {
-        body: {
-          project_ids: selectedProjectIds.length > 0 ? selectedProjectIds : undefined,
-          theme_hint: themeHint || undefined,
-        },
+      const data = await apiClient.post('/ai/generate-magazine', {
+        project_ids: selectedProjectIds.length > 0 ? selectedProjectIds : undefined,
+        theme_hint: themeHint || undefined,
       });
-
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
 
       setPreviewContent(data);
       toast({ title: 'Magazine generated!', description: 'Review the content below and save when ready.' });

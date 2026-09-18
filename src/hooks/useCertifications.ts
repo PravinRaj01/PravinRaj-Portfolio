@@ -1,35 +1,23 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/utils/supabase';
+import { apiClient } from '@/services/apiClient';
 import { Certification } from '@/types/academic';
 
 export const useCertifications = () => {
   return useQuery({
     queryKey: ['certifications'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('certifications')
-        .select('*');
-      
-      if (error) throw error;
-      return data as Certification[];
+      return apiClient.get<Certification[]>('/certifications');
     },
   });
 };
 
 export const useCreateCertification = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async (certification: Omit<Certification, 'id' | 'created_at' | 'updated_at'>) => {
-      const { data, error } = await supabase
-        .from('certifications')
-        .insert([certification])
-        .select()
-        .single();
-      
-      if (error) throw error;
-      return data;
+      return apiClient.post<Certification>('/certifications', certification);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['certifications'] });
@@ -39,18 +27,10 @@ export const useCreateCertification = () => {
 
 export const useUpdateCertification = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async ({ id, ...certification }: Partial<Certification> & { id: string }) => {
-      const { data, error } = await supabase
-        .from('certifications')
-        .update(certification)
-        .eq('id', id)
-        .select()
-        .single();
-      
-      if (error) throw error;
-      return data;
+      return apiClient.patch<Certification>(`/certifications/${id}`, certification);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['certifications'] });
@@ -60,15 +40,10 @@ export const useUpdateCertification = () => {
 
 export const useDeleteCertification = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('certifications')
-        .delete()
-        .eq('id', id);
-      
-      if (error) throw error;
+      await apiClient.delete(`/certifications/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['certifications'] });

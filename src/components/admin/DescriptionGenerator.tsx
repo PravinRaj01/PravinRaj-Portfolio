@@ -12,7 +12,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Sparkles, Loader2, RefreshCw, Check, AlertCircle } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { apiClient } from '@/services/apiClient';
 import ReactMarkdown from 'react-markdown';
 
 export interface GeneratorData {
@@ -80,25 +80,15 @@ const DescriptionGenerator = ({
     setStep('generating');
 
     try {
-      const { data: response, error: invokeError } = await supabase.functions.invoke(
-        'generate-description',
+      const response = await apiClient.post<{ description: string; success: boolean }>(
+        '/ai/generate-description',
         {
-          body: {
-            entityType,
-            mode,
-            data,
-            additionalContext: additionalContext.trim() || undefined,
-          },
+          entityType,
+          mode,
+          data,
+          additionalContext: additionalContext.trim() || undefined,
         }
       );
-
-      if (invokeError) {
-        throw new Error(invokeError.message || 'Failed to generate description');
-      }
-
-      if (!response?.success) {
-        throw new Error(response?.error || 'Failed to generate description');
-      }
 
       setGeneratedDescription(response.description);
       setStep('preview');

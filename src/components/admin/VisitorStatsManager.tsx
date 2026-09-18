@@ -7,12 +7,19 @@ import { Eye, TrendingUp, Calendar, Users } from 'lucide-react';
 import { useSiteSettings, useUpdateSiteSettings } from '@/hooks/useSiteSettings';
 import { useVisitorCounter } from '@/hooks/useVisitorCounter';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/utils/supabase';
+import { apiClient } from '@/services/apiClient';
 import { toast } from 'sonner';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { format, subDays } from 'date-fns';
+import { format } from 'date-fns';
 
 type TimeRange = '7days' | '30days' | 'all';
+
+interface VisitorDailyStat {
+  id: string;
+  date: string;
+  view_count: number;
+  created_at: string | null;
+}
 
 const VisitorStatsManager = () => {
   const { data: settings, isLoading: settingsLoading } = useSiteSettings();
@@ -24,20 +31,7 @@ const VisitorStatsManager = () => {
   const { data: dailyStats = [], isLoading: statsLoading } = useQuery({
     queryKey: ['visitor-daily-stats', timeRange],
     queryFn: async () => {
-      let query = supabase
-        .from('visitor_daily_stats')
-        .select('*')
-        .order('date', { ascending: true });
-
-      if (timeRange === '7days') {
-        query = query.gte('date', format(subDays(new Date(), 7), 'yyyy-MM-dd'));
-      } else if (timeRange === '30days') {
-        query = query.gte('date', format(subDays(new Date(), 30), 'yyyy-MM-dd'));
-      }
-
-      const { data, error } = await query;
-      if (error) throw error;
-      return data || [];
+      return apiClient.get<VisitorDailyStat[]>('/visitors/daily', { params: { range: timeRange } });
     },
   });
 

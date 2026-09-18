@@ -11,7 +11,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useSiteSettings, useUpdateSiteSettings } from '@/hooks/useSiteSettings';
 import { usePortfolio } from '@/contexts/PortfolioContext';
-import { supabase } from '@/utils/supabase';
+import { apiClient } from '@/services/apiClient';
 import { toast } from 'sonner';
 import { Upload, FileText, Download, Trash2, Link, File, RefreshCw, Briefcase, Palette, Copy } from 'lucide-react';
 
@@ -109,47 +109,23 @@ const ResumeManager = () => {
     setUploadProgress(0);
 
     try {
-      // Delete existing resume file if it exists
-      const currentUrl = getCurrentResumeUrl();
-      if (currentUrl && currentUrl.includes('supabase')) {
-        const oldFileName = currentUrl.split('/').pop();
-        if (oldFileName) {
-          await supabase.storage.from('resumes').remove([oldFileName]);
-        }
-      }
+      // One request: the backend deletes the previous R2 object (if it owns
+      // one), uploads the new file, and sets site_settings.{mode}_resume_url
+      // -- all server-side (MIGRATION_PLAN.md §7/§8), replacing the old
+      // direct-to-Supabase-Storage upload + separate settings save.
+      const formData = new FormData();
+      formData.append('file', file);
+      const result = await apiClient.post<{ mode: string; url: string }>(
+        `/resumes/${mode}`,
+        formData
+      );
 
-      // Generate unique filename with mode prefix
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${mode}-resume-${Date.now()}.${fileExt}`;
+      console.log('ResumeManager - File uploaded, saving URL:', result.url);
 
-      // Upload file to Supabase Storage
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('resumes')
-        .upload(fileName, file, {
-          cacheControl: '3600',
-          upsert: true
-        });
-
-      if (uploadError) throw uploadError;
-
-      // Get public URL
-      const { data: urlData } = supabase.storage
-        .from('resumes')
-        .getPublicUrl(fileName);
-
-      if (!urlData.publicUrl) throw new Error('Failed to get public URL');
-
-      console.log('ResumeManager - File uploaded, saving URL:', urlData.publicUrl);
-
-      // Save the resume URL to the database
-      const success = await saveResumeUrl(urlData.publicUrl);
-      
-      if (success) {
-        form.reset({ resume_url: urlData.publicUrl });
-        toast.success(`${mode === 'professional' ? 'Professional' : 'Creative'} resume uploaded successfully`);
-      } else {
-        throw new Error('Failed to save resume URL');
-      }
+      form.reset({ resume_url: result.url });
+      await queryClient.invalidateQueries({ queryKey: ['site-settings'] });
+      await queryClient.refetchQueries({ queryKey: ['site-settings'] });
+      toast.success(`${mode === 'professional' ? 'Professional' : 'Creative'} resume uploaded successfully`);
     } catch (error) {
       toast.error('Failed to upload resume');
       console.error('Error uploading resume:', error);
@@ -164,22 +140,13 @@ const ResumeManager = () => {
   const handleRemoveResume = async () => {
     if (confirm(`Are you sure you want to remove the ${mode} resume?`)) {
       try {
-        // Delete file from storage if it's hosted on Supabase
-        const currentUrl = getCurrentResumeUrl();
-        if (currentUrl && currentUrl.includes('supabase')) {
-          const fileName = currentUrl.split('/').pop();
-          if (fileName) {
-            await supabase.storage.from('resumes').remove([fileName]);
-          }
-        }
-
-        const success = await saveResumeUrl('');
-        if (success) {
-          form.reset({ resume_url: '' });
-          toast.success('Resume removed successfully');
-        } else {
-          throw new Error('Failed to remove resume from database');
-        }
+        // One request: deletes the R2 object (if the backend owns it) and
+        // clears site_settings.{mode}_resume_url together.
+        await apiClient.delete(`/resumes/${mode}`);
+        form.reset({ resume_url: '' });
+        await queryClient.invalidateQueries({ queryKey: ['site-settings'] });
+        await queryClient.refetchQueries({ queryKey: ['site-settings'] });
+        toast.success('Resume removed successfully');
       } catch (error) {
         toast.error('Failed to remove resume');
         console.error('Error removing resume:', error);
