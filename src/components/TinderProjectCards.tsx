@@ -106,68 +106,9 @@ const TinderProjectCards = ({ projects, mode }: TinderProjectCardsProps) => {
           transition={{ type: "spring", stiffness: 500, damping: 30 }}
           onClick={index === 0 ? () => handleCardClick(project) : undefined}
         >
-          <div className="h-full flex flex-row">
-            {/* Project Content */}
-            <div className="w-3/5 p-4 flex flex-col justify-between">
-              <div>
-                {/* Position Badge for Creative Mode */}
-                {mode === 'creative' && project.position && (
-                  <Badge className="mb-1 text-xs bg-orange-500/20 text-orange-400 border-orange-500/30">
-                    {project.position}
-                  </Badge>
-                )}
-                <h3 className="text-lg font-semibold mb-1 line-clamp-1">
-                  {project.title}
-                </h3>
-                <div
-                  className="text-sm text-muted-foreground mb-2 line-clamp-3 prose prose-sm prose-invert max-w-none"
-                  style={{ wordBreak: 'keep-all', overflowWrap: 'break-word', hyphens: 'none' }}
-                >
-                  <ReactMarkdown>{project.description}</ReactMarkdown>
-                </div>
-                {project.tags && project.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mb-2">
-                    {project.tags.slice(0, 2).map((tag) => (
-                      <Badge key={tag} variant="outline" className="text-xs px-1.5 py-0">
-                        {tag}
-                      </Badge>
-                    ))}
-                    {project.tags.length > 2 && (
-                      <Badge variant="outline" className="text-xs px-1.5 py-0">
-                        +{project.tags.length - 2}
-                      </Badge>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex flex-col gap-2">
-                {project.live_url && (
-                  <Button size="sm" className="text-xs" asChild>
-                    <a href={project.live_url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
-                      <ExternalLink className="w-3 h-3 mr-1" />
-                      {mode === 'professional' ? 'Live' : 'View'}
-                    </a>
-                  </Button>
-                )}
-                {project.github_url && (
-                  <Button size="sm" variant="outline" className={`text-xs border-2 ${
-                    mode === 'creative'
-                      ? 'border-orange-500/50 text-orange-400 hover:bg-orange-500 hover:text-white'
-                      : 'border-purple-500/50 text-purple-400 hover:bg-purple-500 hover:text-white'
-                  }`} asChild>
-                    <a href={project.github_url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
-                      <Github className="w-3 h-3 mr-1" />
-                      Code
-                    </a>
-                  </Button>
-                )}
-              </div>
-            </div>
-
+          <div className="h-full flex flex-col">
             {/* Project Image */}
-            <div className="relative w-2/5 h-full overflow-hidden rounded-r-xl">
+            <div className="relative h-48 overflow-hidden rounded-t-xl">
               {project.image_drive_id ? (
                 <img
                   src={project.image_drive_id.startsWith('http')
@@ -200,6 +141,65 @@ const TinderProjectCards = ({ projects, mode }: TinderProjectCardsProps) => {
                   Featured
                 </Badge>
               )}
+            </div>
+
+            {/* Project Content */}
+            <div className="flex-1 p-4 flex flex-col justify-between">
+              <div>
+                {/* Position Badge for Creative Mode */}
+                {mode === 'creative' && project.position && (
+                  <Badge className="mb-1 text-xs bg-orange-500/20 text-orange-400 border-orange-500/30">
+                    {project.position}
+                  </Badge>
+                )}
+                <h3 className="text-lg font-semibold mb-1 line-clamp-1">
+                  {project.title}
+                </h3>
+                <div
+                  className="text-sm text-muted-foreground mb-2 line-clamp-2 prose prose-sm prose-invert max-w-none"
+                  style={{ wordBreak: 'keep-all', overflowWrap: 'break-word', hyphens: 'none' }}
+                >
+                  <ReactMarkdown>{project.description}</ReactMarkdown>
+                </div>
+                {project.tags && project.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mb-2">
+                    {project.tags.slice(0, 3).map((tag) => (
+                      <Badge key={tag} variant="outline" className="text-xs px-1.5 py-0">
+                        {tag}
+                      </Badge>
+                    ))}
+                    {project.tags.length > 3 && (
+                      <Badge variant="outline" className="text-xs px-1.5 py-0">
+                        +{project.tags.length - 3}
+                      </Badge>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex space-x-2">
+                {project.live_url && (
+                  <Button size="sm" className="flex-1 text-xs" asChild>
+                    <a href={project.live_url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
+                      <ExternalLink className="w-3 h-3 mr-1" />
+                      {mode === 'professional' ? 'Live' : 'View'}
+                    </a>
+                  </Button>
+                )}
+                {project.github_url && (
+                  <Button size="sm" variant="outline" className={`flex-1 text-xs border-2 ${
+                    mode === 'creative'
+                      ? 'border-orange-500/50 text-orange-400 hover:bg-orange-500 hover:text-white'
+                      : 'border-purple-500/50 text-purple-400 hover:bg-purple-500 hover:text-white'
+                  }`} asChild>
+                    <a href={project.github_url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
+                      <Github className="w-3 h-3 mr-1" />
+                      Code
+                    </a>
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
         </motion.div>
