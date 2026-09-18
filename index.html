@@ -82,6 +82,11 @@
     ]
     </script>
     
+    <!-- /favicon.ico is the fallback browsers and crawlers (Google included)
+         request directly by convention, independent of these <link> tags --
+         it must exist as a real file or Vercel's SPA catch-all rewrite in
+         vercel.json serves index.html at that path instead. -->
+    <link rel="icon" href="/favicon.ico" sizes="any" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
     <link rel="icon" type="image/png" sizes="256x256" href="/favicon-256.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
