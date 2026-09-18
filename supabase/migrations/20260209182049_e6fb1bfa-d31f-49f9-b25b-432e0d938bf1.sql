@@ -1,1 +1,0 @@
-ALTER TABLE projects ADD COLUMN IF NOT EXISTS scroll_speed integer DEFAULT 10000;

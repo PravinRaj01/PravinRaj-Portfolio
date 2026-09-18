@@ -63,10 +63,6 @@ export default defineConfig(({ mode }) => ({
             return "ui-vendor";
           }
 
-          // Supabase client
-          if (id.includes("@supabase")) {
-            return "supabase-vendor";
-          }
 
           // Markdown rendering
           if (

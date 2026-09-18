@@ -19,8 +19,15 @@ router = APIRouter(prefix="/hero", tags=["hero"])
 async def list_hero_content(
     mode: Mode, db: Annotated[AsyncSession, Depends(get_db)]
 ) -> list[HeroContent]:
+    # order_index ties (e.g. duplicate rows from a past client-side bug --
+    # see MIGRATION_PLAN.md §13) aren't given any ordering guarantee by
+    # Postgres alone; created_at as a secondary key makes the result stable
+    # across requests so the admin form and the public Hero component can
+    # never end up reading two different rows for the same mode.
     result = await db.execute(
-        select(HeroContent).where(HeroContent.mode == mode).order_by(HeroContent.order_index)
+        select(HeroContent)
+        .where(HeroContent.mode == mode)
+        .order_by(HeroContent.order_index, HeroContent.created_at)
     )
     return list(result.scalars().all())
 

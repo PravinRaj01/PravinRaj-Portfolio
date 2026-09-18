@@ -182,6 +182,9 @@ const ChatbotDrawer = ({ state, onStateChange }: ChatbotDrawerProps) => {
         if (response.status === 402) {
           throw new Error("AI service unavailable. Please try again later.");
         }
+        if (response.status === 503) {
+          throw new Error("The assistant isn't switched on yet. Please try again later.");
+        }
         throw new Error("Failed to get response");
       }
 

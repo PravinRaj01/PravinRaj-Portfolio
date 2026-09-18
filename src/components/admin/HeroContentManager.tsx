@@ -101,7 +101,13 @@ const SortableTitleItem = ({ id, index, form, onRemove }: SortableTitleItemProps
 const HeroContentManager = () => {
   const { mode } = usePortfolio(); // Use mode from Navigation context
   const [showPreview, setShowPreview] = useState(false);
-  const { data: existingContent = [] } = useHeroContent(mode);
+  // isLoading (not isFetching) is what tells us the very first fetch for
+  // this mode hasn't resolved yet -- if a submit fires while it's still
+  // true, existingHeroContent below is a false negative (not "there really
+  // is no row yet"), and onSubmit would silently POST a duplicate row
+  // instead of PATCHing the real one. See MIGRATION_PLAN.md §13: this is
+  // exactly how the site ended up with 3 duplicate professional-mode rows.
+  const { data: existingContent = [], isLoading: isHeroContentLoading } = useHeroContent(mode);
   const existingHeroContent = existingContent[0]; // Get first entry for this mode
   const createHeroContent = useCreateHeroContent();
   const updateHeroContent = useUpdateHeroContent();
@@ -210,8 +216,15 @@ const HeroContentManager = () => {
   }, [existingHeroContent?.id, mode]);
 
   const onSubmit = async (data: HeroContentFormData) => {
+    // Guard against the create/update race: never decide "no existing row"
+    // from a query that hasn't finished its first fetch for this mode yet.
+    if (isHeroContentLoading) {
+      toast.error('Still loading current content -- please wait a moment and try saving again.');
+      return;
+    }
+
     isSubmittingRef.current = true; // Set flag to prevent form from auto-loading
-    
+
     try {
       const contentData = {
         mode: data.mode,
@@ -567,8 +580,15 @@ const HeroContentManager = () => {
                 </div>
               )}
 
-              <Button type="submit" disabled={createHeroContent.isPending || updateHeroContent.isPending}>
-                {(createHeroContent.isPending || updateHeroContent.isPending) ? 'Saving...' : existingHeroContent ? 'Update Hero Content' : 'Create Hero Content'}
+              <Button
+                type="submit"
+                disabled={createHeroContent.isPending || updateHeroContent.isPending || isHeroContentLoading}
+              >
+                {(createHeroContent.isPending || updateHeroContent.isPending)
+                  ? 'Saving...'
+                  : isHeroContentLoading
+                    ? 'Loading current content...'
+                    : existingHeroContent ? 'Update Hero Content' : 'Create Hero Content'}
               </Button>
             </form>
           </Form>

@@ -1,1 +1,0 @@
-ALTER TABLE projects ADD COLUMN IF NOT EXISTS recent_order_index integer DEFAULT 0;

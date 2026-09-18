@@ -1,16 +1,1 @@
-project_id = "kadsdqnpxzgdxnnrdzra"
-
-[functions.google-drive-proxy]
-verify_jwt = false
-
-[functions.portfolio-chat]
-verify_jwt = false
-
-[functions.generate-description]
-verify_jwt = false
-
-[functions.track-visitor]
-verify_jwt = false
-
-[functions.generate-magazine]
-verify_jwt = false
+project_id = "rorwclsfdvowlqmotbgt"

@@ -244,6 +244,12 @@ html {
     rgba(0, 0, 0, 0.3) 0px 1px 35px 8px, rgba(0, 0, 0, 0.2) 0px -3px 0px inset;
 }
 
+/* Swiper's .swiper-slide sets display:block, which kills Tailwind's
+   `flex` class on slides. Restore flex when a slide opts in. */
+.swiper-slide.flex {
+  display: flex;
+}
+
 /* Splash Screen / Preloader - Reference 2 style */
 #preloader {
   position: fixed;
