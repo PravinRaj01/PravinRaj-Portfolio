@@ -206,6 +206,24 @@ export const PortfolioProvider: React.FC<PortfolioProviderProps> = ({ children }
       const newMode: Mode = mode === 'professional' ? 'creative' : 'professional';
       const newModePages = newMode === 'professional' ? professionalVisiblePages : creativeVisiblePages;
 
+      // Only '/' and /pro/* or /creative/* URLs carry a mode. On mode-neutral
+      // pages (/admin, /playground) the toggle just switches which mode is
+      // active, in place — there's no "same page in the other mode" to go to
+      // (navigating would land on e.g. /pro/admin, which doesn't exist).
+      const isModeScoped = location.pathname === '/' || stripModePrefix(location.pathname).mode !== null;
+      if (!isModeScoped) {
+        setTransitionTargetMode(newMode);
+        setIsTransitioning(true);
+        setTimeout(() => {
+          setMode(newMode);
+          localStorage.setItem('portfolioMode', newMode);
+        }, 300);
+        setTimeout(() => {
+          setIsTransitioning(false);
+        }, 1500);
+        return;
+      }
+
       // Get current page from URL
       const currentPageId = getPageIdFromPath(location.pathname);
       const { rest: currentRest } = stripModePrefix(location.pathname);
