@@ -1,4 +1,5 @@
 {
+  "buildCommand": "bun run build",
   "redirects": [
     { "source": "/projects", "destination": "/pro/projects", "permanent": true },
     { "source": "/experience", "destination": "/pro/experience", "permanent": true },
