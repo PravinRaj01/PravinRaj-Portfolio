@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
-import { Navigate, Outlet } from 'react-router-dom';
+import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { usePortfolio } from '@/contexts/PortfolioContext';
-import { Mode } from '@/lib/modePath';
+import { Mode, stripModePrefix } from '@/lib/modePath';
 
 interface ModeLayoutProps {
   mode: Mode;
@@ -13,23 +13,28 @@ interface ModeLayoutProps {
  * prefix IS the canonical URL, so this just syncs the URL's mode into
  * PortfolioContext and renders the matched child in place (no reload).
  *
- * The one exception: the default mode's own prefix isn't canonical — that
- * mode's home is '/' (SEO_GEO_PLAN.md §3) — so this redirects there instead.
+ * The one exception: the default mode's *bare* prefix (e.g. '/pro' on its own,
+ * when professional is default) isn't canonical — that mode's home is '/'
+ * (SEO_GEO_PLAN.md §3) — so only that exact URL redirects there. Child pages
+ * like '/pro/projects' are canonical and always render normally.
  */
 const ModeLayout = ({ mode }: ModeLayoutProps) => {
   const { defaultMode, modeSettingsLoaded, syncModeFromUrl } = usePortfolio();
+  const location = useLocation();
+
+  const isPrefixRoot = stripModePrefix(location.pathname).rest === '/';
+  const redirectToRoot = mode === defaultMode && isPrefixRoot;
 
   useEffect(() => {
-    if (!modeSettingsLoaded || mode === defaultMode) return;
+    if (!modeSettingsLoaded || redirectToRoot) return;
     syncModeFromUrl(mode);
-  }, [mode, defaultMode, modeSettingsLoaded, syncModeFromUrl]);
+  }, [mode, modeSettingsLoaded, redirectToRoot, syncModeFromUrl]);
 
-  // Wait for settings before deciding anything — otherwise a fresh load of
-  // the non-default mode's prefix could flash a redirect to '/' before
-  // defaultMode resolves.
+  // Wait for settings before deciding anything — otherwise a fresh load of a
+  // prefixed URL could redirect before defaultMode resolves.
   if (!modeSettingsLoaded) return null;
 
-  if (mode === defaultMode) {
+  if (redirectToRoot) {
     return <Navigate to="/" replace />;
   }
 
