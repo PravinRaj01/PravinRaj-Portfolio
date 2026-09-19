@@ -10,16 +10,13 @@ import CursorFollower from '@/components/CursorFollower';
 import RadialGradient from '@/components/RadialGradient';
 import { usePortfolio } from '@/contexts/PortfolioContext';
 import { usePageMeta } from '@/hooks/usePageMeta';
+import { podcastMeta } from '@/lib/seo';
 
 const Podcast = () => {
-  const { mode, darkMode } = usePortfolio();
+  const { mode, defaultMode, darkMode } = usePortfolio();
   const [playingEpisode, setPlayingEpisode] = useState<string | null>(null);
 
-  usePageMeta({
-    title: 'Podcast — Pravin Raj Muralitharan',
-    description: 'Listen to the Pravin Raj podcast — conversations on AI, creative technology, and the future of design.',
-    url: 'https://pravinraj.dev/podcast',
-  });
+  usePageMeta(podcastMeta(mode, defaultMode));
 
   const podcastEpisodes = [
     {

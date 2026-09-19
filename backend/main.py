@@ -1,8 +1,10 @@
 # main.py — MIGRATION_PLAN.md §2, §7
 #
 # Run with: uvicorn main:app --reload   (per CLAUDE.md's "Future Backend Commands")
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+
+from app.services.deploy_hook import trigger_rebuild
 
 from app.api.routers.about import router as about_router
 from app.api.routers.ai import router as ai_router
@@ -77,6 +79,32 @@ app.include_router(magazine_router, prefix="/api/v1")
 app.include_router(resumes_router, prefix="/api/v1")
 app.include_router(drive_router, prefix="/api/v1")
 app.include_router(ai_router, prefix="/api/v1")
+
+_CONTENT_MUTATION_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
+# Mutating routes that are never publishable content -- hit on every ordinary
+# page view (visitors, game-scores) or otherwise unrelated to the prerendered
+# site (auth, the AI chatbot, the Drive proxy). Every other admin write goes
+# through require_admin and should trigger a rebuild (SEO_GEO_PLAN.md Phase 2).
+_NON_CONTENT_PREFIXES = (
+    "/api/v1/auth",
+    "/api/v1/visitors",
+    "/api/v1/game-scores",
+    "/api/v1/ai",
+    "/api/v1/drive",
+)
+
+
+@app.middleware("http")
+async def trigger_rebuild_on_content_write(request: Request, call_next):
+    response = await call_next(request)
+    if (
+        _IS_PRODUCTION
+        and request.method in _CONTENT_MUTATION_METHODS
+        and response.status_code < 300
+        and not request.url.path.startswith(_NON_CONTENT_PREFIXES)
+    ):
+        await trigger_rebuild()
+    return response
 
 
 @app.get("/health")

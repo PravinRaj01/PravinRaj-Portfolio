@@ -12,17 +12,21 @@ import { usePortfolio } from '@/contexts/PortfolioContext';
 import { useExperience } from '@/hooks/useExperience';
 import { Experience } from '@/types/cms';
 import ReactMarkdown from 'react-markdown';
+import { usePageMeta } from '@/hooks/usePageMeta';
+import { getModePath } from '@/lib/modePath';
+import { experienceMeta } from '@/lib/seo';
 
 const ExperienceDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { mode, darkMode } = usePortfolio();
+  const { mode, defaultMode, darkMode } = usePortfolio();
   const { experiences, loading } = useExperience(mode);
   const [experience, setExperience] = useState<Experience | null>(null);
 
   useEffect(() => {
     if (experiences && id) {
-      const found = experiences.find(exp => exp.id === id);
+      // Try by slug first, then fall back to UUID (same pattern as ProjectDetail).
+      const found = experiences.find(exp => exp.slug === id) ?? experiences.find(exp => exp.id === id);
       setExperience(found || null);
     }
   }, [experiences, id]);
@@ -47,6 +51,8 @@ const ExperienceDetail = () => {
     if (exp.date_type === 'single' && exp.event_date) return exp.event_date;
     return exp.period;
   };
+
+  usePageMeta(experienceMeta(mode, defaultMode, experience));
 
   if (loading) {
     return (
@@ -76,7 +82,7 @@ const ExperienceDetail = () => {
           <div className="container mx-auto py-12 text-center">
             <h1 className="text-2xl font-bold mb-4">Experience Not Found</h1>
             <p className="text-muted-foreground mb-6">The experience you're looking for doesn't exist.</p>
-            <Button onClick={() => navigate('/experience')}>
+            <Button onClick={() => navigate(getModePath(mode, defaultMode, '/experience'))}>
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back to Experience
             </Button>
@@ -104,7 +110,7 @@ const ExperienceDetail = () => {
             transition={{ duration: 0.4 }}
             className="mb-6"
           >
-            <Button variant="ghost" onClick={() => navigate('/experience')} className="gap-2">
+            <Button variant="ghost" onClick={() => navigate(getModePath(mode, defaultMode, '/experience'))} className="gap-2">
               <ArrowLeft className="w-4 h-4" />
               Back to Experience
             </Button>
@@ -232,7 +238,7 @@ const ExperienceDetail = () => {
           <div className="border-t border-border pt-8">
             <div className="flex justify-between items-center">
               {prevExperience ? (
-                <Link to={`/experience/${prevExperience.id}`} className="group flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
+                <Link to={getModePath(mode, defaultMode, `/experience/${prevExperience.slug || prevExperience.id}`)} className="group flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
                   <ChevronLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
                   <div className="text-left">
                     <div className="text-xs text-muted-foreground">Previous</div>
@@ -243,7 +249,7 @@ const ExperienceDetail = () => {
                 <div />
               )}
               {nextExperience ? (
-                <Link to={`/experience/${nextExperience.id}`} className="group flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors text-right">
+                <Link to={getModePath(mode, defaultMode, `/experience/${nextExperience.slug || nextExperience.id}`)} className="group flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors text-right">
                   <div>
                     <div className="text-xs text-muted-foreground">Next</div>
                     <div className="text-sm font-medium">{nextExperience.title}</div>

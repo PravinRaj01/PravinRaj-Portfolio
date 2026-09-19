@@ -51,6 +51,7 @@ export interface Project {
 
 export interface Experience {
   id: string;
+  slug?: string;
   title: string;
   company: string;
   location: string;

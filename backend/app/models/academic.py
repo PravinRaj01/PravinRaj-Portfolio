@@ -1,7 +1,7 @@
 # app/models/academic.py
 #
 # Verified against the real production DDL in db_cluster-26-07-2026@19-41-44.backup.
-from sqlalchemy import Boolean, CheckConstraint, Index, Integer, Numeric, String, Text, text
+from sqlalchemy import Boolean, CheckConstraint, Index, Integer, Numeric, String, Text, UniqueConstraint, text
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column
 from app.db.base import Base, UUIDPk, TimestampsNullable
@@ -32,8 +32,10 @@ class Experience(UUIDPk, TimestampsNullable, Base):
     # Real CHECK constraint (experiences_mode_check), missed in the types.ts-only pass.
     __table_args__ = (
         CheckConstraint("mode = ANY (ARRAY['professional'::text, 'creative'::text])", name="mode"),
+        UniqueConstraint("slug", name="experiences_slug_unique"),
     )
     title: Mapped[str] = mapped_column(Text, nullable=False)
+    slug: Mapped[str | None] = mapped_column(Text)                  # nullable + unique; generated server-side, same pattern as Project.slug
     company: Mapped[str] = mapped_column(Text, nullable=False)
     location: Mapped[str] = mapped_column(Text, nullable=False)
     period: Mapped[str] = mapped_column(Text, nullable=False)       # "Mar 2025 - Present"; sorted client-side

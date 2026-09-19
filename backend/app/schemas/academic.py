@@ -76,6 +76,7 @@ DateType = Literal["range", "single"]
 
 class ExperienceCreate(BaseModel):
     title: str
+    slug: str | None = None      # auto-generated from title when omitted, same as ProjectCreate
     company: str
     location: str
     period: str
@@ -95,6 +96,7 @@ class ExperienceCreate(BaseModel):
 class ExperienceUpdate(BaseModel):
     model_config = _UPDATE
     title: str | None = None
+    slug: str | None = None
     company: str | None = None
     location: str | None = None
     period: str | None = None

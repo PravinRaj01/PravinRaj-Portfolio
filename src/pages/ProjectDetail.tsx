@@ -18,12 +18,14 @@ import { Project, ProjectImageFolder } from '@/types/cms';
 import ReactMarkdown from 'react-markdown';
 import { cn } from '@/lib/utils';
 import { usePageMeta } from '@/hooks/usePageMeta';
+import { getModePath } from '@/lib/modePath';
+import { projectMeta } from '@/lib/seo';
 
 const ProjectDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const { mode, darkMode } = usePortfolio();
+  const { mode, defaultMode, darkMode } = usePortfolio();
   const { projects, loading } = useProjects(mode);
   const { folders } = useProjectFolders(mode);
   const [project, setProject] = useState<Project | null>(null);
@@ -36,19 +38,10 @@ const ProjectDetail = () => {
   // Check if came from folder view
   const fromFolder = (location.state as { fromFolder?: string })?.fromFolder;
 
-  // Dynamic meta tags — update as project resolves
-  const projectImageUrl = project?.image_drive_id
-    ? `https://drive.google.com/uc?export=view&id=${project.image_drive_id}`
-    : 'https://pravinraj.dev/og-image.png';
-  const projectDesc = project
-    ? project.description.replace(/[#*_`]/g, '').slice(0, 155) + (project.description.length > 155 ? '…' : '')
-    : 'Explore this project by Pravin Raj Muralitharan — AI Engineer & UI/UX Designer.';
-  usePageMeta({
-    title: project ? `${project.title} — Pravin Raj Portfolio` : 'Project — Pravin Raj Portfolio',
-    description: projectDesc,
-    image: projectImageUrl,
-    url: project ? `https://pravinraj.dev/projects/${project.slug || project.id}` : 'https://pravinraj.dev/projects',
-  });
+  // Dynamic meta tags + JSON-LD — update as project resolves
+  usePageMeta(
+    projectMeta(mode, defaultMode, project, folders.find((f) => f.id === project?.folder_id) ?? null)
+  );
 
   useEffect(() => {
     if (projects.length > 0 && id) {
@@ -95,7 +88,7 @@ const ProjectDetail = () => {
           <div className="container mx-auto py-12 text-center">
             <h1 className="text-2xl font-bold mb-4">Project Not Found</h1>
             <p className="text-muted-foreground mb-6">The project you're looking for doesn't exist.</p>
-            <Button onClick={() => navigate('/projects')}>
+            <Button onClick={() => navigate(getModePath(mode, defaultMode, '/projects'))}>
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back to Projects
             </Button>
@@ -124,16 +117,16 @@ const ProjectDetail = () => {
               <div className="flex items-center gap-1 sm:gap-2 text-sm text-muted-foreground mb-2 flex-wrap">
                 <span 
                   className="hover:text-foreground cursor-pointer flex-shrink-0"
-                  onClick={() => navigate('/projects')}
+                  onClick={() => navigate(getModePath(mode, defaultMode, '/projects'))}
                 >
                   Projects
                 </span>
                 <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
-                <span 
+                <span
                   className={`hover:text-foreground cursor-pointer flex items-center gap-1 flex-shrink-0 ${
                     mode === 'creative' ? 'text-orange-400' : 'text-purple-400'
                   }`}
-                  onClick={() => navigate(`/projects/folder/${project.folder_id}`)}
+                  onClick={() => navigate(getModePath(mode, defaultMode, `/projects/folder/${project.folder_id}`))}
                 >
                   <Folder className="w-3 h-3" />
                   <span className="max-w-[80px] sm:max-w-[150px] truncate">{folders.find(f => f.id === project.folder_id)?.name}</span>
@@ -147,11 +140,11 @@ const ProjectDetail = () => {
               variant="ghost" 
               onClick={() => {
                 if (fromFolder) {
-                  navigate(`/projects/folder/${fromFolder}`);
+                  navigate(getModePath(mode, defaultMode, `/projects/folder/${fromFolder}`));
                 } else if (project?.folder_id) {
-                  navigate(`/projects/folder/${project.folder_id}`);
+                  navigate(getModePath(mode, defaultMode, `/projects/folder/${project.folder_id}`));
                 } else {
-                  navigate('/projects');
+                  navigate(getModePath(mode, defaultMode, '/projects'));
                 }
               }}
               className="mb-6 hover:bg-muted"
@@ -493,7 +486,7 @@ const ProjectDetail = () => {
                 {adjacentProjects.prev ? (
                   <Button 
                     variant="ghost" 
-                    onClick={() => navigate(`/projects/${adjacentProjects.prev!.slug || adjacentProjects.prev!.id}`)}
+                    onClick={() => navigate(getModePath(mode, defaultMode, `/projects/${adjacentProjects.prev!.slug || adjacentProjects.prev!.id}`))}
                     className="flex items-center gap-1 sm:gap-2 hover:bg-muted min-w-0 flex-1 justify-start px-2 sm:px-4"
                   >
                     <ChevronLeft className="w-4 h-4 flex-shrink-0" />
@@ -512,7 +505,7 @@ const ProjectDetail = () => {
                 {adjacentProjects.next ? (
                   <Button 
                     variant="ghost" 
-                    onClick={() => navigate(`/projects/${adjacentProjects.next!.slug || adjacentProjects.next!.id}`)}
+                    onClick={() => navigate(getModePath(mode, defaultMode, `/projects/${adjacentProjects.next!.slug || adjacentProjects.next!.id}`))}
                     className="flex items-center gap-1 sm:gap-2 hover:bg-muted min-w-0 flex-1 justify-end px-2 sm:px-4"
                   >
                     <span className="sm:hidden text-xs">Next</span>

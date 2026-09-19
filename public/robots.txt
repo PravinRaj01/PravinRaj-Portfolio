@@ -1,4 +1,21 @@
 User-agent: *
 Allow: /
+Disallow: /admin
+
+# AI search / answer-engine and training crawlers, explicitly welcome.
+# A crawler that matches a named group ignores the `*` group above, so
+# `Disallow: /admin` is repeated here.
+User-agent: GPTBot
+User-agent: OAI-SearchBot
+User-agent: ChatGPT-User
+User-agent: ClaudeBot
+User-agent: Claude-SearchBot
+User-agent: Claude-User
+User-agent: PerplexityBot
+User-agent: Perplexity-User
+User-agent: Google-Extended
+User-agent: Applebot-Extended
+Allow: /
+Disallow: /admin
 
 Sitemap: https://pravinraj.dev/sitemap.xml

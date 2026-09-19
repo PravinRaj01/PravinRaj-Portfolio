@@ -24,18 +24,16 @@ import ReactMarkdown from 'react-markdown';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 import { usePageMeta } from '@/hooks/usePageMeta';
+import { getModePath } from '@/lib/modePath';
+import { projectsListMeta } from '@/lib/seo';
 
 const Projects = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { mode, darkMode } = usePortfolio();
+  const { mode, defaultMode, darkMode } = usePortfolio();
 
-  usePageMeta({
-    title: 'Projects — Pravin Raj Muralitharan',
-    description: 'Explore AI engineering and UI/UX design projects by Pravin Raj — from machine learning pipelines to polished product interfaces.',
-    url: 'https://pravinraj.dev/projects',
-  });
   const { projects, loading } = useProjects(mode);
+  usePageMeta(projectsListMeta(mode, defaultMode, projects));
   const { folders, loading: foldersLoading } = useProjectFolders(mode);
   const { data: siteSettings } = useSiteSettings();
   
@@ -445,7 +443,7 @@ const Projects = () => {
                         }`}></div>
                         <Card 
                           className="hover:shadow-lg transition-shadow overflow-hidden cursor-pointer"
-                          onClick={() => navigate(`/projects/${project.slug || project.id}`)}
+                          onClick={() => navigate(getModePath(mode, defaultMode, `/projects/${project.slug || project.id}`))}
                         >
                           <div className="flex flex-col md:flex-row">
                             {/* Project Image - Square Crop */}
@@ -513,7 +511,7 @@ const Projects = () => {
                                         }`}
                                         onClick={(e) => {
                                           e.stopPropagation();
-                                          navigate(`/projects/folder/${project.folder_id}`);
+                                          navigate(getModePath(mode, defaultMode, `/projects/folder/${project.folder_id}`));
                                         }}
                                       >
                                         <Folder className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
@@ -666,7 +664,7 @@ const Projects = () => {
                                 <button
                                   key={folder.id}
                                   onClick={() => {
-                                    navigate(`/projects/folder/${folder.id}`);
+                                    navigate(getModePath(mode, defaultMode, `/projects/folder/${folder.id}`));
                                     setShowFolderPicker(false);
                                   }}
                                   className={cn(
@@ -696,7 +694,7 @@ const Projects = () => {
                                 <button
                                   key={folder.id}
                                   onClick={() => {
-                                    navigate(`/projects/folder/${folder.id}`);
+                                    navigate(getModePath(mode, defaultMode, `/projects/folder/${folder.id}`));
                                     setShowFolderPicker(false);
                                   }}
                                   className={cn(
@@ -759,7 +757,7 @@ const Projects = () => {
                     >
                       <Card 
                         className="h-full hover:shadow-lg transition-shadow overflow-hidden cursor-pointer flex flex-col"
-                        onClick={() => navigate(`/projects/${project.slug || project.id}`)}
+                        onClick={() => navigate(getModePath(mode, defaultMode, `/projects/${project.slug || project.id}`))}
                       >
                         {/* Project Image - 16:9 Ratio */}
                         <div className="relative aspect-video overflow-hidden flex-shrink-0">
@@ -801,7 +799,7 @@ const Projects = () => {
                               }`}
                               onClick={(e) => {
                                 e.stopPropagation();
-                                navigate(`/projects/folder/${project.folder_id}`);
+                                navigate(getModePath(mode, defaultMode, `/projects/folder/${project.folder_id}`));
                               }}
                             >
                               <Folder className="w-3 h-3 mr-1" />

@@ -7,6 +7,8 @@ import { Badge } from '@/components/ui/badge';
 import { generateDriveImageUrl } from '@/utils/googleDrive';
 import { Project } from '@/types/cms';
 import ReactMarkdown from 'react-markdown';
+import { usePortfolio } from '@/contexts/PortfolioContext';
+import { getModePath } from '@/lib/modePath';
 
 interface TinderProjectCardsProps {
   projects: Project[];
@@ -15,6 +17,7 @@ interface TinderProjectCardsProps {
 
 const TinderProjectCards = ({ projects, mode }: TinderProjectCardsProps) => {
   const navigate = useNavigate();
+  const { defaultMode } = usePortfolio();
   const [cards, setCards] = useState(projects);
   const [currentIndex, setCurrentIndex] = useState(0);
   const dragControls = useAnimation();
@@ -69,7 +72,7 @@ const TinderProjectCards = ({ projects, mode }: TinderProjectCardsProps) => {
 
   const handleCardClick = (project: { id: string; slug?: string }) => {
     if (!isDragging.current) {
-      navigate(`/projects/${project.slug || project.id}`);
+      navigate(getModePath(mode, defaultMode, `/projects/${project.slug || project.id}`));
     }
   };
 

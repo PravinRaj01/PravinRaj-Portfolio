@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button';
 import { useHeroContent } from '@/hooks/useHeroContent';
 import { useSiteSettings } from '@/hooks/useSiteSettings';
 import TypewriterText from '@/components/TypewriterText';
+import { usePortfolio } from '@/contexts/PortfolioContext';
+import { getModePath } from '@/lib/modePath';
 
 interface HeroProps {
   mode: 'professional' | 'creative';
@@ -14,6 +16,7 @@ interface HeroProps {
 
 const Hero = ({ mode }: HeroProps) => {
   const navigate = useNavigate();
+  const { defaultMode } = usePortfolio();
   const { data: heroContent = [], isLoading: isHeroLoading } = useHeroContent(mode);
   const { data: siteSettings } = useSiteSettings();
 
@@ -68,7 +71,7 @@ const Hero = ({ mode }: HeroProps) => {
       ? "Passionate about creating innovative solutions with modern technologies. Specialized in React, TypeScript, and scalable web applications."
       : "Bringing ideas to life through graphic design, video editing, and creative storytelling. Let's create something amazing together!",
     cta_text: mode === 'professional' ? "View My Work" : "Explore Creativity",
-    cta_link: '/projects',
+    cta_link: getModePath(mode, defaultMode, '/projects'),
     animated_titles: mode === 'professional' 
       ? ["Full Stack Developer", "Software Engineer", "Web Developer"] 
       : ["Creative Designer", "Content Creator", "Visual Artist"],
@@ -80,7 +83,10 @@ const Hero = ({ mode }: HeroProps) => {
   };
 
   const handleCtaClick = () => {
-    const link = content.cta_link || '/projects';
+    // '/projects' is the local (non-CMS) fallback default, resolved to the
+    // current mode's projects page. A CMS-configured cta_link (admin-editable)
+    // is passed through as-is — out of scope for this migration.
+    const link = content.cta_link || getModePath(mode, defaultMode, '/projects');
     if (link.startsWith('http')) {
       window.open(link, '_blank');
     } else {

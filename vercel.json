@@ -1,3 +1,19 @@
 {
-  "rewrites": [{ "source": "/(.*)", "destination": "/" }]
+  "redirects": [
+    { "source": "/projects", "destination": "/pro/projects", "permanent": true },
+    { "source": "/experience", "destination": "/pro/experience", "permanent": true },
+    { "source": "/academic", "destination": "/pro/academic", "permanent": true },
+    { "source": "/contact", "destination": "/pro/contact", "permanent": true }
+  ],
+  "rewrites": [
+    { "source": "/pro", "destination": "/index.html" },
+    { "source": "/pro/(.*)", "destination": "/index.html" },
+    { "source": "/creative", "destination": "/index.html" },
+    { "source": "/creative/(.*)", "destination": "/index.html" },
+    { "source": "/playground", "destination": "/index.html" },
+    { "source": "/admin", "destination": "/index.html" },
+    { "source": "/podcast", "destination": "/index.html" },
+    { "source": "/projects/(.*)", "destination": "/index.html" },
+    { "source": "/experience/(.*)", "destination": "/index.html" }
+  ]
 }

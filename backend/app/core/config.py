@@ -70,6 +70,13 @@ class Settings(BaseSettings):
     # Public, read-only Drive API key for the resume/gallery folder proxy.
     google_drive_api_key: str = ""
 
+    # Vercel Deploy Hook URL for the FRONTEND project (Project Settings → Git
+    # → Deploy Hooks there, not this backend project) — POSTed to after an
+    # admin content write so the prerendered static output stays fresh
+    # (SEO_GEO_PLAN.md Phase 2). Empty by default: the rebuild trigger is a
+    # no-op until this is set.
+    vercel_deploy_hook_url: str = ""
+
     @field_validator("database_url", "database_url_direct")
     @classmethod
     def _normalize_db_url(cls, v: str) -> str:

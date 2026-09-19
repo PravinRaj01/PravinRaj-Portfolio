@@ -9,17 +9,14 @@ import { usePortfolio } from '@/contexts/PortfolioContext';
 import { useContactContent } from '@/hooks/useContactContent';
 import { useEnabledSocials } from '@/hooks/useSocials';
 import { usePageMeta } from '@/hooks/usePageMeta';
+import { contactMeta } from '@/lib/seo';
 
 const Contact = () => {
-  const { mode, darkMode } = usePortfolio();
+  const { mode, defaultMode, darkMode } = usePortfolio();
   const { data: contactContent } = useContactContent(mode);
   const { data: socials = [] } = useEnabledSocials(mode);
 
-  usePageMeta({
-    title: 'Contact — Pravin Raj Muralitharan',
-    description: 'Get in touch with Pravin Raj — open to collaborations, opportunities, and exciting projects in AI engineering and UI/UX design.',
-    url: 'https://pravinraj.dev/contact',
-  });
+  usePageMeta(contactMeta(mode, defaultMode));
 
   // Fallback data if no content is available
   const fallbackData = {

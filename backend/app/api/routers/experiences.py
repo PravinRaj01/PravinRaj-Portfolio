@@ -2,6 +2,7 @@
 # mode is optional (useExperience.ts: `if (mode) ...`). Genuinely unordered
 # here -- the real hook has no .order() call; date-based sorting happens
 # client-side (getStartDate/sort logic in useExperience.ts).
+import re
 import uuid
 from typing import Annotated
 
@@ -17,6 +18,28 @@ from app.schemas.common import Mode
 
 router = APIRouter(prefix="/experiences", tags=["experiences"])
 
+# Same slug scheme as app/api/routers/projects.py's _slugify/_unique_slug
+# (SEO_GEO_PLAN.md Phase 2 — experience detail pages need a human-readable
+# identifier to match Project.slug's URL pattern).
+_SLUG_STRIP_RE = re.compile(r"[^a-zA-Z0-9\s-]")
+_SLUG_WHITESPACE_RE = re.compile(r"\s+")
+
+
+def _slugify(title: str) -> str:
+    stripped = _SLUG_STRIP_RE.sub("", title)
+    hyphenated = _SLUG_WHITESPACE_RE.sub("-", stripped)
+    return hyphenated.lower()
+
+
+async def _unique_slug(db: AsyncSession, title: str) -> str:
+    base = _slugify(title)
+    slug = base
+    suffix = 1
+    while await db.scalar(select(Experience.id).where(Experience.slug == slug)) is not None:
+        suffix += 1
+        slug = f"{base}-{suffix}"
+    return slug
+
 
 @router.get("", response_model=list[ExperienceRead])
 async def list_experiences(
@@ -29,13 +52,31 @@ async def list_experiences(
     return list(result.scalars().all())
 
 
+@router.get("/by-slug/{slug}", response_model=ExperienceRead)
+async def get_experience_by_slug(slug: str, db: Annotated[AsyncSession, Depends(get_db)]) -> Experience:
+    result = await db.execute(select(Experience).where(Experience.slug == slug))
+    experience = result.scalar_one_or_none()
+    if experience is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Experience not found")
+    return experience
+
+
 @router.post("", response_model=ExperienceRead, dependencies=[Depends(require_admin)])
 async def create_experience(
     payload: ExperienceCreate, db: Annotated[AsyncSession, Depends(get_db)]
 ) -> Experience:
-    row = Experience(**payload.model_dump())
+    data = payload.model_dump()
+    # Auto-generate + dedupe a slug from the title when none was given,
+    # same behavior as ProjectCreate.
+    if not data.get("slug"):
+        data["slug"] = await _unique_slug(db, payload.title)
+    row = Experience(**data)
     db.add(row)
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError as exc:
+        await db.rollback()
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Constraint violation") from exc
     await db.refresh(row)
     return row
 

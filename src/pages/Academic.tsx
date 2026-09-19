@@ -14,6 +14,7 @@ import { usePortfolio } from '@/contexts/PortfolioContext';
 import { useSiteSettings } from '@/hooks/useSiteSettings';
 import { parse } from 'date-fns';
 import { usePageMeta } from '@/hooks/usePageMeta';
+import { academicMeta } from '@/lib/seo';
 
 // Parse date from various formats
 const parseDate = (dateStr: string): Date => {
@@ -38,13 +39,9 @@ const parseDate = (dateStr: string): Date => {
 };
 
 const Academic = () => {
-  const { mode, darkMode } = usePortfolio();
+  const { mode, defaultMode, darkMode } = usePortfolio();
 
-  usePageMeta({
-    title: 'Academic — Pravin Raj Muralitharan',
-    description: 'Academic background, education, and certifications of Pravin Raj — Computer Science at Universiti Malaya with a focus on AI and design.',
-    url: 'https://pravinraj.dev/academic',
-  });
+  usePageMeta(academicMeta(mode, defaultMode));
   const { data: education = [], isLoading: educationLoading } = useEducation();
   const { data: certifications = [], isLoading: certificationsLoading } = useCertifications();
   const { data: siteSettings } = useSiteSettings();

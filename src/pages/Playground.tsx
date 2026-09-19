@@ -8,10 +8,15 @@ import TerminalQuest from '@/components/games/TerminalQuest';
 import NeonBreakout from '@/components/games/NeonBreakout';
 import GameLeaderboard from '@/components/games/GameLeaderboard';
 import { GameType } from '@/hooks/useGameScores';
+import { usePageMeta } from '@/hooks/usePageMeta';
+import { getModeHomePath } from '@/lib/modePath';
+import { playgroundMeta } from '@/lib/seo';
 
 const Playground: React.FC = () => {
   const navigate = useNavigate();
-  const { mode } = usePortfolio();
+  const { mode, defaultMode } = usePortfolio();
+
+  usePageMeta(playgroundMeta());
   const [activeGame, setActiveGame] = React.useState<GameType>(
     mode === 'creative' ? 'neon_breakout' : 'terminal_quest'
   );
@@ -66,7 +71,7 @@ const Playground: React.FC = () => {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => navigate('/')}
+                onClick={() => navigate(getModeHomePath(mode, defaultMode))}
                 className="gap-2"
               >
                 <ArrowLeft className="w-4 h-4" />

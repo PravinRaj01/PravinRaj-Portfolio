@@ -21,11 +21,14 @@ import { Project } from '@/types/cms';
 import { parse } from 'date-fns';
 import ReactMarkdown from 'react-markdown';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { usePageMeta } from '@/hooks/usePageMeta';
+import { getModePath } from '@/lib/modePath';
+import { folderMeta } from '@/lib/seo';
 
 const ProjectFolderPage = () => {
   const { folderId } = useParams<{ folderId: string }>();
   const navigate = useNavigate();
-  const { mode, darkMode } = usePortfolio();
+  const { mode, defaultMode, darkMode } = usePortfolio();
   const { projects, loading: projectsLoading } = useProjects(mode);
   const { folders, loading: foldersLoading } = useProjectFolders(mode);
   const { data: siteSettings } = useSiteSettings();
@@ -142,6 +145,8 @@ const ProjectFolderPage = () => {
     return filtered;
   }, [folderProjects, searchQuery, activeCategory, sortOrder]);
 
+  usePageMeta(folderMeta(mode, defaultMode, folderId, folder, folderProjects));
+
   const loading = projectsLoading || foldersLoading;
 
   if (loading) {
@@ -171,7 +176,7 @@ const ProjectFolderPage = () => {
             <Folder className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
             <h1 className="text-2xl font-bold mb-4">Folder Not Found</h1>
             <p className="text-muted-foreground mb-6">The folder you're looking for doesn't exist.</p>
-            <Button onClick={() => navigate('/projects')}>
+            <Button onClick={() => navigate(getModePath(mode, defaultMode, '/projects'))}>
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back to Projects
             </Button>
@@ -201,7 +206,7 @@ const ProjectFolderPage = () => {
           >
             <Button 
               variant="ghost" 
-              onClick={() => navigate('/projects')}
+              onClick={() => navigate(getModePath(mode, defaultMode, '/projects'))}
               className="hover:bg-muted mb-4"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
@@ -384,7 +389,7 @@ const ProjectFolderPage = () => {
                 >
                   <Card 
                     className="h-full hover:shadow-lg transition-shadow overflow-hidden cursor-pointer flex flex-col"
-                    onClick={() => navigate(`/projects/${project.slug || project.id}`, { state: { fromFolder: folderId } })}
+                    onClick={() => navigate(getModePath(mode, defaultMode, `/projects/${project.slug || project.id}`), { state: { fromFolder: folderId } })}
                   >
                     {/* Project Image - 16:9 Ratio */}
                     <div className="relative aspect-video overflow-hidden flex-shrink-0">
@@ -546,7 +551,7 @@ const ProjectFolderPage = () => {
                     <div className={`absolute left-2 md:left-6 w-4 h-4 rounded-full border-4 border-background bg-primary`}></div>
                     <Card 
                       className="hover:shadow-lg transition-shadow overflow-hidden cursor-pointer"
-                      onClick={() => navigate(`/projects/${project.slug || project.id}`, { state: { fromFolder: folderId } })}
+                      onClick={() => navigate(getModePath(mode, defaultMode, `/projects/${project.slug || project.id}`), { state: { fromFolder: folderId } })}
                     >
                       <div className="flex flex-col md:flex-row">
                         <div className="relative w-full md:w-1/3 aspect-video md:aspect-auto overflow-hidden">

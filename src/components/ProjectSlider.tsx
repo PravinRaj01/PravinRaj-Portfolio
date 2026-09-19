@@ -11,6 +11,8 @@ import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 import TinderProjectCards from './TinderProjectCards';
 import ReactMarkdown from 'react-markdown';
+import { usePortfolio } from '@/contexts/PortfolioContext';
+import { getModePath } from '@/lib/modePath';
 
 // Swiper styles
 import 'swiper/css';
@@ -23,6 +25,7 @@ interface ProjectSliderProps {
 }
 
 const ProjectSlider = ({ projects, mode }: ProjectSliderProps) => {
+  const { defaultMode } = usePortfolio();
   const animationReference = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({
     target: animationReference,
@@ -227,7 +230,7 @@ const ProjectSlider = ({ projects, mode }: ProjectSliderProps) => {
             className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground px-8 py-3 shadow-lg hover:shadow-xl transition-all duration-300"
             asChild
           >
-            <Link to="/projects">
+            <Link to={getModePath(mode, defaultMode, '/projects')}>
               View All {mode === 'professional' ? 'Projects' : 'Works'}
               <ArrowRight className="ml-2 h-5 w-5" />
             </Link>

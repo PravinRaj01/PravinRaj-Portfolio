@@ -23,11 +23,15 @@
     <meta name="twitter:description" content="AI Engineer & UI/UX Designer passionate about creating intelligent, user-centered digital experiences." />
     <meta name="twitter:image" content="https://pravinraj.dev/og-image.png" />
     
-    <script type="application/ld+json">
+    <!-- Site-wide Person + WebSite graph. scripts/prerender.ts rewrites this with the live
+         socials-derived sameAs list; per-page JSON-LD lives in #page-jsonld (usePageMeta).
+         Generated from src/lib/seo.ts buildSiteGraph(). -->
+    <script type="application/ld+json" id="site-jsonld">
     [
       {
         "@context": "https://schema.org",
-        "@type": ["Person", "ProfilePage"],
+        "@type": "Person",
+        "@id": "https://pravinraj.dev/#person",
         "name": "Pravin Raj Muralitharan",
         "url": "https://pravinraj.dev/",
         "alternateName": [
@@ -68,16 +72,12 @@
       {
         "@context": "https://schema.org",
         "@type": "WebSite",
+        "@id": "https://pravinraj.dev/#website",
         "name": "Pravin Raj Portfolio",
-        "url": "https://pravinraj.dev/"
-      },
-      {
-        "@context": "https://schema.org",
-        "@type": "ItemList",
-        "name": "Projects by Pravin Raj Muralitharan",
-        "description": "Portfolio of AI engineering and UI/UX design projects",
-        "url": "https://pravinraj.dev/projects",
-        "numberOfItems": 10
+        "url": "https://pravinraj.dev/",
+        "publisher": {
+          "@id": "https://pravinraj.dev/#person"
+        }
       }
     ]
     </script>

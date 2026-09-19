@@ -15,6 +15,7 @@ import { usePortfolio } from '@/contexts/PortfolioContext';
 import { useAboutContent } from '@/hooks/useAboutContent';
 import { useMagazine } from '@/hooks/useMagazine';
 import { usePageMeta } from '@/hooks/usePageMeta';
+import { homeMeta } from '@/lib/seo';
 
 // Lazy-load below-the-fold + heavy components so the hero paints first.
 const ThreeBackground = lazy(() => import('@/components/ThreeBackground'));
@@ -26,16 +27,12 @@ const MagazineViewer = lazy(() => import('@/components/MagazineViewer'));
 
 const Index = () => {
   const navigate = useNavigate();
-  const { mode, darkMode } = usePortfolio();
+  const { mode, defaultMode, darkMode } = usePortfolio();
   const { data: aboutContent = [] } = useAboutContent(mode);
   const { issue: magazineIssue } = useMagazine();
   const [showMagazine, setShowMagazine] = useState(false);
 
-  usePageMeta({
-    title: 'Pravin Raj Muralitharan | AI Engineer & UI/UX Designer',
-    description: 'AI Engineer & UI/UX Designer passionate about creating intelligent, user-centered digital experiences. Skilled in machine learning, visual design, and crafting intuitive interfaces.',
-    url: 'https://pravinraj.dev/',
-  });
+  usePageMeta(homeMeta(mode, defaultMode));
 
   // Unified divider styling for the home page (color, thickness, glow)
   const homeDividerThicknessPx = 3;

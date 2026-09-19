@@ -1,25 +1,21 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Briefcase, ArrowRight } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
 import { usePortfolio } from '@/contexts/PortfolioContext';
 import { cn } from '@/lib/utils';
 
 const ExperienceModeBanner = () => {
   const { mode, handleModeToggle, professionalModeEnabled } = usePortfolio();
-  const navigate = useNavigate();
 
   // Only show in creative mode and if professional mode is enabled
   if (mode !== 'creative' || !professionalModeEnabled) {
     return null;
   }
 
+  // handleModeToggle already navigates to the equivalent page in the target
+  // mode (staying on '/experience') — no extra navigation needed here.
   const handleSwitch = () => {
     handleModeToggle();
-    // Small delay to let mode change propagate
-    setTimeout(() => {
-      navigate('/experience');
-    }, 100);
   };
 
   return (

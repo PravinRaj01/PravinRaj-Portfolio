@@ -3,10 +3,17 @@ import { useEffect } from "react";
 import CursorFollower from '@/components/CursorFollower';
 import RadialGradient from '@/components/RadialGradient';
 import { usePortfolio } from '@/contexts/PortfolioContext';
+import { usePageMeta } from '@/hooks/usePageMeta';
+import { notFoundMeta } from '@/lib/seo';
 
 const NotFound = () => {
   const location = useLocation();
   const { darkMode } = usePortfolio();
+
+  // NotFound previously set no meta at all, so it silently inherited
+  // whatever the last page left behind — this also gives every 404 a
+  // consistent noindex, closing the "soft 404" gap (SEO_GEO_PLAN.md §5).
+  usePageMeta(notFoundMeta());
 
   useEffect(() => {
     console.error(

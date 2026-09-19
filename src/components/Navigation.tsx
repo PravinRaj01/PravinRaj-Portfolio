@@ -7,18 +7,20 @@ import { usePortfolio } from '@/contexts/PortfolioContext';
 import { useSiteSettings } from '@/hooks/useSiteSettings';
 import { useEnabledSocials } from '@/hooks/useSocials';
 import NavVisitorCounter from '@/components/NavVisitorCounter';
+import { getModeHomePath, getModePath, stripModePrefix } from '@/lib/modePath';
 
 const Navigation = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [settingsExpanded, setSettingsExpanded] = useState(false);
   const [modeExpanded, setModeExpanded] = useState(false);
   const location = useLocation();
-  const { mode, darkMode, handleModeToggle, handleDarkModeToggle, professionalModeEnabled, creativeModeEnabled } = usePortfolio();
+  const { mode, defaultMode, darkMode, handleModeToggle, handleDarkModeToggle, professionalModeEnabled, creativeModeEnabled } = usePortfolio();
   const { data: siteSettings, isLoading: siteSettingsLoading, refetch: refetchSettings } = useSiteSettings();
   const { data: socialLinks, isLoading: socialsLoading } = useEnabledSocials(mode);
-  
-  // Get current page from path
-  const currentPage = location.pathname === '/' ? 'home' : location.pathname.replace('/', '');
+
+  // Get current page from path (mode-prefix stripped, e.g. '/pro/projects' -> 'projects')
+  const { rest: currentPathRest } = stripModePrefix(location.pathname);
+  const currentPage = currentPathRest === '/' ? 'home' : currentPathRest.slice(1);
   
   // Only show mode toggle if both modes are enabled AND current page allows it
   const modeTogglePages = siteSettings?.mode_toggle_pages ?? ['home', 'projects', 'experience', 'academic', 'contact', 'podcast'];
@@ -44,29 +46,24 @@ const Navigation = () => {
   const professionalVisiblePages = siteSettings?.professional_visible_pages ?? ['home', 'academic', 'experience', 'projects', 'contact'];
   const creativeVisiblePages = siteSettings?.creative_visible_pages ?? ['home', 'experience', 'projects', 'podcast', 'contact'];
 
-  const allProfessionalNavItems = [
-    { name: 'Home', path: '/', id: 'home' },
-    { name: 'Academic', path: '/academic', id: 'academic' },
-    { name: 'Experience', path: '/experience', id: 'experience' },
-    { name: 'Projects', path: '/projects', id: 'projects' },
-    { name: 'Podcast', path: '/podcast', id: 'podcast' },
-    { name: 'Contact', path: '/contact', id: 'contact' },
+  // Page suffixes are identical for both modes — only the resolved `path`
+  // (below) differs, via getModePath/getModeHomePath.
+  const allNavItems = [
+    { name: 'Home', suffix: '/', id: 'home' },
+    { name: 'Academic', suffix: '/academic', id: 'academic' },
+    { name: 'Experience', suffix: '/experience', id: 'experience' },
+    { name: 'Projects', suffix: '/projects', id: 'projects' },
+    { name: 'Podcast', suffix: '/podcast', id: 'podcast' },
+    { name: 'Contact', suffix: '/contact', id: 'contact' },
   ];
 
-  const allCreativeNavItems = [
-    { name: 'Home', path: '/', id: 'home' },
-    { name: 'Academic', path: '/academic', id: 'academic' },
-    { name: 'Experience', path: '/experience', id: 'experience' },
-    { name: 'Projects', path: '/projects', id: 'projects' },
-    { name: 'Podcast', path: '/podcast', id: 'podcast' },
-    { name: 'Contact', path: '/contact', id: 'contact' },
-  ];
-
-  // Filter nav items based on visibility settings
-  const professionalNavItems = allProfessionalNavItems.filter(item => professionalVisiblePages.includes(item.id));
-  const creativeNavItems = allCreativeNavItems.filter(item => creativeVisiblePages.includes(item.id));
-
-  const navItems = mode === 'professional' ? professionalNavItems : creativeNavItems;
+  // Filter nav items based on visibility settings, then resolve each to its
+  // mode-prefixed URL (SEO_GEO_PLAN.md §3 — home collapses onto '/' for
+  // whichever mode is default, everything else is always prefixed).
+  const visiblePages = mode === 'professional' ? professionalVisiblePages : creativeVisiblePages;
+  const navItems = allNavItems
+    .filter(item => visiblePages.includes(item.id))
+    .map(item => ({ ...item, path: getModePath(mode, defaultMode, item.suffix) }));
 
   const handleResumeClick = () => {
     console.log('Resume button clicked, URL:', currentResumeUrl);
@@ -121,7 +118,7 @@ const Navigation = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             {/* Logo/Brand - Clickable to Home */}
-            <Link to="/">
+            <Link to={getModeHomePath(mode, defaultMode)}>
               <motion.div
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}

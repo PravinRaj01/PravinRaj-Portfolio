@@ -16,6 +16,8 @@ import { Experience as ExperienceType } from '@/types/cms';
 import ReactMarkdown from 'react-markdown';
 import { generateDriveImageUrl } from '@/utils/googleDrive';
 import { usePageMeta } from '@/hooks/usePageMeta';
+import { getModePath } from '@/lib/modePath';
+import { experienceListMeta } from '@/lib/seo';
 
 const Experience = () => {
   const navigate = useNavigate();
@@ -27,14 +29,10 @@ const Experience = () => {
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
   const [selectedRole, setSelectedRole] = useState<string>('all');
   const [currentIndex, setCurrentIndex] = useState(0);
-  const { mode, darkMode } = usePortfolio();
+  const { mode, defaultMode, darkMode } = usePortfolio();
 
-  usePageMeta({
-    title: 'Experience — Pravin Raj Muralitharan',
-    description: 'Professional experience and achievements of Pravin Raj — AI engineering roles, design work, and leadership across industry and academia.',
-    url: 'https://pravinraj.dev/experience',
-  });
   const { experiences, loading } = useExperience(mode);
+  usePageMeta(experienceListMeta(mode, defaultMode, experiences ?? []));
   const timelineRefs = useRef<(HTMLDivElement | null)[]>([]);
   const isCreativeMode = mode === 'creative';
 
@@ -67,7 +65,7 @@ const Experience = () => {
 
   const handleCardClick = (exp: ExperienceType) => {
     // All experiences are clickable to view full details
-    navigate(`/experience/${exp.id}`);
+    navigate(getModePath(mode, defaultMode, `/experience/${exp.slug || exp.id}`));
   };
 
   // Parse date for sorting - supports both period range and event_date
@@ -392,7 +390,7 @@ const Experience = () => {
                                   size="sm" 
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    navigate(`/experience/${exp.id}`);
+                                    navigate(getModePath(mode, defaultMode, `/experience/${exp.slug || exp.id}`));
                                   }}
                                   className="gap-1.5 text-xs text-muted-foreground hover:text-foreground"
                                 >
@@ -530,7 +528,7 @@ const Experience = () => {
                                 size="sm" 
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  navigate(`/experience/${exp.id}`);
+                                  navigate(getModePath(mode, defaultMode, `/experience/${exp.slug || exp.id}`));
                                 }}
                                 className="gap-1.5 text-xs text-muted-foreground hover:text-foreground"
                               >
