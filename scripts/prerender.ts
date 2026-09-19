@@ -348,7 +348,16 @@ function renderTarget(shell: string, target: Target): string {
     .filter(Boolean)
     .join('\n    ');
 
-  html = html.replace('<div id="root"></div>', () => `<div id="root">\n    ${content}\n  </div>`);
+  // Visually hidden (same technique as Tailwind's `sr-only`), not display:none —
+  // it stays ordinary text in the HTML for crawlers that don't run JS, but
+  // people never see an unstyled flash of it before React replaces #root.
+  // Inline styles because the app's stylesheet doesn't apply to this markup.
+  const hiddenFromView =
+    'position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);clip-path:inset(50%);white-space:nowrap;border:0;';
+  html = html.replace(
+    '<div id="root"></div>',
+    () => `<div id="root">\n    <div style="${hiddenFromView}">\n    ${content}\n    </div>\n  </div>`
+  );
   return html;
 }
 
