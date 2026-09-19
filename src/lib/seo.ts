@@ -189,7 +189,20 @@ export function homeMeta(mode: Mode, defaultMode: Mode): PageMeta {
       url: canonical,
       name: title,
       isPartOf: { '@id': WEBSITE_ID },
-      mainEntity: { '@id': PERSON_ID },
+      // Inlined rather than a bare {'@id'} pointer: Google's ProfilePage check
+      // requires mainEntity to be a Person with a name, and doesn't reliably
+      // follow an @id across to the separate #site-jsonld block. Same @id as
+      // the full Person there, so consumers still merge them into one entity.
+      mainEntity: {
+        '@type': 'Person',
+        '@id': PERSON_ID,
+        name: PERSON_NAME,
+        url: `${SITE_URL}/`,
+        image: DEFAULT_IMAGE,
+        jobTitle: 'AI Engineer & UI/UX Designer',
+        description:
+          'AI Engineer & UI/UX Designer passionate about creating intelligent, user-centered digital experiences.',
+      },
     },
   };
 }
