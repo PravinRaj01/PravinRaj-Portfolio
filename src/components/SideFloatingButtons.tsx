@@ -5,6 +5,7 @@ import { useEnabledSocials } from '@/hooks/useSocials';
 import { useLocation } from 'react-router-dom';
 import { useSiteSettings } from '@/hooks/useSiteSettings';
 import BehanceIcon from '@/components/icons/BehanceIcon';
+import { stripModePrefix } from '@/lib/modePath';
 
 const SideFloatingButtons = () => {
   const { mode, professionalModeEnabled, creativeModeEnabled } = usePortfolio();
@@ -14,8 +15,11 @@ const SideFloatingButtons = () => {
   const [isMobile, setIsMobile] = useState(false);
   const location = useLocation();
 
-  // Determine if mode toggle would be shown (same logic as Navigation.tsx)
-  const currentPage = location.pathname === '/' ? 'home' : location.pathname.replace('/', '');
+  // Determine if mode toggle would be shown (same logic as Navigation.tsx —
+  // including stripping a /pro or /creative prefix, so e.g. '/creative' is
+  // 'home', not an unknown page).
+  const { rest: currentPathRest } = stripModePrefix(location.pathname);
+  const currentPage = currentPathRest === '/' ? 'home' : currentPathRest.slice(1);
   const modeTogglePages = siteSettings?.mode_toggle_pages ?? ['home', 'projects', 'experience', 'academic', 'contact', 'podcast'];
   const showModeToggle = professionalModeEnabled && creativeModeEnabled && modeTogglePages.includes(currentPage);
 
