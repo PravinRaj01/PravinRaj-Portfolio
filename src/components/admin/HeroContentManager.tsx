@@ -33,6 +33,10 @@ const heroContentSchema = z.object({
   animation_speed: z.number().min(30).max(500).optional(),
   animation_pause_duration: z.number().min(500).max(5000).optional(),
   gradient_overlay_opacity: z.number().min(0).max(1).optional(),
+  birth_date: z.string().optional().or(z.literal('')),
+  fun_facts: z.array(z.object({
+    text: z.string().min(1, 'Fun fact text is required')
+  })),
 });
 
 type HeroContentFormData = z.infer<typeof heroContentSchema>;
@@ -139,12 +143,19 @@ const HeroContentManager = () => {
       animation_speed: 100,
       animation_pause_duration: 1500,
       gradient_overlay_opacity: 0.7,
+      birth_date: '',
+      fun_facts: [],
     },
   });
 
   const { fields, append, remove, move } = useFieldArray({
     control: form.control,
     name: "animated_titles"
+  });
+
+  const { fields: funFactFields, append: appendFunFact, remove: removeFunFact } = useFieldArray({
+    control: form.control,
+    name: "fun_facts"
   });
 
   const sensors = useSensors(
@@ -205,6 +216,10 @@ const HeroContentManager = () => {
           animation_speed: existingHeroContent.animation_speed || 100,
           animation_pause_duration: existingHeroContent.animation_pause_duration || 1500,
           gradient_overlay_opacity: existingHeroContent.gradient_overlay_opacity || 0.7,
+          birth_date: existingHeroContent.birth_date || '',
+          fun_facts: existingHeroContent.fun_facts && existingHeroContent.fun_facts.length > 0
+            ? existingHeroContent.fun_facts.map(text => ({ text }))
+            : [],
         });
       }
     } else if (!existingHeroContent && lastContentIdRef.current !== null) {
@@ -243,6 +258,8 @@ const HeroContentManager = () => {
         animation_speed: data.animation_speed || 100,
         animation_pause_duration: data.animation_pause_duration || 1500,
         gradient_overlay_opacity: data.gradient_overlay_opacity || 0.7,
+        birth_date: data.birth_date && data.birth_date.trim() !== '' ? data.birth_date : null,
+        fun_facts: data.fun_facts?.map(item => item.text) || [],
       };
 
       if (existingHeroContent) {
@@ -293,6 +310,8 @@ const HeroContentManager = () => {
           animation_speed: 100,
           animation_pause_duration: 1500,
           gradient_overlay_opacity: 0.7,
+          birth_date: '',
+          fun_facts: [],
         });
       }
       
@@ -370,7 +389,25 @@ const HeroContentManager = () => {
                     </FormControl>
                     <FormMessage />
                     <p className="text-xs text-muted-foreground">
-                      Photo will appear next to your name with floating animation
+                      Shown on the hanging ID card
+                    </p>
+                  </FormItem>
+                )}
+              />
+
+              {/* Birth Date */}
+              <FormField
+                control={form.control}
+                name="birth_date"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Birth Date</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                    <p className="text-xs text-muted-foreground">
+                      Used to show your age on the hanging ID card (recalculated automatically)
                     </p>
                   </FormItem>
                 )}
@@ -483,6 +520,53 @@ const HeroContentManager = () => {
                     ))}
                   </SortableContext>
                 </DndContext>
+              </div>
+
+              {/* Fun Facts Section (hanging ID card back face) */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <FormLabel>Fun Facts (ID Card Back)</FormLabel>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => appendFunFact({ text: '' })}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Fun Fact
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Shown when a visitor double-clicks/double-taps the ID card to flip it. Leave empty to disable flipping.
+                </p>
+
+                {funFactFields.map((field, index) => (
+                  <div key={field.id} className="flex gap-2 items-end">
+                    <FormField
+                      control={form.control}
+                      name={`fun_facts.${index}.text`}
+                      render={({ field }) => (
+                        <FormItem className="flex-1">
+                          <FormControl>
+                            <Input
+                              placeholder="e.g., Fueled by 70% black coffee..."
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => removeFunFact(index)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
               </div>
 
               {/* Animation Settings */}

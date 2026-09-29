@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { useHeroContent } from '@/hooks/useHeroContent';
 import { useSiteSettings } from '@/hooks/useSiteSettings';
 import TypewriterText from '@/components/TypewriterText';
+import HangingCard from '@/components/HangingCard';
 import { usePortfolio } from '@/contexts/PortfolioContext';
 import { getModePath } from '@/lib/modePath';
 
@@ -149,29 +150,6 @@ const Hero = ({ mode }: HeroProps) => {
       <div className="container mx-auto relative z-10">
         <div className="max-w-7xl">
           <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-center">
-            {/* Profile Photo - First on mobile */}
-            {content.profile_photo_url && (
-              <div className="md:hidden flex justify-center order-first mb-8 mt-16">
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: 0.3, duration: 0.8 }}
-                  className="avatar-float w-40 h-40 sm:w-48 sm:h-48"
-                >
-                  <img
-                    src={content.profile_photo_url}
-                    alt={content.name}
-                    width={192}
-                    height={192}
-                    loading="eager"
-                    fetchPriority="high"
-                    decoding="async"
-                    className="w-full h-full object-cover rounded-full"
-                  />
-                </motion.div>
-              </div>
-            )}
-            
             {/* Left side - Text content (7 columns) */}
             <div className="md:col-span-7">
               <motion.div
@@ -266,24 +244,21 @@ const Hero = ({ mode }: HeroProps) => {
               </motion.div>
             </div>
 
-            {/* Right side - Profile Photo (5 columns) - Desktop only */}
-            {content.profile_photo_url && (
-              <div className="hidden md:flex md:col-span-5 justify-center md:justify-end">
+            {/* Right side - Hanging ID card (5 columns), first on mobile */}
+            {(content.profile_photo_url || content.name) && (
+              <div className="order-first md:order-none md:col-span-5 flex justify-center md:justify-end mt-16 md:mt-0">
                 <motion.div
                   initial={{ opacity: 0, scale: 0.8 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ delay: 0.5, duration: 0.8 }}
-                  className="avatar-float w-48 h-48 sm:w-56 sm:h-56 md:w-64 md:h-64 lg:w-80 lg:h-80 xl:w-96 xl:h-96"
                 >
-                  <img
-                    src={content.profile_photo_url}
-                    alt={content.name}
-                    width={384}
-                    height={384}
-                    loading="eager"
-                    fetchPriority="high"
-                    decoding="async"
-                    className="w-full h-full object-cover rounded-full"
+                  <HangingCard
+                    name={content.name}
+                    title={content.title}
+                    photoUrl={content.profile_photo_url}
+                    birthDate={content.birth_date}
+                    funFacts={content.fun_facts}
+                    mode={mode}
                   />
                 </motion.div>
               </div>

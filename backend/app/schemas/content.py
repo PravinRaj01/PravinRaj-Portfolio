@@ -1,6 +1,6 @@
 # app/schemas/content.py — MIGRATION_PLAN.md Appendix A.1
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 
 from pydantic import BaseModel, ConfigDict
 
@@ -47,6 +47,8 @@ class HeroContentCreate(BaseModel):
     gradient_overlay_opacity: float | None = None
     background_image_url: str | None = None
     profile_photo_url: str | None = None
+    birth_date: date | None = None
+    fun_facts: list[str] | None = None
 
 
 class HeroContentUpdate(BaseModel):
@@ -65,6 +67,8 @@ class HeroContentUpdate(BaseModel):
     gradient_overlay_opacity: float | None = None
     background_image_url: str | None = None
     profile_photo_url: str | None = None
+    birth_date: date | None = None
+    fun_facts: list[str] | None = None
 
 
 class HeroContentRead(HeroContentCreate, ORMModel):

@@ -5,9 +5,9 @@
 # pg_dumpall of the live Supabase project), not inferred from types.ts --
 # see MIGRATION_PLAN.md §5 (VERIFY) for what that inference got wrong.
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 
-from sqlalchemy import Boolean, CheckConstraint, Integer, Numeric, String, Text, UniqueConstraint, text
+from sqlalchemy import Boolean, CheckConstraint, Date, Integer, Numeric, String, Text, UniqueConstraint, text
 from sqlalchemy import text as sql_text   # GithubTicker has a column named `text` (see below)
 from sqlalchemy.dialects.postgresql import ARRAY, TIMESTAMP
 from sqlalchemy.orm import Mapped, mapped_column
@@ -44,6 +44,10 @@ class HeroContent(UUIDPk, TimestampsRequired, Base):
     gradient_overlay_opacity: Mapped[float | None] = mapped_column(Numeric(3, 2, asdecimal=False), server_default=text("0.7"))
     background_image_url: Mapped[str | None] = mapped_column(Text)
     profile_photo_url: Mapped[str | None] = mapped_column(Text)
+    # Power the hanging ID card's back-of-card content (see HangingCard.tsx):
+    # age is derived from birth_date at render time so it never goes stale.
+    birth_date: Mapped[date | None] = mapped_column(Date)
+    fun_facts: Mapped[list[str] | None] = mapped_column(ARRAY(Text), server_default=text("'{}'::text[]"))
     created_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False, server_default=UTC_NOW)
     updated_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False, server_default=UTC_NOW, onupdate=text("timezone('utc'::text, now())"))
 

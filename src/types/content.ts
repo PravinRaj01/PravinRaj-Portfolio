@@ -45,6 +45,8 @@ export interface HeroContent {
   animation_speed?: number;
   animation_pause_duration?: number;
   gradient_overlay_opacity?: number;
+  birth_date?: string | null;
+  fun_facts?: string[] | null;
   created_at: string;
   updated_at: string;
 }
