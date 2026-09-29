@@ -247,10 +247,13 @@ const Hero = ({ mode }: HeroProps) => {
             {/* Right side - Hanging ID card (5 columns), first on mobile */}
             {(content.profile_photo_url || content.name) && (
               <div className="order-first md:order-none md:col-span-5 flex justify-center md:justify-end mt-16 md:mt-0">
+                {/* Opacity only -- the card's own physics does the entrance
+                    (it swings in), and a scale transform here would distort
+                    the strap-anchor measurement HangingCard takes on mount. */}
                 <motion.div
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: 0.5, duration: 0.8 }}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.3, duration: 0.6 }}
                 >
                   <HangingCard
                     name={content.name}
