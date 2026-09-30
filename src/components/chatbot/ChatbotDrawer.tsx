@@ -4,6 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { usePortfolio } from "@/contexts/PortfolioContext";
+import { API_BASE_URL } from "@/services/apiClient";
 import ChatbotMiniView from "./ChatbotMiniView";
 import ChatbotFullView from "./ChatbotFullView";
 
@@ -29,8 +30,11 @@ interface ChatbotDrawerProps {
 }
 
 const STORAGE_KEY = 'portfolio_chatbot_conversations';
-// The chatbot runs on Lovable's managed runtime + AI gateway (not the FastAPI backend).
-const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/portfolio-chat`;
+// Runs on our own FastAPI backend (app/api/routers/ai.py), which speaks to
+// Gemini (primary) + Groq (fallback) -- see backend/app/services/ai_gateway.py.
+// This used to point at a Supabase Edge Function on Lovable's managed
+// runtime; that's gone along with the rest of the Lovable/Supabase setup.
+const CHAT_URL = `${API_BASE_URL}/ai/chat`;
 const CONVERSATION_EXPIRY_DAYS = 30;
 
 // Cleanup old conversations (older than 30 days)
@@ -165,11 +169,7 @@ const ChatbotDrawer = ({ state, onStateChange }: ChatbotDrawerProps) => {
     try {
       const response = await fetch(CHAT_URL, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           message: messageToSend,
           conversationHistory: messages.map((m) => ({ role: m.role, content: m.content })),
@@ -179,10 +179,7 @@ const ChatbotDrawer = ({ state, onStateChange }: ChatbotDrawerProps) => {
 
       if (!response.ok) {
         if (response.status === 429) {
-          throw new Error("Rate limits exceeded. Please try again later.");
-        }
-        if (response.status === 402) {
-          throw new Error("AI service unavailable. Please try again later.");
+          throw new Error("Too many messages. Please try again in a few minutes.");
         }
         if (response.status === 503) {
           throw new Error("The assistant isn't switched on yet. Please try again later.");

@@ -1,11 +1,10 @@
-# app/api/routers/ai.py — MIGRATION_PLAN.md §7 "stubs" row: replaces
-# supabase/functions/{generate-description,generate-magazine,portfolio-chat}.
-# generate-description and generate-magazine are admin-only (they were only
-# ever called from admin editor UIs); chat is public, matching the original
-# Edge Function's verify_jwt=false.
+# app/api/routers/ai.py — replaces supabase/functions/{generate-description,
+# generate-magazine,portfolio-chat}. generate-description and
+# generate-magazine are admin-only (only ever called from admin editor UIs);
+# chat is public, matching the original Edge Function's verify_jwt=false.
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -18,7 +17,7 @@ from app.schemas.ai import (
     MagazineGenerateRequest,
     MagazineGenerateResponse,
 )
-from app.services import ai_content
+from app.services import ai_content, chat_throttle
 from app.services.ai_gateway import AIGatewayNotConfiguredError
 
 router = APIRouter(prefix="/ai", tags=["ai"])
@@ -29,6 +28,15 @@ def _not_configured() -> HTTPException:
         status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
         detail="AI service not configured",
     )
+
+
+def _client_ip(request: Request) -> str:
+    # Same convention as app/api/routers/auth.py's _client_ip: Vercel (and
+    # most proxies) set X-Forwarded-For as "client, proxy1, proxy2".
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
 
 
 @router.post(
@@ -58,11 +66,30 @@ async def generate_magazine(
 
 
 @router.post("/chat")
-async def chat(payload: ChatRequest, db: Annotated[AsyncSession, Depends(get_db)]) -> StreamingResponse:
-    # The stream generator itself calls the gateway lazily on first
-    # iteration, so the "not configured" check has to happen before
-    # StreamingResponse starts iterating -- otherwise the error would
-    # arrive as a broken mid-stream chunk instead of a clean 503.
-    if not settings.lovable_api_key:
+async def chat(
+    payload: ChatRequest, request: Request, db: Annotated[AsyncSession, Depends(get_db)]
+) -> StreamingResponse:
+    if not settings.gemini_api_key and not settings.groq_api_key:
         raise _not_configured()
-    return StreamingResponse(ai_content.stream_chat(db, payload), media_type="text/event-stream")
+
+    ip = _client_ip(request)
+    if await chat_throttle.is_rate_limited(db, ip=ip):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many messages. Please try again in a few minutes.",
+        )
+
+    # open_chat_stream is awaited here, not handed to StreamingResponse as a
+    # generator — it connects to a provider and confirms a successful status
+    # before returning, so a config/upstream failure raises a real
+    # HTTPException instead of a broken empty stream (Starlette sends the
+    # 200 status line before it starts consuming the body iterator, so an
+    # exception raised from inside a generator can no longer change the
+    # response status). See ai_gateway.open_stream's docstring.
+    try:
+        stream = await ai_content.open_chat_stream(db, payload)
+    except AIGatewayNotConfiguredError as exc:
+        raise _not_configured() from exc
+
+    await chat_throttle.record_request(db, ip=ip)
+    return StreamingResponse(stream, media_type="text/event-stream")

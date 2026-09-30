@@ -62,10 +62,19 @@ class Settings(BaseSettings):
     # "production" hides /docs, /redoc and /openapi.json (see main.py).
     environment: str = "development"
 
-    # AI gateway (§7 "stubs" row: generate-description, generate-magazine,
-    # portfolio-chat). Empty by default -- routes that need it return 503
-    # rather than crashing until a real key is set.
-    lovable_api_key: str = ""
+    # AI: Gemini (primary) + Groq (fallback), both free-tier only -- replaces
+    # the old Lovable AI gateway. generate-description/generate-magazine use
+    # the "content" models; the public chatbot uses the "chat" models. Model
+    # names are env vars, not constants, so a renamed or retired free model
+    # can be swapped in Vercel's settings without a code change. Either key
+    # may be left empty (that provider is then skipped); both empty makes
+    # the AI routes return 503, same as before.
+    gemini_api_key: str = ""
+    groq_api_key: str = ""
+    gemini_chat_model: str = "gemini-3.5-flash-lite"
+    gemini_content_model: str = "gemini-3.8-flash"
+    groq_chat_model: str = "openai/gpt-oss-20b"
+    groq_content_model: str = "openai/gpt-oss-120b"
 
     # Public, read-only Drive API key for the resume/gallery folder proxy.
     google_drive_api_key: str = ""

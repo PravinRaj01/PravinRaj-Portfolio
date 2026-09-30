@@ -4,6 +4,7 @@ all 22 tables. See MIGRATION_PLAN.md §4 (21 tables) and §13 (admin_login_attem
 
 from app.db.base import Base
 from app.models.academic import Certification, Education, Experience, TechnicalSkill
+from app.models.ai import ChatRequestLog
 from app.models.analytics import GameScore, VisitorDailyStats, VisitorStats
 from app.models.auth import AdminLoginAttempt, AdminUser
 from app.models.content import (
@@ -44,4 +45,5 @@ __all__ = [
     "GameScore",
     "AdminUser",
     "AdminLoginAttempt",
+    "ChatRequestLog",
 ]

@@ -4,15 +4,19 @@
 # portfolio-chat}/index.ts) onto our own DB session and the shared
 # ai_gateway client, replacing each function's direct Supabase service-role
 # reads with our normal async ORM queries.
+import asyncio
+import base64
 import json
 import re
 from collections.abc import AsyncIterator
 from typing import Any
 
+import httpx
 from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.models.academic import Certification, Education, Experience
 from app.models.content import (
     AboutContent,
@@ -34,9 +38,8 @@ from app.schemas.ai import (
 )
 from app.services import ai_gateway
 
-DESCRIPTION_MODEL = "google/gemini-3-flash-preview"
-MAGAZINE_MODEL = "google/gemini-3-flash-preview"
-CHAT_MODEL = "google/gemini-2.5-flash"
+# Model names themselves now live in app/core/config.py (one pair of
+# settings per provider per model_kind) -- ai_gateway resolves them.
 
 
 # --- generate-description --------------------------------------------------
@@ -120,6 +123,26 @@ Available information:
 Generate ONLY the description text. Do not include any preamble, labels, or explanations. Just the description itself."""
 
 
+_MAX_IMAGE_BYTES = 4 * 1024 * 1024  # skip anything unexpectedly huge rather than fail the request
+
+
+async def _image_to_data_uri(url: str) -> str | None:
+    """Gemini's OpenAI-compatible endpoint only accepts base64 data: URIs, not
+    remote URLs, so admin's Drive thumbnail links have to be downloaded and
+    re-encoded here. Any failure (timeout, 404, oversized) just drops that
+    one image rather than failing the whole generation."""
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(url)
+        if not response.is_success or len(response.content) > _MAX_IMAGE_BYTES:
+            return None
+        content_type = response.headers.get("content-type", "image/jpeg").split(";")[0]
+        encoded = base64.b64encode(response.content).decode("ascii")
+        return f"data:{content_type};base64,{encoded}"
+    except httpx.HTTPError:
+        return None
+
+
 async def generate_description(request: DescriptionGenerateRequest) -> DescriptionGenerateResponse:
     if not request.data.title or not request.data.title.strip():
         raise HTTPException(
@@ -128,22 +151,33 @@ async def generate_description(request: DescriptionGenerateRequest) -> Descripti
         )
 
     prompt = _build_description_prompt(request)
-    messages: list[dict[str, Any]] = [
-        {
-            "role": "system",
-            "content": "You are a professional portfolio writer. Generate compelling, accurate descriptions based on the provided context.",
-        }
-    ]
+    system_message = {
+        "role": "system",
+        "content": "You are a professional portfolio writer. Generate compelling, accurate descriptions based on the provided context.",
+    }
 
+    # Text-only variant -- always available, and what the fallback provider
+    # gets (Groq's only vision model is a preview one, not relied on here).
+    fallback_messages = [system_message, {"role": "user", "content": prompt}]
+
+    messages = fallback_messages
     if request.data.images:
-        content: list[dict[str, Any]] = [{"type": "text", "text": prompt}]
-        for image_url in request.data.images[:3]:
-            content.append({"type": "image_url", "image_url": {"url": image_url}})
-        messages.append({"role": "user", "content": content})
-    else:
-        messages.append({"role": "user", "content": prompt})
+        data_uris = [
+            uri
+            for uri in await _gather_images(request.data.images[:3])
+            if uri is not None
+        ]
+        if data_uris:
+            content: list[dict[str, Any]] = [{"type": "text", "text": prompt}]
+            content.extend({"type": "image_url", "image_url": {"url": uri}} for uri in data_uris)
+            messages = [system_message, {"role": "user", "content": content}]
 
-    result = await ai_gateway.chat_completion(messages, model=DESCRIPTION_MODEL, max_tokens=500)
+    result = await ai_gateway.chat_completion(
+        messages,
+        model_kind="content",
+        max_tokens=500,
+        fallback_messages=fallback_messages,
+    )
     choices = result.get("choices") or []
     description = ((choices[0].get("message") or {}).get("content") or "").strip() if choices else ""
 
@@ -152,6 +186,10 @@ async def generate_description(request: DescriptionGenerateRequest) -> Descripti
             status_code=status.HTTP_502_BAD_GATEWAY, detail="No description generated"
         )
     return DescriptionGenerateResponse(description=description, success=True)
+
+
+async def _gather_images(urls: list[str]) -> list[str | None]:
+    return list(await asyncio.gather(*(_image_to_data_uri(u) for u in urls)))
 
 
 # --- generate-magazine -------------------------------------------------
@@ -273,7 +311,7 @@ Here are the projects to feature:
                 "content": "Generate the magazine issue now. Use the generate_magazine_issue tool to return the structured content.",
             },
         ],
-        model=MAGAZINE_MODEL,
+        model_kind="content",
         tools=[_MAGAZINE_TOOL],
         tool_choice={"type": "function", "function": {"name": "generate_magazine_issue"}},
     )
@@ -329,9 +367,20 @@ def _sanitize_input(text_: str | None, max_length: int = 2000) -> str:
     return sanitized
 
 
+_COMPACT_DESCRIPTION_CHARS = 200
+
+
+def _shorten(text_: str, limit: int) -> str:
+    return text_ if len(text_) <= limit else text_[:limit].rstrip() + "…"
+
+
 async def _build_portfolio_context(
-    db: AsyncSession, content_mode: ChatContentMode
+    db: AsyncSession, content_mode: ChatContentMode, *, compact: bool = False
 ) -> tuple[str, HeroContent | None, str | None]:
+    """`compact=True` trims each project/experience description to a couple
+    of sentences. Used only for the Groq fallback: Groq's free tier caps at
+    8K tokens/minute, and the full context alone can be 6-9K tokens (creative
+    mode has 27 projects) -- nearly a whole minute's budget for one message."""
     def mode_filter(stmt, column):
         if content_mode == "both":
             return stmt
@@ -398,17 +447,20 @@ async def _build_portfolio_context(
         else:
             resume_url = site_settings.professional_resume_url or site_settings.creative_resume_url
 
+    def maybe_shorten(text_: str) -> str:
+        return _shorten(text_, _COMPACT_DESCRIPTION_CHARS) if compact else text_
+
     about_text = "\n".join(a.content for a in about)
     skills_text = "\n".join(f"**{s.category}**: {', '.join(s.skills or [])}" for s in skills)
     projects_text = "\n".join(
-        f"- **{p.title}**{' [FEATURED]' if p.featured else ''} ({p.category}): {p.description}"
+        f"- **{p.title}**{' [FEATURED]' if p.featured else ''} ({p.category}): {maybe_shorten(p.description)}"
         + (f" | Technologies: {', '.join(p.tags)}" if p.tags else "")
         + (f" | GitHub: {p.github_url}" if p.github_url else "")
         + (f" | Live: {p.live_url}" if p.live_url else "")
         for p in projects
     )
     experiences_text = "\n".join(
-        f"- **{e.title}** at {e.company} ({e.period}): {e.description}" for e in experiences
+        f"- **{e.title}** at {e.company} ({e.period}): {maybe_shorten(e.description)}" for e in experiences
     )
     education_text = "\n".join(
         f"- **{e.degree}** from {e.institution} ({e.period})" for e in education
@@ -475,20 +527,8 @@ Email: {contact.email if contact else "Not provided"}
 """, hero, resume_url
 
 
-async def stream_chat(db: AsyncSession, request: ChatRequest) -> AsyncIterator[bytes]:
-    sanitized_message = _sanitize_input(request.message, 2000)
-    if not sanitized_message:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid message")
-
-    sanitized_history = [
-        {"role": m.role, "content": _sanitize_input(m.content, 2000)}
-        for m in (request.conversationHistory or [])
-    ][-10:]
-
-    portfolio_context, hero, resume_url = await _build_portfolio_context(db, request.contentMode)
-    owner_name = hero.name if hero else "this portfolio"
-
-    system_prompt = f"""You are a friendly and professional AI assistant for {owner_name}'s portfolio website. Your role is to help visitors learn about the portfolio owner, their skills, projects, experience, and services.
+def _chat_system_prompt(owner_name: str, portfolio_context: str, resume_url: str | None) -> str:
+    return f"""You are a friendly and professional AI assistant for {owner_name}'s portfolio website. Your role is to help visitors learn about the portfolio owner, their skills, projects, experience, and services.
 
 Here is the complete portfolio information you have access to:
 {portfolio_context}
@@ -515,7 +555,31 @@ Example: If someone asks for the resume, respond with something like:
 
 Always provide the button when you have the relevant URL available. This makes it easy for visitors to access resources directly."""
 
+
+async def open_chat_stream(db: AsyncSession, request: ChatRequest) -> AsyncIterator[bytes]:
+    """Builds the prompt and opens a verified upstream stream (see
+    ai_gateway.open_stream for why the connect + status check happen here,
+    awaited directly, rather than inside the generator FastAPI iterates)."""
+    sanitized_message = _sanitize_input(request.message, 2000)
+    if not sanitized_message:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid message")
+
+    sanitized_history = [
+        {"role": m.role, "content": _sanitize_input(m.content, 2000)}
+        for m in (request.conversationHistory or [])
+    ][-10:]
+
+    portfolio_context, hero, resume_url = await _build_portfolio_context(db, request.contentMode)
+    owner_name = hero.name if hero else "this portfolio"
+    system_prompt = _chat_system_prompt(owner_name, portfolio_context, resume_url)
     messages = [{"role": "system", "content": system_prompt}, *sanitized_history, {"role": "user", "content": sanitized_message}]
 
-    async for chunk in ai_gateway.stream_chat_completion(messages, model=CHAT_MODEL):
-        yield chunk
+    # Only worth building a second, trimmed prompt if a fallback provider is
+    # actually configured to receive it.
+    fallback_messages = None
+    if settings.groq_api_key:
+        compact_context, _, _ = await _build_portfolio_context(db, request.contentMode, compact=True)
+        compact_prompt = _chat_system_prompt(owner_name, compact_context, resume_url)
+        fallback_messages = [{"role": "system", "content": compact_prompt}, *sanitized_history, {"role": "user", "content": sanitized_message}]
+
+    return await ai_gateway.open_stream(messages, model_kind="chat", fallback_messages=fallback_messages)
