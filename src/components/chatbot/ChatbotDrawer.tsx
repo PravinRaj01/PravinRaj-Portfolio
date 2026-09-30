@@ -4,6 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { usePortfolio } from "@/contexts/PortfolioContext";
+import { useSiteSettings } from "@/hooks/useSiteSettings";
 import { API_BASE_URL } from "@/services/apiClient";
 import ChatbotMiniView from "./ChatbotMiniView";
 import ChatbotFullView from "./ChatbotFullView";
@@ -89,6 +90,12 @@ const ChatbotDrawer = ({ state, onStateChange }: ChatbotDrawerProps) => {
   const { toast } = useToast();
   const isMobile = useIsMobile();
   const { mode, professionalModeEnabled, creativeModeEnabled } = usePortfolio();
+  // useSiteSettings() is also called in PortfolioChatbot.tsx (the parent) --
+  // react-query dedupes identical queries by key, so this doesn't add a
+  // second network request, and keeps this component self-contained.
+  const { data: siteSettings } = useSiteSettings();
+  const botName = siteSettings?.chatbot_name || "GG Bot";
+  const welcomeMessage = siteSettings?.chatbot_welcome_message || undefined;
   
   // Content mode for chatbot responses - defaults to current portfolio mode
   const [contentMode, setContentMode] = useState<ChatbotContentMode>(mode);
@@ -362,6 +369,8 @@ const ChatbotDrawer = ({ state, onStateChange }: ChatbotDrawerProps) => {
             contentMode={contentMode}
             onContentModeChange={setContentMode}
             showModeSelector={showModeSelector}
+            botName={botName}
+            welcomeMessage={welcomeMessage}
           />
         ) : (
           <ChatbotFullView
@@ -387,6 +396,8 @@ const ChatbotDrawer = ({ state, onStateChange }: ChatbotDrawerProps) => {
             contentMode={contentMode}
             onContentModeChange={setContentMode}
             showModeSelector={showModeSelector}
+            botName={botName}
+            welcomeMessage={welcomeMessage}
           />
         )}
       </Card>

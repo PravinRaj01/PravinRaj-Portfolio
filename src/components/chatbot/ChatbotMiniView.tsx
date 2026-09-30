@@ -29,6 +29,8 @@ interface ChatbotMiniViewProps {
   contentMode: ChatbotContentMode;
   onContentModeChange: (mode: ChatbotContentMode) => void;
   showModeSelector: boolean;
+  botName: string;
+  welcomeMessage?: string;
 }
 
 const ChatbotMiniView = ({
@@ -44,6 +46,8 @@ const ChatbotMiniView = ({
   contentMode,
   onContentModeChange,
   showModeSelector,
+  botName,
+  welcomeMessage,
 }: ChatbotMiniViewProps) => {
   const displayMessages = messages || [];
   const { mode } = usePortfolio();
@@ -84,7 +88,7 @@ const ChatbotMiniView = ({
             </Avatar>
             <div>
               <div className="flex items-center gap-1">
-                <p className="text-sm font-semibold">GG Bot</p>
+                <p className="text-sm font-semibold">{botName}</p>
                 <Sparkles className={cn("h-3 w-3 animate-pulse", sparkleClass)} />
               </div>
               <p className="text-xs text-muted-foreground">Ask me anything</p>
@@ -161,8 +165,14 @@ const ChatbotMiniView = ({
                 </AvatarFallback>
               </Avatar>
               <div className="text-center">
-                <p className="text-sm font-semibold mb-1">Hi there! 👋</p>
-                <p className="text-xs text-muted-foreground">How can I help you?</p>
+                {welcomeMessage ? (
+                  <p className="text-sm font-semibold">{welcomeMessage}</p>
+                ) : (
+                  <>
+                    <p className="text-sm font-semibold mb-1">Hi there! 👋</p>
+                    <p className="text-xs text-muted-foreground">How can I help you?</p>
+                  </>
+                )}
               </div>
             </div>
           ) : (

@@ -65,6 +65,8 @@ interface ChatbotFullViewProps {
   contentMode: ChatbotContentMode;
   onContentModeChange: (mode: ChatbotContentMode) => void;
   showModeSelector: boolean;
+  botName: string;
+  welcomeMessage?: string;
 }
 
 const ChatbotFullView = ({
@@ -90,6 +92,8 @@ const ChatbotFullView = ({
   contentMode,
   onContentModeChange,
   showModeSelector,
+  botName,
+  welcomeMessage,
 }: ChatbotFullViewProps) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -246,7 +250,7 @@ const ChatbotFullView = ({
             </Avatar>
             <div>
               <div className="flex items-center gap-2">
-                <p className="text-lg font-semibold">GG Bot</p>
+                <p className="text-lg font-semibold">{botName}</p>
                 <Sparkles className={cn("h-4 w-4 animate-pulse", sparkleClass)} />
               </div>
               <p className="text-xs text-muted-foreground">Ask me about skills, projects, experience</p>
@@ -357,10 +361,16 @@ const ChatbotFullView = ({
                     </AvatarFallback>
                   </Avatar>
                   <div>
-                    <h3 className="text-lg font-semibold mb-1">Welcome! 👋</h3>
-                    <p className="text-muted-foreground text-sm">
-                      I can help you learn about my skills, projects, and experience.
-                    </p>
+                    {welcomeMessage ? (
+                      <h3 className="text-lg font-semibold">{welcomeMessage}</h3>
+                    ) : (
+                      <>
+                        <h3 className="text-lg font-semibold mb-1">Welcome! 👋</h3>
+                        <p className="text-muted-foreground text-sm">
+                          I can help you learn about my skills, projects, and experience.
+                        </p>
+                      </>
+                    )}
                   </div>
                 </div>
                 <QuickActions onAction={onQuickAction} />

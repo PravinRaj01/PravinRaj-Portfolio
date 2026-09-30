@@ -12,7 +12,7 @@ const PortfolioChatbot = () => {
 
   const handleToggle = () => {
     setState((prev) => {
-      if (prev === "closed") return "mini";
+      if (prev === "closed") return siteSettings?.chatbot_default_state ?? "mini";
       return "closed";
     });
   };
@@ -28,7 +28,11 @@ const PortfolioChatbot = () => {
 
   return (
     <>
-      <ChatbotButton onClick={handleToggle} state={state === "closed" ? "closed" : "open"} />
+      <ChatbotButton
+        onClick={handleToggle}
+        state={state === "closed" ? "closed" : "open"}
+        name={siteSettings?.chatbot_name || undefined}
+      />
       <ChatbotDrawer state={state} onStateChange={handleStateChange} />
     </>
   );

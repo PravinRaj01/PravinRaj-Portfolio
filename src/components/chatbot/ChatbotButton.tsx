@@ -8,9 +8,10 @@ export type ChatbotState = 'closed' | 'open';
 interface ChatbotButtonProps {
   onClick: () => void;
   state: ChatbotState;
+  name?: string;
 }
 
-const ChatbotButton = ({ onClick, state }: ChatbotButtonProps) => {
+const ChatbotButton = ({ onClick, state, name = 'GG Bot' }: ChatbotButtonProps) => {
   const isClosed = state === 'closed';
   const { mode } = usePortfolio();
 
@@ -37,7 +38,7 @@ const ChatbotButton = ({ onClick, state }: ChatbotButtonProps) => {
         "hover:scale-[1.15] active:scale-105",
         !isClosed && `${activeStyle} scale-95`
       )}
-      aria-label={isClosed ? "Open GG Bot" : "Close GG Bot"}
+      aria-label={isClosed ? `Open ${name}` : `Close ${name}`}
     >
       {isClosed ? (
         <MessageCircle className="h-5 w-5 lg:h-6 lg:w-6 text-foreground" />
