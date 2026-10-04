@@ -76,6 +76,24 @@ class Settings(BaseSettings):
     groq_chat_model: str = "openai/gpt-oss-20b"
     groq_content_model: str = "openai/gpt-oss-120b"
 
+    # RAG for the public chatbot (RAG_MIGRATION_PLAN.md). Off by default: with
+    # rag_enabled false the chatbot behaves exactly as before (whole portfolio
+    # in the prompt), and it also falls back to that per request whenever
+    # retrieval can't run. Groq has no embeddings API, so embeddings are
+    # Gemini-only.
+    gemini_embedding_model: str = "gemini-embedding-001"
+    rag_enabled: bool = False
+    rag_top_k: int = 8  # chunks sent to the model after fusion
+    rag_pool: int = 20  # candidates each search branch contributes to the fusion
+    # COSINE floor for the vector branch only. Fused RRF scores are rank-based
+    # (max ~0.033), so this can't be applied to the fused result. Calibrated on
+    # a 39-question eval: gemini-embedding-001 has a high baseline (off-topic
+    # text still scores ~0.5), and the lowest true positive was 0.606, so 0.55
+    # sits just under it. It trims weak tail chunks but does NOT reliably gate
+    # off-topic questions ("hello" scores ~0.6) -- that's harmless, the model
+    # just ignores unrelated chunks.
+    rag_min_score: float = 0.55
+
     # Public, read-only Drive API key for the resume/gallery folder proxy.
     google_drive_api_key: str = ""
 

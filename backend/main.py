@@ -5,6 +5,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.services.deploy_hook import trigger_rebuild
+from app.services.rag_index import reindex_best_effort
 
 from app.api.routers.about import router as about_router
 from app.api.routers.ai import router as ai_router
@@ -98,12 +99,16 @@ _NON_CONTENT_PREFIXES = (
 async def trigger_rebuild_on_content_write(request: Request, call_next):
     response = await call_next(request)
     if (
-        _IS_PRODUCTION
-        and request.method in _CONTENT_MUTATION_METHODS
+        request.method in _CONTENT_MUTATION_METHODS
         and response.status_code < 300
         and not request.url.path.startswith(_NON_CONTENT_PREFIXES)
     ):
-        await trigger_rebuild()
+        if _IS_PRODUCTION:
+            await trigger_rebuild()
+        # Keeps the chatbot's RAG index current. Cheap on a no-op write: only
+        # chunks whose text actually changed are re-embedded (content hash).
+        if settings.rag_enabled:
+            await reindex_best_effort()
     return response
 
 

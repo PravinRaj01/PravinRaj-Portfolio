@@ -7,13 +7,15 @@
 import asyncio
 import base64
 import json
+import logging
 import re
 from collections.abc import AsyncIterator
 from typing import Any
 
 import httpx
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import select, text
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -36,7 +38,9 @@ from app.schemas.ai import (
     MagazineGenerateRequest,
     MagazineGenerateResponse,
 )
-from app.services import ai_gateway
+from app.services import ai_gateway, embeddings
+
+logger = logging.getLogger(__name__)
 
 # Model names themselves now live in app/core/config.py (one pair of
 # settings per provider per model_kind) -- ai_gateway resolves them.
@@ -374,6 +378,36 @@ def _shorten(text_: str, limit: int) -> str:
     return text_ if len(text_) <= limit else text_[:limit].rstrip() + "…"
 
 
+def _resolve_resume_url(site_settings: SiteSettings | None, content_mode: ChatContentMode) -> str | None:
+    # The legacy site_settings.resume_url the original Edge Function read is
+    # a dead Supabase URL post-migration (MIGRATION_PLAN.md §13) -- point at
+    # the real, mode-specific R2 URL instead so the chatbot's resume button
+    # doesn't hand out a broken link.
+    if not site_settings:
+        return None
+    if content_mode == "creative":
+        return site_settings.creative_resume_url or site_settings.professional_resume_url
+    return site_settings.professional_resume_url or site_settings.creative_resume_url
+
+
+def _mode_label(content_mode: ChatContentMode) -> str:
+    return (
+        "all content (professional and creative)"
+        if content_mode == "both"
+        else f"{content_mode} content only"
+    )
+
+
+_WEBSITE_PAGES = """## Website Pages
+- **Home** (/): Main landing page with hero section, about, skills, and featured projects
+- **Projects** (/projects): Full portfolio of all projects with filtering options
+- **Experience** (/experience): Work history and professional experience details
+- **Academic** (/academic): Education background and certifications
+- **Podcast** (/podcast): Podcast content and episodes
+- **Contact** (/contact): Contact form and information
+- **Playground** (/playground): Hidden fun page with interactive games! Users can access it by entering the Konami Code (↑↑↓↓←→←→BA) anywhere on the site, or by directly visiting /playground. Features retro arcade-style games like Neon Breakout."""
+
+
 async def _build_portfolio_context(
     db: AsyncSession, content_mode: ChatContentMode, *, compact: bool = False
 ) -> tuple[str, HeroContent | None, str | None]:
@@ -430,22 +464,8 @@ async def _build_portfolio_context(
     )
     site_settings = (await db.execute(select(SiteSettings).limit(1))).scalar_one_or_none()
 
-    mode_label = (
-        "all content (professional and creative)"
-        if content_mode == "both"
-        else f"{content_mode} content only"
-    )
-
-    # The legacy site_settings.resume_url the original Edge Function read is
-    # a dead Supabase URL post-migration (MIGRATION_PLAN.md §13) -- point at
-    # the real, mode-specific R2 URL instead so the chatbot's resume button
-    # doesn't hand out a broken link.
-    resume_url = None
-    if site_settings:
-        if content_mode == "creative":
-            resume_url = site_settings.creative_resume_url or site_settings.professional_resume_url
-        else:
-            resume_url = site_settings.professional_resume_url or site_settings.creative_resume_url
+    mode_label = _mode_label(content_mode)
+    resume_url = _resolve_resume_url(site_settings, content_mode)
 
     def maybe_shorten(text_: str) -> str:
         return _shorten(text_, _COMPACT_DESCRIPTION_CHARS) if compact else text_
@@ -511,14 +531,7 @@ Description: {hero.description if hero else ""}
 ## Social Media & Online Presence
 {socials_text}
 
-## Website Pages
-- **Home** (/): Main landing page with hero section, about, skills, and featured projects
-- **Projects** (/projects): Full portfolio of all projects with filtering options
-- **Experience** (/experience): Work history and professional experience details
-- **Academic** (/academic): Education background and certifications
-- **Podcast** (/podcast): Podcast content and episodes
-- **Contact** (/contact): Contact form and information
-- **Playground** (/playground): Hidden fun page with interactive games! Users can access it by entering the Konami Code (↑↑↓↓←→←→BA) anywhere on the site, or by directly visiting /playground. Features retro arcade-style games like Neon Breakout.
+{_WEBSITE_PAGES}
 
 ## Contact
 Email: {contact.email if contact else "Not provided"}
@@ -527,10 +540,191 @@ Email: {contact.email if contact else "Not provided"}
 """, hero, resume_url
 
 
-def _chat_system_prompt(owner_name: str, portfolio_context: str, resume_url: str | None) -> str:
+# --- RAG (RAG_MIGRATION_PLAN.md §5, §10) ---------------------------------
+
+async def _build_core_context(
+    db: AsyncSession, content_mode: ChatContentMode
+) -> tuple[str, HeroContent | None, str | None]:
+    """The always-on block injected into every RAG prompt: owner identity,
+    resume link, contact and socials, page list. These are what visitors ask
+    for most and what the [button:...] links depend on, so they never ride on
+    a search hit. Everything else (projects, experience, skills...) is
+    retrieved per question."""
+    def mode_filter(stmt, column):
+        if content_mode == "both":
+            return stmt
+        return stmt.where(column == content_mode)
+
+    hero = (
+        await db.execute(mode_filter(select(HeroContent), HeroContent.mode).limit(1))
+    ).scalar_one_or_none()
+    contact = (
+        await db.execute(mode_filter(select(ContactContent), ContactContent.mode).limit(1))
+    ).scalar_one_or_none()
+    socials = list(
+        (await db.execute(select(Social).where(Social.enabled.is_(True)).order_by(Social.order_index)))
+        .scalars()
+        .all()
+    )
+    site_settings = (await db.execute(select(SiteSettings).limit(1))).scalar_one_or_none()
+
+    resume_url = _resolve_resume_url(site_settings, content_mode)
+    socials_text = "\n".join(f"- **{s.name}**: {s.url}" for s in socials)
+
+    return f"""
+## Content Mode
+You are currently answering based on: {_mode_label(content_mode)}
+
+## Portfolio Owner Information
+Name: {hero.name if hero else "Portfolio Owner"}
+Title: {hero.title if hero else "Professional"}
+Greeting: {hero.greeting if hero else ""}
+Description: {hero.description if hero else ""}
+
+## Resume
+{f"Resume URL: {resume_url}" if resume_url else "Resume not available"}
+
+## Social Media & Online Presence
+{socials_text}
+
+{_WEBSITE_PAGES}
+
+## Contact
+Email: {contact.email if contact else "Not provided"}
+{f"Phone: {contact.phone}" if contact and contact.phone else ""}
+{f"Location: {contact.location}" if contact and contact.location else ""}
+""", hero, resume_url
+
+
+# Hybrid search: a vector branch (by meaning) and a full-text branch (by exact
+# words), merged with Reciprocal Rank Fusion -- score = 1/(60+rank) summed over
+# the branches a chunk appears in. Vectors are bound as *text* and cast in SQL
+# so no asyncpg codec has to be registered on each new NullPool connection.
+_SEARCH_SQL = text(
+    """
+    WITH vec AS (
+        SELECT id,
+               row_number() OVER (
+                   ORDER BY embedding <=> CAST(CAST(:query_vec AS text) AS vector)
+               ) AS rnk
+        FROM portfolio_chunks
+        WHERE embedding IS NOT NULL
+          AND (CAST(:mode AS text) = 'both' OR mode = CAST(:mode AS text) OR mode = 'both')
+          AND 1 - (embedding <=> CAST(CAST(:query_vec AS text) AS vector)) >= :min_cos
+        ORDER BY rnk
+        LIMIT :pool
+    ),
+    q AS (
+        -- plainto_tsquery ANDs every word; swapping & for | lets any matching
+        -- word count and ts_rank_cd sort out relevance. Its lexemes are already
+        -- stripped of punctuation, so the replace can't corrupt them.
+        SELECT replace(plainto_tsquery('english', CAST(:query_text AS text))::text, '&', '|')::tsquery AS tsq
+    ),
+    fts AS (
+        SELECT c.id,
+               row_number() OVER (ORDER BY ts_rank_cd(c.search_tsv, q.tsq) DESC) AS rnk
+        FROM portfolio_chunks c, q
+        WHERE c.search_tsv @@ q.tsq
+          AND (CAST(:mode AS text) = 'both' OR c.mode = CAST(:mode AS text) OR c.mode = 'both')
+        ORDER BY rnk
+        LIMIT :pool
+    )
+    SELECT c.title, c.content, c.source_type,
+           COALESCE(1.0 / (60 + vec.rnk), 0) + COALESCE(1.0 / (60 + fts.rnk), 0) AS score,
+           vec.rnk AS vec_rank, fts.rnk AS fts_rank
+    FROM portfolio_chunks c
+    LEFT JOIN vec ON vec.id = c.id
+    LEFT JOIN fts ON fts.id = c.id
+    WHERE vec.id IS NOT NULL OR fts.id IS NOT NULL
+    ORDER BY score DESC
+    LIMIT :k
+    """
+)
+
+
+def _retrieval_query(message: str, history: list[dict[str, str]]) -> str:
+    """'Tell me more about it' carries nothing searchable on its own, so a short
+    follow-up borrows the previous user turn."""
+    if len(message) >= 40:
+        return message
+    previous = next((m["content"] for m in reversed(history) if m["role"] == "user"), "")
+    return f"{previous}\n{message}".strip() if previous else message
+
+
+async def _retrieve(db: AsyncSession, query: str, content_mode: ChatContentMode) -> list[Any]:
+    """Raises RagUnavailableError when retrieval can't run (embedding failure,
+    empty index); the caller then falls back to the full portfolio context."""
+    vector = await embeddings.embed_query(query)
+    params = {
+        "query_vec": embeddings.to_pgvector(vector),
+        "query_text": query,
+        "mode": content_mode,
+        "min_cos": settings.rag_min_score,
+        "pool": settings.rag_pool,
+        "k": settings.rag_top_k,
+    }
+    # A savepoint, so a failing search (index not migrated, extension missing)
+    # leaves the surrounding transaction usable for the full-context fallback.
+    async with db.begin_nested():
+        rows = list((await db.execute(_SEARCH_SQL, params)).all())
+        if not rows:
+            has_index = (
+                await db.execute(text("SELECT EXISTS (SELECT 1 FROM portfolio_chunks)"))
+            ).scalar_one()
+            if not has_index:
+                raise embeddings.RagUnavailableError("portfolio_chunks is empty; run /ai/reindex")
+    return rows
+
+
+def _format_hits(rows: list[Any]) -> str:
+    header = (
+        "## Relevant portfolio information\n"
+        "These entries were retrieved for the visitor's latest question. They may not "
+        "cover everything about the portfolio owner: if the answer is not here or in the "
+        "profile above, say you don't have that detail instead of guessing, and point to "
+        "the relevant page or the contact details."
+    )
+    if not rows:
+        return f"{header}\n\n(No specific entries matched this question.)\n"
+    body = "\n\n".join(f"### {r.title}\n{r.content}" for r in rows)
+    return f"{header}\n\n{body}\n"
+
+
+async def _try_rag_context(
+    db: AsyncSession, content_mode: ChatContentMode, query: str
+) -> tuple[str, HeroContent | None, str | None] | None:
+    """Core + retrieved chunks, or None to signal 'use the full context'."""
+    try:
+        core, hero, resume_url = await _build_core_context(db, content_mode)
+        rows = await _retrieve(db, query, content_mode)
+    except embeddings.RagUnavailableError as exc:
+        logger.warning("RAG unavailable, using full portfolio context: %s", exc)
+        return None
+    except SQLAlchemyError:
+        logger.exception("RAG retrieval query failed, using full portfolio context")
+        await db.rollback()
+        return None
+    logger.info(
+        "RAG retrieved %d chunks (vector=%d, fulltext=%d)",
+        len(rows),
+        sum(1 for r in rows if r.vec_rank is not None),
+        sum(1 for r in rows if r.fts_rank is not None),
+    )
+    return core + _format_hits(rows), hero, resume_url
+
+
+def _chat_system_prompt(
+    owner_name: str, portfolio_context: str, resume_url: str | None, *, retrieved: bool = False
+) -> str:
+    intro = (
+        "Here is the portfolio information you have access to for this conversation (the owner's profile "
+        "details, plus the entries retrieved for the visitor's latest question):"
+        if retrieved
+        else "Here is the complete portfolio information you have access to:"
+    )
     return f"""You are a friendly and professional AI assistant for {owner_name}'s portfolio website. Your role is to help visitors learn about the portfolio owner, their skills, projects, experience, and services.
 
-Here is the complete portfolio information you have access to:
+{intro}
 {portfolio_context}
 
 Guidelines:
@@ -569,10 +763,28 @@ async def open_chat_stream(db: AsyncSession, request: ChatRequest) -> AsyncItera
         for m in (request.conversationHistory or [])
     ][-10:]
 
+    # RAG first (core profile + retrieved chunks, ~1.5K tokens, small enough
+    # that Groq can take the very same prompt). None means retrieval is off or
+    # couldn't run, and the whole portfolio goes in the prompt as before.
+    rag_context = None
+    if settings.rag_enabled:
+        rag_context = await _try_rag_context(
+            db, request.contentMode, _retrieval_query(sanitized_message, sanitized_history)
+        )
+
+    if rag_context is not None:
+        portfolio_context, hero, resume_url = rag_context
+        owner_name = hero.name if hero else "this portfolio"
+        system_prompt = _chat_system_prompt(owner_name, portfolio_context, resume_url, retrieved=True)
+        messages = [{"role": "system", "content": system_prompt}, *sanitized_history, {"role": "user", "content": sanitized_message}]
+        logger.info("chat prompt: path=rag mode=%s ~%d tokens", request.contentMode, len(system_prompt) // 4)
+        return await ai_gateway.open_stream(messages, model_kind="chat")
+
     portfolio_context, hero, resume_url = await _build_portfolio_context(db, request.contentMode)
     owner_name = hero.name if hero else "this portfolio"
     system_prompt = _chat_system_prompt(owner_name, portfolio_context, resume_url)
     messages = [{"role": "system", "content": system_prompt}, *sanitized_history, {"role": "user", "content": sanitized_message}]
+    logger.info("chat prompt: path=full mode=%s ~%d tokens", request.contentMode, len(system_prompt) // 4)
 
     # Only worth building a second, trimmed prompt if a fallback provider is
     # actually configured to receive it.

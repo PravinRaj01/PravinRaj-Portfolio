@@ -17,8 +17,9 @@ from app.schemas.ai import (
     MagazineGenerateRequest,
     MagazineGenerateResponse,
 )
-from app.services import ai_content, chat_throttle
+from app.services import ai_content, chat_throttle, rag_index
 from app.services.ai_gateway import AIGatewayNotConfiguredError
+from app.services.embeddings import RagUnavailableError
 
 router = APIRouter(prefix="/ai", tags=["ai"])
 
@@ -63,6 +64,18 @@ async def generate_magazine(
         return await ai_content.generate_magazine(db, payload)
     except AIGatewayNotConfiguredError as exc:
         raise _not_configured() from exc
+
+
+@router.post("/reindex", dependencies=[Depends(require_admin)])
+async def reindex(
+    db: Annotated[AsyncSession, Depends(get_db)], force: bool = False
+) -> dict[str, int]:
+    """Rebuilds the chatbot's RAG index. Only chunks whose text changed are
+    re-embedded; `force=true` re-embeds everything."""
+    try:
+        return await rag_index.reindex(db, force=force)
+    except RagUnavailableError as exc:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
 
 
 @router.post("/chat")

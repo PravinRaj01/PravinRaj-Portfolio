@@ -19,6 +19,7 @@ from app.models.content import (
 )
 from app.models.magazine import MagazineIssue
 from app.models.projects import Project, ProjectFolder, ProjectImageFolder
+from app.models.rag import PortfolioChunk
 from app.models.site import SiteSettings
 
 __all__ = [
@@ -46,4 +47,5 @@ __all__ = [
     "AdminUser",
     "AdminLoginAttempt",
     "ChatRequestLog",
+    "PortfolioChunk",
 ]
