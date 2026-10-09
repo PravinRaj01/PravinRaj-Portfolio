@@ -11,29 +11,63 @@ interface ChatMessageProps {
   compact?: boolean;
 }
 
+type MessagePart = { type: 'text' | 'button'; content?: string; label?: string; url?: string };
+
+// The model writes button URLs, so they're untrusted: a prompt-injected
+// `javascript:` or `data:` URL would otherwise be handed straight to
+// window.open. Only these schemes (or site-relative paths, which resolve to
+// the site's own origin) become clickable.
+const SAFE_BUTTON_PROTOCOLS = new Set(['https:', 'http:', 'mailto:']);
+
+const safeButtonUrl =(raw: string): string | null => {
+  try {
+    const base = typeof window !== 'undefined' ? window.location.origin : 'https://localhost';
+    const url = new URL(raw.trim(), base);
+    return SAFE_BUTTON_PROTOCOLS.has(url.protocol) ? url.href : null;
+  } catch {
+    return null;
+  }
+};
+
+// Appends text, merging into the previous text part so a rejected button's
+// label stays inline with the sentence around it instead of becoming its own block.
+const pushText = (parts: MessagePart[], text: string) => {
+  const last = parts[parts.length - 1];
+  if (last && last.type === 'text') {
+    last.content = (last.content ?? '') + text;
+  } else {
+    parts.push({ type: 'text', content: text });
+  }
+};
+
 // Parse button syntax: [button:Label](URL)
-const parseButtons = (content: string) => {
+const parseButtons = (content: string): MessagePart[] => {
   const buttonRegex = /\[button:([^\]]+)\]\(([^)]+)\)/g;
-  const parts: Array<{ type: 'text' | 'button'; content?: string; label?: string; url?: string }> = [];
+  const parts: MessagePart[] = [];
   let lastIndex = 0;
   let match;
 
   while ((match = buttonRegex.exec(content)) !== null) {
     // Add text before the button
     if (match.index > lastIndex) {
-      parts.push({ type: 'text', content: content.slice(lastIndex, match.index) });
+      pushText(parts, content.slice(lastIndex, match.index));
     }
-    // Add the button
-    parts.push({ type: 'button', label: match[1], url: match[2] });
+    // Add the button -- or just its label when the URL isn't on the allowlist
+    const url = safeButtonUrl(match[2]);
+    if (url) {
+      parts.push({ type: 'button', label: match[1], url });
+    } else {
+      pushText(parts, match[1]);
+    }
     lastIndex = match.index + match[0].length;
   }
 
   // Add remaining text after last button
   if (lastIndex < content.length) {
-    parts.push({ type: 'text', content: content.slice(lastIndex) });
+    pushText(parts, content.slice(lastIndex));
   }
 
-  return parts.length > 0 ? parts : [{ type: 'text' as const, content }];
+  return parts.length > 0 ? parts : [{ type: 'text', content }];
 };
 
 const ChatMessage = ({ role, content, isStreaming, compact = false }: ChatMessageProps) => {

@@ -94,6 +94,29 @@ class Settings(BaseSettings):
     # just ignores unrelated chunks.
     rag_min_score: float = 0.55
 
+    # Chat guard (chat_guard.py): compares each visitor message's embedding to
+    # labelled examples and answers jailbreak / off-topic ones with a fixed
+    # redirect instead of spending a search and an LLM call. Needs RAG (it
+    # reuses RAG's query embedding). Off by default; the thresholds come from
+    # scripts/eval_chat_guard.py. A message is blocked only if it is at least
+    # `min_sim` similar to the nearest example of that kind AND at least
+    # `margin` closer to it than to the nearest real portfolio question.
+    # Values below are what scripts/eval_chat_guard.py chose on its dev half;
+    # on the untouched test half the injection rule blocked 0/25 legitimate
+    # messages and caught 11/12 jailbreaks, and a further stress set of 42
+    # bare replies ("ok", "yes", "lol"...) was blocked 0/42. min_sim sits at
+    # the grid floor, so the margin does the real work.
+    chat_guard_enabled: bool = False
+    chat_guard_injection_min_sim: float = 0.55
+    chat_guard_injection_margin: float = 0.09
+    # Off-topic blocking is separate and OFF: on the test half it caught only
+    # 4/12 with a thin safety margin, and the LLM already redirects off-topic
+    # questions politely, so the risk isn't worth it. Re-run the eval after
+    # growing the examples before turning it on.
+    chat_guard_offtopic_enabled: bool = False
+    chat_guard_offtopic_min_sim: float = 0.55
+    chat_guard_offtopic_margin: float = 0.06
+
     # Public, read-only Drive API key for the resume/gallery folder proxy.
     google_drive_api_key: str = ""
 

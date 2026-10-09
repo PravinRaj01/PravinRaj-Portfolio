@@ -38,7 +38,7 @@ from app.schemas.ai import (
     MagazineGenerateRequest,
     MagazineGenerateResponse,
 )
-from app.services import ai_gateway, embeddings
+from app.services import ai_gateway, chat_guard, embeddings
 
 logger = logging.getLogger(__name__)
 
@@ -651,10 +651,18 @@ def _retrieval_query(message: str, history: list[dict[str, str]]) -> str:
     return f"{previous}\n{message}".strip() if previous else message
 
 
-async def _retrieve(db: AsyncSession, query: str, content_mode: ChatContentMode) -> list[Any]:
+async def _retrieve(
+    db: AsyncSession,
+    query: str,
+    content_mode: ChatContentMode,
+    vector: list[float] | None = None,
+) -> list[Any]:
     """Raises RagUnavailableError when retrieval can't run (embedding failure,
-    empty index); the caller then falls back to the full portfolio context."""
-    vector = await embeddings.embed_query(query)
+    empty index); the caller then falls back to the full portfolio context.
+    `vector` is the already-computed embedding of `query`, so a message is only
+    embedded once even when the chat guard needed the vector first."""
+    if vector is None:
+        vector = await embeddings.embed_query(query)
     params = {
         "query_vec": embeddings.to_pgvector(vector),
         "query_text": query,
@@ -691,12 +699,15 @@ def _format_hits(rows: list[Any]) -> str:
 
 
 async def _try_rag_context(
-    db: AsyncSession, content_mode: ChatContentMode, query: str
+    db: AsyncSession,
+    content_mode: ChatContentMode,
+    query: str,
+    vector: list[float] | None = None,
 ) -> tuple[str, HeroContent | None, str | None] | None:
     """Core + retrieved chunks, or None to signal 'use the full context'."""
     try:
         core, hero, resume_url = await _build_core_context(db, content_mode)
-        rows = await _retrieve(db, query, content_mode)
+        rows = await _retrieve(db, query, content_mode, vector)
     except embeddings.RagUnavailableError as exc:
         logger.warning("RAG unavailable, using full portfolio context: %s", exc)
         return None
@@ -711,6 +722,35 @@ async def _try_rag_context(
         sum(1 for r in rows if r.fts_rank is not None),
     )
     return core + _format_hits(rows), hero, resume_url
+
+
+async def _guard_blocks(message: str, retrieval_query: str, retrieval_vector: list[float]) -> bool:
+    """True if the chat guard says this message should get the fixed redirect.
+
+    The guard judges the CURRENT message only. The retrieval query borrows the
+    previous user turn for short follow-ups, and classifying that would make a
+    visitor's "ok, what projects?" inherit the verdict on their previous
+    message. When the two texts differ the message is embedded on its own (one
+    extra embedding request, only for short follow-ups). Fails open: if that
+    embedding fails, the message is let through to the model, whose system
+    prompt is the backstop."""
+    if retrieval_query == message:
+        vector = retrieval_vector
+    else:
+        try:
+            vector = await embeddings.embed_query(message)
+        except embeddings.RagUnavailableError as exc:
+            logger.warning("Chat guard skipped (embedding failed): %s", exc)
+            return False
+    decision = chat_guard.classify(vector)
+    if decision.block:
+        # Scores only -- never the visitor's text.
+        logger.info(
+            "chat guard blocked a message: label=%s scores=%s",
+            decision.label,
+            {k: round(v, 3) for k, v in decision.best.items()},
+        )
+    return decision.block
 
 
 def _chat_system_prompt(
@@ -768,9 +808,21 @@ async def open_chat_stream(db: AsyncSession, request: ChatRequest) -> AsyncItera
     # couldn't run, and the whole portfolio goes in the prompt as before.
     rag_context = None
     if settings.rag_enabled:
-        rag_context = await _try_rag_context(
-            db, request.contentMode, _retrieval_query(sanitized_message, sanitized_history)
-        )
+        retrieval_query = _retrieval_query(sanitized_message, sanitized_history)
+        try:
+            query_vector = await embeddings.embed_query(retrieval_query)
+        except embeddings.RagUnavailableError as exc:
+            logger.warning("RAG unavailable, using full portfolio context: %s", exc)
+            query_vector = None
+
+        if query_vector is not None:
+            if settings.chat_guard_enabled:
+                blocked = await _guard_blocks(sanitized_message, retrieval_query, query_vector)
+                if blocked:
+                    return chat_guard.redirect_stream()
+            rag_context = await _try_rag_context(
+                db, request.contentMode, retrieval_query, query_vector
+            )
 
     if rag_context is not None:
         portfolio_context, hero, resume_url = rag_context

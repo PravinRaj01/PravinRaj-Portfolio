@@ -16,6 +16,7 @@ TASK_DOCUMENT = "RETRIEVAL_DOCUMENT"
 TASK_QUERY = "RETRIEVAL_QUERY"
 EMBEDDING_DIMS = 768
 _BATCH_SIZE = 50
+_RATE_LIMIT_WAIT_SECONDS = 25.0  # only used when a caller opts in to retries
 
 
 class RagUnavailableError(RuntimeError):
@@ -25,6 +26,11 @@ class RagUnavailableError(RuntimeError):
 
 class EmbeddingUnavailableError(RagUnavailableError):
     """No embedding could be produced (missing key, quota, network, 4xx/5xx)."""
+
+
+class EmbeddingRateLimitedError(EmbeddingUnavailableError):
+    """HTTP 429. The free tier counts every item in a batch toward its
+    100 requests/minute limit, so a big batch right after another one can trip it."""
 
 
 def content_hash(text_: str) -> str:
@@ -53,9 +59,10 @@ async def _post(client: httpx.AsyncClient, path: str, payload: dict) -> dict:
         json=payload,
     )
     if response.status_code >= 400:
-        raise EmbeddingUnavailableError(
-            f"{path} failed: HTTP {response.status_code} {response.text[:300]}"
+        error_class = (
+            EmbeddingRateLimitedError if response.status_code == 429 else EmbeddingUnavailableError
         )
+        raise error_class(f"{path} failed: HTTP {response.status_code} {response.text[:300]}")
     return response.json()
 
 
@@ -81,8 +88,22 @@ async def embed_query(text_: str) -> list[float]:
     return l2_normalize(values)
 
 
-async def embed_documents(texts: list[str]) -> list[list[float]]:
-    """Batched, so a full re-index costs ~3 requests instead of ~150."""
+async def embed_documents(
+    texts: list[str],
+    *,
+    task_type: str = TASK_DOCUMENT,
+    rate_limit_retries: int = 0,
+) -> list[list[float]]:
+    """Batched, so a full re-index costs ~3 requests instead of ~150.
+
+    `task_type` defaults to RETRIEVAL_DOCUMENT (what the portfolio chunks use).
+    The chat guard's example messages pass TASK_QUERY instead, so they live in
+    the same embedding space as the visitor messages they are compared to.
+
+    `rate_limit_retries` > 0 waits out a 429 (per-minute free-tier limit) and
+    retries the batch. Only the offline scripts use it: the app leaves it at 0,
+    because reindexing after an admin write runs under a 60 s function limit and
+    must fail fast instead of sleeping."""
     if not settings.gemini_api_key:
         raise EmbeddingUnavailableError("GEMINI_API_KEY not configured")
 
@@ -90,29 +111,34 @@ async def embed_documents(texts: list[str]) -> list[list[float]]:
     async with httpx.AsyncClient(timeout=httpx.Timeout(60.0, connect=5.0)) as client:
         for start in range(0, len(texts), _BATCH_SIZE):
             batch = texts[start : start + _BATCH_SIZE]
-            try:
-                data = await _post(
-                    client,
-                    "batchEmbedContents",
+            payload = {
+                "requests": [
                     {
-                        "requests": [
-                            {
-                                "model": f"models/{settings.gemini_embedding_model}",
-                                "content": {"parts": [{"text": t}]},
-                                "taskType": TASK_DOCUMENT,
-                                "outputDimensionality": EMBEDDING_DIMS,
-                            }
-                            for t in batch
-                        ]
-                    },
-                )
-                batch_vectors = [e["values"] for e in data["embeddings"]]
-            except httpx.HTTPError as exc:
-                raise EmbeddingUnavailableError(f"batchEmbedContents network error: {exc}") from exc
-            except (KeyError, TypeError) as exc:
-                raise EmbeddingUnavailableError(
-                    "batchEmbedContents returned an unexpected shape"
-                ) from exc
+                        "model": f"models/{settings.gemini_embedding_model}",
+                        "content": {"parts": [{"text": t}]},
+                        "taskType": task_type,
+                        "outputDimensionality": EMBEDDING_DIMS,
+                    }
+                    for t in batch
+                ]
+            }
+            retries_left = rate_limit_retries
+            while True:
+                try:
+                    data = await _post(client, "batchEmbedContents", payload)
+                    batch_vectors = [e["values"] for e in data["embeddings"]]
+                    break
+                except EmbeddingRateLimitedError:
+                    if retries_left <= 0:
+                        raise
+                    retries_left -= 1
+                    await asyncio.sleep(_RATE_LIMIT_WAIT_SECONDS)
+                except httpx.HTTPError as exc:
+                    raise EmbeddingUnavailableError(f"batchEmbedContents network error: {exc}") from exc
+                except (KeyError, TypeError) as exc:
+                    raise EmbeddingUnavailableError(
+                        "batchEmbedContents returned an unexpected shape"
+                    ) from exc
             if len(batch_vectors) != len(batch):
                 raise EmbeddingUnavailableError(
                     f"batchEmbedContents returned {len(batch_vectors)} vectors for {len(batch)} inputs"

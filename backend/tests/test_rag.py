@@ -210,7 +210,7 @@ def _patch_core(monkeypatch):
 def test_try_rag_context_combines_core_and_hits(monkeypatch):
     _patch_core(monkeypatch)
 
-    async def fake_retrieve(db, query, mode):
+    async def fake_retrieve(db, query, mode, vector=None):
         return [SimpleNamespace(title="Proj", content="Body", vec_rank=1, fts_rank=None)]
 
     monkeypatch.setattr(ai_content, "_retrieve", fake_retrieve)
@@ -222,7 +222,7 @@ def test_try_rag_context_combines_core_and_hits(monkeypatch):
 def test_try_rag_context_falls_back_when_retrieval_is_unavailable(monkeypatch):
     _patch_core(monkeypatch)
 
-    async def boom(db, query, mode):
+    async def boom(db, query, mode, vector=None):
         raise embeddings.RagUnavailableError("no embeddings")
 
     monkeypatch.setattr(ai_content, "_retrieve", boom)
@@ -232,7 +232,7 @@ def test_try_rag_context_falls_back_when_retrieval_is_unavailable(monkeypatch):
 def test_try_rag_context_falls_back_and_rolls_back_on_a_db_error(monkeypatch):
     _patch_core(monkeypatch)
 
-    async def boom(db, query, mode):
+    async def boom(db, query, mode, vector=None):
         raise SQLAlchemyError("relation does not exist")
 
     monkeypatch.setattr(ai_content, "_retrieve", boom)
@@ -252,6 +252,13 @@ def _capture_open_stream(monkeypatch):
     return captured
 
 
+def _stub_embedding(monkeypatch, vector=None):
+    async def fake_embed(text_):
+        return vector or [0.0] * embeddings.EMBEDDING_DIMS
+
+    monkeypatch.setattr(ai_content.embeddings, "embed_query", fake_embed)
+
+
 def _full_context(monkeypatch):
     async def fake_full(db, mode, *, compact=False):
         return ("COMPACT-FULL" if compact else "FULL"), SimpleNamespace(name="Pravin"), "https://r/resume.pdf"
@@ -260,12 +267,13 @@ def _full_context(monkeypatch):
 
 
 def test_chat_uses_rag_when_enabled_and_available(monkeypatch):
+    _stub_embedding(monkeypatch)
     monkeypatch.setattr(settings, "rag_enabled", True)
     monkeypatch.setattr(settings, "groq_api_key", "g")
     captured = _capture_open_stream(monkeypatch)
     _full_context(monkeypatch)
 
-    async def fake_rag(db, mode, query):
+    async def fake_rag(db, mode, query, vector=None):
         return "RAG-CTX", SimpleNamespace(name="Pravin"), "https://r/resume.pdf"
 
     monkeypatch.setattr(ai_content, "_try_rag_context", fake_rag)
@@ -277,12 +285,13 @@ def test_chat_uses_rag_when_enabled_and_available(monkeypatch):
 
 
 def test_chat_falls_back_to_full_context_when_rag_returns_none(monkeypatch):
+    _stub_embedding(monkeypatch)
     monkeypatch.setattr(settings, "rag_enabled", True)
     monkeypatch.setattr(settings, "groq_api_key", "g")
     captured = _capture_open_stream(monkeypatch)
     _full_context(monkeypatch)
 
-    async def fake_rag(db, mode, query):
+    async def fake_rag(db, mode, query, vector=None):
         return None
 
     monkeypatch.setattr(ai_content, "_try_rag_context", fake_rag)
@@ -297,7 +306,7 @@ def test_chat_never_attempts_rag_when_disabled(monkeypatch):
     captured = _capture_open_stream(monkeypatch)
     _full_context(monkeypatch)
 
-    async def must_not_run(db, mode, query):
+    async def must_not_run(db, mode, query, vector=None):
         raise AssertionError("RAG was attempted while disabled")
 
     monkeypatch.setattr(ai_content, "_try_rag_context", must_not_run)
