@@ -58,6 +58,16 @@ export function splitForSpeech(text: string, maxLength = 200): string[] {
 }
 
 /**
+ * Brave exposes the speech API but disables the cloud service behind it, so
+ * recognition always fails there with a "network" error. Better to offer no
+ * microphone than one that can never work. Brave is the only browser that sets
+ * `navigator.brave`, which is the documented way to detect it.
+ */
+export function isBraveBrowser(nav: unknown): boolean {
+  return typeof nav === 'object' && nav !== null && 'brave' in nav;
+}
+
+/**
  * A visitor-facing message for a SpeechRecognition error code, or null when
  * the visitor needs no message (they stopped it themselves).
  */
@@ -73,7 +83,13 @@ export function friendlyRecognitionError(code: string): string | null {
     case 'audio-capture':
       return 'No microphone was found on this device.';
     case 'network':
-      return "Speech recognition couldn't reach its service. Check your connection and try again.";
+      // Chrome and Edge stream the audio to their own cloud speech service; this means
+      // it couldn't be reached. Say what usually causes that, and that typing works.
+      return (
+        "Your browser's speech service couldn't be reached. Voice input works in Chrome and Edge " +
+        '(with online speech recognition turned on), but not in some browsers, VPNs or ad blockers. ' +
+        'You can still type your message.'
+      );
     case 'language-not-supported':
       return "Voice input isn't available for your browser's language.";
     default:

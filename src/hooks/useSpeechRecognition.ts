@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { isBraveBrowser } from '@/lib/speech';
 
 // The Web Speech API's recognition half. It is free and needs no key, but it is
 // only in Chromium browsers (as webkitSpeechRecognition) and Safari, and Chrome
 // streams the audio to Google's speech service -- hence the explicit, tap-to-talk
 // design below: nothing listens until the visitor presses the microphone.
-// Firefox has no implementation, so `supported` is false there and the UI
-// simply doesn't show a microphone.
+// Firefox has no implementation, and Brave has the API but not the service behind
+// it, so `supported` is false in both and the UI simply doesn't show a microphone.
 
 interface RecognitionAlternative {
   transcript: string;
@@ -52,7 +53,12 @@ interface UseSpeechRecognitionOptions {
 }
 
 export function useSpeechRecognition({ onFinalTranscript, onError }: UseSpeechRecognitionOptions) {
-  const supported = useMemo(() => getRecognitionConstructor() !== null, []);
+  const supported = useMemo(
+    () =>
+      getRecognitionConstructor() !== null &&
+      !isBraveBrowser(typeof navigator === 'undefined' ? undefined : navigator),
+    []
+  );
   const [listening, setListening] = useState(false);
   const [interim, setInterim] = useState('');
 

@@ -1,7 +1,7 @@
 // Run with: bun test tests/speech.test.ts
 // Pure-logic tests for the chatbot's voice helpers (src/lib/speech.ts).
 import { describe, expect, test } from 'bun:test';
-import { friendlyRecognitionError, speechTextFrom, splitForSpeech } from '../src/lib/speech';
+import { friendlyRecognitionError, isBraveBrowser, speechTextFrom, splitForSpeech } from '../src/lib/speech';
 
 describe('speechTextFrom', () => {
   test('drops action buttons and urls, keeps link text', () => {
@@ -67,10 +67,27 @@ describe('friendlyRecognitionError', () => {
     expect(friendlyRecognitionError('service-not-allowed')).toContain('Microphone access is blocked');
     expect(friendlyRecognitionError('no-speech')).toContain("didn't hear");
     expect(friendlyRecognitionError('audio-capture')).toContain('No microphone');
-    expect(friendlyRecognitionError('network')).toContain('connection');
+    const network = friendlyRecognitionError('network') as string;
+    expect(network).toContain("speech service couldn't be reached");
+    expect(network).toContain('Chrome and Edge');
+    expect(network).toContain('type your message'); // always tells the visitor typing still works
   });
 
   test('unknown codes fall back to a generic message', () => {
     expect(friendlyRecognitionError('something-new')).toBe("Voice input isn't working right now.");
+  });
+});
+
+describe('isBraveBrowser', () => {
+  test('Brave is the only browser that defines navigator.brave', () => {
+    expect(isBraveBrowser({ brave: { isBrave: async () => true } })).toBe(true);
+    expect(isBraveBrowser({ userAgent: 'Mozilla/5.0 Chrome/130' })).toBe(false);
+    expect(isBraveBrowser({})).toBe(false);
+  });
+
+  test('anything that is not an object is not Brave', () => {
+    expect(isBraveBrowser(undefined)).toBe(false);
+    expect(isBraveBrowser(null)).toBe(false);
+    expect(isBraveBrowser('brave')).toBe(false);
   });
 });
