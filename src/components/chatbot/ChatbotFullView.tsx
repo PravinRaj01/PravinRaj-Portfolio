@@ -11,6 +11,7 @@ import { Bot } from "lucide-react";
 import { usePortfolio } from "@/contexts/PortfolioContext";
 import { cn } from "@/lib/utils";
 import { ChatbotContentMode } from "./ChatbotDrawer";
+import type { ChatbotMessage } from "@/types/chat";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -36,14 +37,8 @@ interface Conversation {
   updatedAt: string;
 }
 
-interface Message {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-}
-
 interface ChatbotFullViewProps {
-  messages: Message[];
+  messages: ChatbotMessage[];
   streamingMessage: string;
   streaming: boolean;
   input: string;
@@ -378,7 +373,7 @@ const ChatbotFullView = ({
             ) : (
               <>
                 {messages?.map((msg) => (
-                  <ChatMessage key={msg.id} role={msg.role} content={msg.content} />
+                  <ChatMessage key={msg.id} role={msg.role} content={msg.content} action={msg.action} />
                 ))}
                 {streaming && (
                   <ChatMessage

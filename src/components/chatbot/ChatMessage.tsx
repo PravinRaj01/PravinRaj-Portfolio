@@ -1,5 +1,9 @@
-import { Bot, ExternalLink, Download } from "lucide-react";
+import { ArrowRight, Bot, Compass, ExternalLink, Download } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { describeAction, toInternalPath } from "@/lib/assistantNavigation";
+import { useAssistantNavigation } from "@/hooks/useAssistantNavigation";
+import type { NavigateAction } from "@/types/chat";
 import ReactMarkdown from "react-markdown";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -9,6 +13,8 @@ interface ChatMessageProps {
   content: string;
   isStreaming?: boolean;
   compact?: boolean;
+  /** Set on a reply that navigated the visitor; renders a chip to open it again. */
+  action?: NavigateAction;
 }
 
 type MessagePart = { type: 'text' | 'button'; content?: string; label?: string; url?: string };
@@ -70,16 +76,25 @@ const parseButtons = (content: string): MessagePart[] => {
   return parts.length > 0 ? parts : [{ type: 'text', content }];
 };
 
-const ChatMessage = ({ role, content, isStreaming, compact = false }: ChatMessageProps) => {
+const ChatMessage = ({ role, content, isStreaming, compact = false, action }: ChatMessageProps) => {
   const isUser = role === "user";
   const parts = isUser ? [{ type: 'text' as const, content }] : parseButtons(content);
+  const navigate = useNavigate();
+  const { open: openAction } = useAssistantNavigation();
 
-  const getButtonIcon = (label: string) => {
+  // Links to this site navigate inside the app; anything else opens a new tab.
+  const openLink = (url: string) => {
+    const internal = toInternalPath(url);
+    if (internal) navigate(internal);
+    else window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
+  const getButtonIcon = (label: string, url: string) => {
     const lowerLabel = label.toLowerCase();
     if (lowerLabel.includes('download') || lowerLabel.includes('resume')) {
       return <Download className="w-3 h-3" />;
     }
-    return <ExternalLink className="w-3 h-3" />;
+    return toInternalPath(url) ? <ArrowRight className="w-3 h-3" /> : <ExternalLink className="w-3 h-3" />;
   };
 
   return (
@@ -129,9 +144,9 @@ const ChatMessage = ({ role, content, isStreaming, compact = false }: ChatMessag
                     "inline-flex items-center gap-1.5 mt-2 mb-1",
                     compact ? "h-6 text-xs px-2" : "h-8 text-xs px-3"
                   )}
-                  onClick={() => window.open(part.url, '_blank', 'noopener,noreferrer')}
+                  onClick={() => openLink(part.url as string)}
                 >
-                  {getButtonIcon(part.label)}
+                  {getButtonIcon(part.label, part.url)}
                   {part.label}
                 </Button>
               );
@@ -172,17 +187,28 @@ const ChatMessage = ({ role, content, isStreaming, compact = false }: ChatMessag
                       {children}
                     </strong>
                   ),
-                  a: ({ href, children }) => (
-                    <a 
-                      href={href} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-primary hover:underline inline-flex items-center gap-1"
-                    >
-                      {children}
-                      <ExternalLink className="w-3 h-3" />
-                    </a>
-                  ),
+                  a: ({ href, children }) => {
+                    const internal = href ? toInternalPath(href) : null;
+                    return (
+                      <a
+                        href={href}
+                        target={internal ? undefined : "_blank"}
+                        rel={internal ? undefined : "noopener noreferrer"}
+                        onClick={
+                          internal
+                            ? (e) => {
+                                e.preventDefault();
+                                navigate(internal);
+                              }
+                            : undefined
+                        }
+                        className="text-primary hover:underline inline-flex items-center gap-1"
+                      >
+                        {children}
+                        {!internal && <ExternalLink className="w-3 h-3" />}
+                      </a>
+                    );
+                  },
                   code: ({ children }) => (
                     <code className={cn(
                       "bg-background/50 rounded font-mono overflow-x-auto break-all",
@@ -199,6 +225,21 @@ const ChatMessage = ({ role, content, isStreaming, compact = false }: ChatMessag
             );
           })}
         </div>
+        {action && !isUser && (
+          <button
+            type="button"
+            onClick={() => openAction(action)}
+            className={cn(
+              "mt-2 inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/10",
+              "hover:bg-white/20 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary",
+              compact ? "px-2 py-0.5 text-[11px]" : "px-3 py-1 text-xs"
+            )}
+          >
+            <Compass className="w-3 h-3" aria-hidden="true" />
+            {describeAction(action)}
+            <ArrowRight className="w-3 h-3" aria-hidden="true" />
+          </button>
+        )}
         {isStreaming && (
           <span className="inline-flex gap-1 ml-1 mt-2">
             <span className={cn("bg-current rounded-full animate-bounce [animation-delay:-0.3s]", compact ? "w-1 h-1" : "w-1.5 h-1.5")} />

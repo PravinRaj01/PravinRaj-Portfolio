@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useMemo, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Filter, ExternalLink, Github, Calendar, Tag, ArrowUpDown, Star, Folder, Search, ZoomIn, ZoomOut, User, ChevronDown, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -30,6 +30,7 @@ import { projectsListMeta } from '@/lib/seo';
 const Projects = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
   const { mode, defaultMode, darkMode } = usePortfolio();
 
   const { projects, loading } = useProjects(mode);
@@ -72,6 +73,18 @@ const Projects = () => {
     
     setSearchParams(params, { replace: true });
   }, [selectedFilter, searchQuery, viewMode, sortOrder, setSearchParams]);
+
+  // A navigation started by the chat assistant ("show me your React projects")
+  // carries explicit filters in the URL. The state above is only seeded from the
+  // URL once, so apply them here -- including when this page is already open --
+  // and let an absent filter mean "no filter" rather than the remembered one.
+  // Scoped to assistant navigations on purpose: a general URL->state sync would
+  // fight the write-back effect above while the visitor is typing.
+  useEffect(() => {
+    if (!(location.state as { assistant?: boolean } | null)?.assistant) return;
+    setSelectedFilter(searchParams.get('category') || 'all');
+    setSearchQuery(searchParams.get('search') || '');
+  }, [location.key, location.state, searchParams]);
   
   // Zoom state - load from localStorage
   const [cardZoom, setCardZoom] = useState(() => {

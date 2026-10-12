@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { useLocation } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -6,6 +7,9 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { usePortfolio } from "@/contexts/PortfolioContext";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
 import { API_BASE_URL } from "@/services/apiClient";
+import { parseNavigateAction } from "@/lib/assistantNavigation";
+import { useAssistantNavigation } from "@/hooks/useAssistantNavigation";
+import type { ChatbotMessage, NavigateAction } from "@/types/chat";
 import ChatbotMiniView from "./ChatbotMiniView";
 import ChatbotFullView from "./ChatbotFullView";
 
@@ -19,11 +23,7 @@ interface Conversation {
   updatedAt: string;
 }
 
-interface Message {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-}
+type Message = ChatbotMessage;
 
 interface ChatbotDrawerProps {
   state: ChatbotState;
@@ -90,6 +90,19 @@ const ChatbotDrawer = ({ state, onStateChange }: ChatbotDrawerProps) => {
   const { toast } = useToast();
   const isMobile = useIsMobile();
   const { mode, professionalModeEnabled, creativeModeEnabled } = usePortfolio();
+  const { resolve: resolveNavigation, goTo: goToTarget } = useAssistantNavigation();
+
+  // The drawer covers (almost) the whole screen on phones and in full mode, so
+  // when the route changes underneath it -- the assistant took the visitor
+  // somewhere, or they tapped an internal link in a reply -- get out of the way.
+  const location = useLocation();
+  const lastLocationKey = useRef(location.key);
+  useEffect(() => {
+    if (lastLocationKey.current === location.key) return;
+    lastLocationKey.current = location.key;
+    if (isMobile && state !== 'closed') onStateChange('closed');
+    else if (!isMobile && state === 'full') onStateChange('mini');
+  }, [location.key, isMobile, state, onStateChange]);
   // useSiteSettings() is also called in PortfolioChatbot.tsx (the parent) --
   // react-query dedupes identical queries by key, so this doesn't add a
   // second network request, and keeps this component self-contained.
@@ -172,6 +185,9 @@ const ChatbotDrawer = ({ state, onStateChange }: ChatbotDrawerProps) => {
     addMessageToConversation(currentConversationId, userMessage);
 
     let accumulatedResponse = "";
+    // Set when the assistant asks to take the visitor to a page (an `action`
+    // event, see backend/app/services/chat_stream.py).
+    let pendingAction: NavigateAction | null = null;
 
     try {
       const response = await fetch(CHAT_URL, {
@@ -210,6 +226,10 @@ const ChatbotDrawer = ({ state, onStateChange }: ChatbotDrawerProps) => {
           if (line.startsWith("data: ") && line !== "data: [DONE]") {
             try {
               const json = JSON.parse(line.slice(6));
+              if (json.type === "action") {
+                pendingAction = parseNavigateAction(json) ?? pendingAction;
+                continue;
+              }
               const content = json.choices?.[0]?.delta?.content;
               if (content) {
                 accumulatedResponse += content;
@@ -222,11 +242,16 @@ const ChatbotDrawer = ({ state, onStateChange }: ChatbotDrawerProps) => {
         }
       }
 
-      if (accumulatedResponse) {
+      // Where the assistant wants to send the visitor, if that page exists for them.
+      const navigationTarget = pendingAction ? resolveNavigation(pendingAction) : null;
+
+      if (accumulatedResponse || pendingAction) {
         const assistantMessage: Message = {
           id: `assistant-${Date.now()}`,
           role: "assistant",
-          content: accumulatedResponse,
+          content: accumulatedResponse || pendingAction?.announcement || "",
+          // Kept on the message so the reply can offer to open the page again.
+          ...(pendingAction && navigationTarget ? { action: pendingAction } : {}),
         };
         addMessageToConversation(currentConversationId, assistantMessage);
 
@@ -236,6 +261,18 @@ const ChatbotDrawer = ({ state, onStateChange }: ChatbotDrawerProps) => {
           // Generate a title from the first user message
           const title = messageToSend.slice(0, 30) + (messageToSend.length > 30 ? "..." : "");
           updateConversation(currentConversationId, { title });
+        }
+      }
+
+      if (pendingAction) {
+        if (navigationTarget) {
+          goToTarget(navigationTarget);
+        } else {
+          toast({
+            title: "That page isn't available",
+            description: "I can't open it on this site right now.",
+            variant: "destructive",
+          });
         }
       }
     } catch (error: any) {

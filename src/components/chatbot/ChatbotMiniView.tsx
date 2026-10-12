@@ -9,6 +9,7 @@ import { CardHeader, CardContent } from "@/components/ui/card";
 import { usePortfolio } from "@/contexts/PortfolioContext";
 import { cn } from "@/lib/utils";
 import { ChatbotContentMode } from "./ChatbotDrawer";
+import type { ChatbotMessage } from "@/types/chat";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,7 +18,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 interface ChatbotMiniViewProps {
-  messages: any[];
+  messages: ChatbotMessage[];
   streamingMessage: string;
   streaming: boolean;
   input: string;
@@ -178,7 +179,7 @@ const ChatbotMiniView = ({
           ) : (
             <>
               {displayMessages.map((msg) => (
-                <ChatMessage key={msg.id} role={msg.role} content={msg.content} compact />
+                <ChatMessage key={msg.id} role={msg.role} content={msg.content} action={msg.action} compact />
               ))}
               {streaming && streamingMessage && (
                 <ChatMessage
