@@ -11,7 +11,8 @@ export type TraceTag =
   | 'voice'
   | 'error'
   | 'span_error'
-  | 'rag_fallback';
+  | 'rag_fallback'
+  | 'eval';
 
 export interface ObservabilityStatus {
   configured: boolean;
@@ -134,4 +135,38 @@ export interface FeedbackInput {
   name: FeedbackName;
   score: 0 | 1;
   comment?: string;
+}
+
+/** One offline evaluation run (scripts/eval_chat_rag.py or eval_chat_guard.py). */
+export interface ExperimentRow {
+  id: string | null;
+  name: string | null;
+  dataset: string | null;
+  created_at: string | null;
+  status: string | null;
+  kind: 'rag' | 'guard' | null;
+  items: number | null;
+  k: number | null;
+  judged: number | null;
+  errors: number | null;
+  // retrieval and answer quality ("rag" runs): 0..1, higher is better
+  hit_at_1: number | null;
+  hit_at_k: number | null;
+  mrr: number | null;
+  answer_relevance: number | null;
+  groundedness: number | null;
+  latency_ms_avg: number | null;
+  // guard runs
+  injection_recall: number | null;
+  false_positive_rate: number | null; // lower is better
+  accuracy: number | null;
+  misses: string[];
+  missed_injections: string[];
+  wrongly_blocked: string[];
+  notes: string | null;
+  settings: Record<string, unknown>;
+}
+
+export interface ExperimentsResponse {
+  runs: ExperimentRow[];
 }

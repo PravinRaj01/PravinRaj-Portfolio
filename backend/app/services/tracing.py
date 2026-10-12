@@ -59,6 +59,11 @@ def _uuid7() -> str:
     return str(uuid.UUID(int=value))
 
 
+def new_id() -> str:
+    """A fresh Opik-compatible (UUIDv7) id, for datasets items and experiments."""
+    return _uuid7()
+
+
 def _clip(value: Any, depth: int = 0) -> Any:
     """JSON-safe copy with long strings truncated and image data URIs dropped."""
     if isinstance(value, str):

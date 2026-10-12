@@ -87,4 +87,5 @@ export const TAG_LABELS: Record<string, string> = {
   error: 'Error',
   span_error: 'Step error',
   rag_fallback: 'RAG fallback',
+  eval: 'Evaluation',
 };

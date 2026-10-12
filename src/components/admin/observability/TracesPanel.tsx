@@ -21,7 +21,7 @@ interface TracesPanelProps {
 const PAGE_SIZE = 20;
 const ALL = 'all';
 
-const FILTERS: TraceTag[] = ['chat', 'admin', 'blocked', 'fallback', 'navigate', 'voice', 'error', 'rag_fallback'];
+const FILTERS: TraceTag[] = ['chat', 'admin', 'blocked', 'fallback', 'navigate', 'voice', 'error', 'rag_fallback', 'eval'];
 
 // "chat" and "admin" are already conveyed by the Type column.
 const NOTABLE_TAGS = ['blocked', 'fallback', 'navigate', 'voice', 'error', 'span_error', 'rag_fallback'];

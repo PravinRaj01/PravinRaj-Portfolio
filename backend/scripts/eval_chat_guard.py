@@ -1,6 +1,7 @@
 """Evaluates the chat guard on held-out messages and picks its thresholds.
 
-    PYTHONPATH=. python scripts/eval_chat_guard.py
+    PYTHONPATH=. python scripts/eval_chat_guard.py              # tune + report
+    PYTHONPATH=. python scripts/eval_chat_guard.py --log-opik   # ...and record the run in Opik
 
 1. Embeds the DEV and TEST messages from chat_guard_eval_set.py (~100 texts,
    ~2 embedding requests).
@@ -158,6 +159,84 @@ async def main() -> None:
     print(f"\nsuggested env: CHAT_GUARD_INJECTION_MIN_SIM={inj_th.min_sim} CHAT_GUARD_INJECTION_MARGIN={inj_th.margin}")
     if off_th:
         print(f"               CHAT_GUARD_OFFTOPIC_MIN_SIM={off_th.min_sim} CHAT_GUARD_OFFTOPIC_MARGIN={off_th.margin}")
+
+    await report_live_config(rows, inj_th, off_th)
+
+
+async def report_live_config(rows, tuned_inj: Thresholds, tuned_off: Thresholds | None) -> None:
+    """How the guard performs with the thresholds currently in the settings (what
+    production runs), on the held-out TEST half. With --log-opik the run is
+    recorded as an experiment the admin Evaluations tab shows."""
+    from datetime import datetime, timezone
+
+    from app.core.config import settings
+    from app.services import evals, opik_api, opik_eval, tracing
+
+    live_inj = Thresholds(settings.chat_guard_injection_min_sim, settings.chat_guard_injection_margin)
+    live_off = (
+        Thresholds(settings.chat_guard_offtopic_min_sim, settings.chat_guard_offtopic_margin)
+        if settings.chat_guard_offtopic_enabled
+        else None
+    )
+
+    guard_rows: list[evals.GuardRow] = []
+    for kind in ("legit", "injection", "off_topic"):
+        for m in rows("test", kind):
+            best = {k: v for k, v in m.items() if k != "msg"}
+            guard_rows.append(
+                evals.GuardRow(message=m["msg"], label=kind, blocked=chat_guard.decide(best, live_inj, live_off).block)
+            )
+    summary = evals.summarize_guard(guard_rows)
+
+    print("\n=== GUARD AS CONFIGURED (TEST half, the thresholds in the settings) ===")
+    print(f"injection min_sim={live_inj.min_sim} margin={live_inj.margin}"
+          f"{'  + off-topic rule' if live_off else '  (off-topic rule off)'}")
+    print(f"injections caught   : {summary['injections_caught']}/{summary['injections']}  "
+          f"(recall {summary['injection_recall']:.0%})" if summary["injections"] else "no injection messages")
+    print(f"legitimate blocked  : {summary['false_positives']}/{summary['legit']}  (need 0)")
+    for msg in summary["wrongly_blocked"]:
+        print(f"   wrongly blocked: {msg!r}")
+
+    if "--log-opik" not in sys.argv:
+        return
+    if not opik_api.is_configured():
+        print("\n--log-opik given but OPIK_API_KEY is not set; nothing logged")
+        return
+
+    settings.opik_enabled = True  # eval traces are only delivered when tracing is on
+    run_name = f"guard-{datetime.now(timezone.utc):%Y%m%d-%H%M}"
+    items = []
+    for r in guard_rows:
+        trace = tracing.start_trace(
+            "eval.guard", input={"message": r.message, "label": r.label}, tags=["eval", "guard", run_name]
+        )
+        trace.set_output({"blocked": r.blocked})
+        await trace.finish()
+        scores = {"blocked": float(r.blocked)}
+        if r.label in ("legit", "injection"):  # off-topic is deliberately left to the LLM, so it isn't judged
+            scores["correct"] = float(r.blocked == (r.label == "injection"))
+        items.append(
+            opik_eval.EvalLogItem(data={"message": r.message, "label": r.label}, trace_id=trace.id or None, scores=scores)
+        )
+
+    experiment_id = await opik_eval.log_experiment(
+        name=run_name,
+        dataset_name="portfolio-guard-test",
+        dataset_description="Held-out guard messages (scripts/chat_guard_eval_set.py, TEST half)",
+        items=items,
+        metadata={
+            "kind": "guard",
+            "summary": summary,
+            "settings": {
+                "injection_min_sim": live_inj.min_sim,
+                "injection_margin": live_inj.margin,
+                "offtopic_enabled": settings.chat_guard_offtopic_enabled,
+                "tuned_injection_min_sim": tuned_inj.min_sim,
+                "tuned_injection_margin": tuned_inj.margin,
+            },
+        },
+    )
+    print(f"\nlogged to Opik: experiment {experiment_id}")
 
 
 asyncio.run(main())

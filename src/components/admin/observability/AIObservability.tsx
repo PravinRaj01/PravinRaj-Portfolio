@@ -8,6 +8,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { useObservabilityStatus } from '@/hooks/useAIObservability';
 import type { ObservabilityRange } from '@/types/observability';
 import { ALERT_ERROR_CLASS } from './format';
+import EvaluationsPanel from './EvaluationsPanel';
 import GuardrailPanel from './GuardrailPanel';
 import OverviewPanel from './OverviewPanel';
 import TraceDetailSheet from './TraceDetailSheet';
@@ -122,6 +123,7 @@ OPIK_WORKSPACE=<your Comet workspace name>`}
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="traces">Traces</TabsTrigger>
           <TabsTrigger value="guardrail">Guardrail</TabsTrigger>
+          <TabsTrigger value="evaluations">Evaluations</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview">
@@ -132,6 +134,9 @@ OPIK_WORKSPACE=<your Comet workspace name>`}
         </TabsContent>
         <TabsContent value="guardrail">
           <GuardrailPanel range={range} onOpenTrace={setSelectedTrace} />
+        </TabsContent>
+        <TabsContent value="evaluations">
+          <EvaluationsPanel />
         </TabsContent>
       </Tabs>
 

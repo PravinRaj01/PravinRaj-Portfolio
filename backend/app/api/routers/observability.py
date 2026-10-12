@@ -13,6 +13,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from app.api.deps import require_admin
 from app.core.config import settings
 from app.schemas.observability import (
+    ExperimentsResponse,
     FeedbackRequest,
     RangeKey,
     StatusResponse,
@@ -74,6 +75,23 @@ async def get_timeseries(range: Annotated[RangeKey, Query()] = "7d") -> dict:  #
     except opik_api.OpikUpstreamError as exc:
         raise _upstream(exc) from exc
     return observability.build_timeseries(window)
+
+
+@router.get("/experiments", response_model=ExperimentsResponse)
+async def list_experiments(
+    limit: Annotated[int, Query(ge=1, le=100)] = 30,
+) -> dict:
+    """Offline evaluation runs (scripts/eval_chat_rag.py, eval_chat_guard.py),
+    newest first, with the numbers each run recorded."""
+    try:
+        experiments = await opik_api.list_experiments(size=limit)
+    except opik_api.OpikNotConfiguredError as exc:
+        raise _not_configured() from exc
+    except opik_api.OpikUpstreamError as exc:
+        raise _upstream(exc) from exc
+    rows = [observability.experiment_row(e) for e in experiments]
+    rows.sort(key=lambda r: r.get("created_at") or "", reverse=True)
+    return {"runs": rows}
 
 
 @router.get("/traces", response_model=TracesPage)

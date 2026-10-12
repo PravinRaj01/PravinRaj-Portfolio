@@ -66,8 +66,15 @@ def _headers() -> dict[str, str]:
 
 
 async def _request(
-    method: str, path: str, *, params: dict[str, Any] | None = None, json_body: dict[str, Any] | None = None
+    method: str,
+    path: str,
+    *,
+    params: dict[str, Any] | None = None,
+    json_body: dict[str, Any] | None = None,
+    expected_statuses: tuple[int, ...] = (),
 ) -> Any:
+    """`expected_statuses` are failures the caller handles itself (e.g. 409
+    "already exists"); they are still raised, just not logged as warnings."""
     if not is_configured():
         raise OpikNotConfiguredError("OPIK_API_KEY is not set")
     url = f"{settings.opik_url.rstrip('/')}/{path.lstrip('/')}"
@@ -78,8 +85,9 @@ async def _request(
     except httpx.HTTPError as exc:
         raise OpikUpstreamError(None, "Opik could not be reached") from exc
     if response.status_code >= 400:
-        # Status only: never the body, the URL's query or any header.
-        logger.warning("Opik API error: %s %s -> HTTP %s", method, path.split("?")[0], response.status_code)
+        if response.status_code not in expected_statuses:
+            # Status only: never the body, the URL's query or any header.
+            logger.warning("Opik API error: %s %s -> HTTP %s", method, path.split("?")[0], response.status_code)
         raise OpikUpstreamError(response.status_code, f"Opik returned HTTP {response.status_code}")
     if not response.content:
         return None
@@ -157,6 +165,17 @@ async def list_spans(trace_id: uuid.UUID) -> list[dict[str, Any]]:
     )
     content = data.get("content") if isinstance(data, dict) else None
     return [s for s in content or [] if isinstance(s, dict)]
+
+
+async def list_experiments(*, page: int = 1, size: int = 50) -> list[dict[str, Any]]:
+    """Recent experiments (evaluation runs), newest first."""
+    data = await _request(
+        "GET",
+        "v1/private/experiments",
+        params={"page": page, "size": size},
+    )
+    content = data.get("content") if isinstance(data, dict) else None
+    return [e for e in content or [] if isinstance(e, dict)]
 
 
 async def add_feedback(trace_id: uuid.UUID, *, name: str, value: float, reason: str | None) -> None:

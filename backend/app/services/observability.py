@@ -60,7 +60,15 @@ async def get_window(range_key: str) -> Window:
         opik_api.fetch_traces(now - span, now),
         opik_api.fetch_traces(now - 2 * span, now - span),
     )
-    window = Window(range_key, now - span, now, current, previous, cut_current or cut_previous)
+    # Offline evaluation traces (tag "eval") are not visitor traffic.
+    window = Window(
+        range_key,
+        now - span,
+        now,
+        [t for t in current if "eval" not in _tags(t)],
+        [t for t in previous if "eval" not in _tags(t)],
+        cut_current or cut_previous,
+    )
     _cache[range_key] = window
     return window
 
@@ -329,4 +337,52 @@ def trace_detail(trace: dict[str, Any], spans: list[dict[str, Any]]) -> dict[str
             if isinstance(s, dict)
         ],
         "spans": [span_detail(s, start) for s in ordered],
+    }
+
+
+# --- evaluation runs (experiments) --------------------------------------------------------
+
+
+_SUMMARY_NUMBERS = (
+    "hit_at_1", "hit_at_k", "mrr", "answer_relevance", "groundedness", "latency_ms_avg",
+    "injection_recall", "false_positive_rate", "accuracy",
+)
+
+
+def experiment_row(experiment: dict[str, Any]) -> dict[str, Any]:
+    """An Opik experiment -> the row the Evaluations tab shows. Numbers come from
+    the run's own summary in `metadata` (written by the eval scripts), falling
+    back to the averages Opik computed from the traces' feedback scores."""
+    metadata = experiment.get("metadata") if isinstance(experiment.get("metadata"), dict) else {}
+    summary = metadata.get("summary") if isinstance(metadata.get("summary"), dict) else {}
+
+    opik_scores = {
+        s.get("name"): _number(s.get("value"))
+        for s in experiment.get("feedback_scores") or []
+        if isinstance(s, dict) and isinstance(s.get("name"), str)
+    }
+    numbers = {key: _number(summary.get(key)) for key in _SUMMARY_NUMBERS}
+    # Opik's own averages fill gaps (e.g. a run logged without a summary).
+    for key in ("hit_at_1", "hit_at_k", "answer_relevance", "groundedness"):
+        if numbers.get(key) is None and opik_scores.get(key) is not None:
+            numbers[key] = opik_scores[key]
+
+    kind = summary.get("kind") or metadata.get("kind")
+    return {
+        "id": experiment.get("id"),
+        "name": experiment.get("name"),
+        "dataset": experiment.get("dataset_name"),
+        "created_at": experiment.get("created_at"),
+        "status": experiment.get("status"),
+        "kind": kind if kind in ("rag", "guard") else None,
+        "items": summary.get("items") if isinstance(summary.get("items"), int) else experiment.get("dataset_item_count"),
+        "k": summary.get("k") if isinstance(summary.get("k"), int) else None,
+        "judged": summary.get("judged") if isinstance(summary.get("judged"), int) else None,
+        "errors": summary.get("errors") if isinstance(summary.get("errors"), int) else None,
+        "misses": [m for m in summary.get("misses") or [] if isinstance(m, str)][:10],
+        "missed_injections": [m for m in summary.get("missed_injections") or [] if isinstance(m, str)][:10],
+        "wrongly_blocked": [m for m in summary.get("wrongly_blocked") or [] if isinstance(m, str)][:10],
+        "notes": metadata.get("notes") if isinstance(metadata.get("notes"), str) else None,
+        "settings": metadata.get("settings") if isinstance(metadata.get("settings"), dict) else {},
+        **numbers,
     }

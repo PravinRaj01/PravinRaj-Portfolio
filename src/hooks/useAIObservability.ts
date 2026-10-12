@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient, ApiError } from '@/services/apiClient';
 import type {
+  ExperimentsResponse,
   FeedbackInput,
   ObservabilityRange,
   ObservabilityStatus,
@@ -94,3 +95,12 @@ export const useSubmitFeedback = () => {
     },
   });
 };
+
+export const useObservabilityExperiments = (enabled = true) =>
+  useQuery({
+    queryKey: ['ai-observability', 'experiments'],
+    queryFn: () => apiClient.get<ExperimentsResponse>(`${BASE}/experiments`, { params: { limit: 30 } }),
+    staleTime: 60_000,
+    enabled,
+    retry: retryUnlessClientError,
+  });

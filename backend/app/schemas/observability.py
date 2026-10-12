@@ -6,7 +6,9 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 RangeKey = Literal["24h", "7d", "30d"]
-TraceTag = Literal["chat", "admin", "blocked", "fallback", "navigate", "voice", "error", "span_error", "rag_fallback"]
+TraceTag = Literal[
+    "chat", "admin", "blocked", "fallback", "navigate", "voice", "error", "span_error", "rag_fallback", "eval"
+]
 
 
 class StatusResponse(BaseModel):
@@ -135,3 +137,38 @@ class FeedbackRequest(BaseModel):
     name: Literal["admin_rating", "guard_correct"] = "admin_rating"
     score: Literal[0, 1]
     comment: str | None = Field(default=None, max_length=500)
+
+
+class ExperimentRow(BaseModel):
+    """One offline evaluation run (see app/services/evals.py)."""
+
+    id: str | None = None
+    name: str | None = None
+    dataset: str | None = None
+    created_at: str | None = None
+    status: str | None = None
+    kind: Literal["rag", "guard"] | None = None
+    items: int | None = None
+    k: int | None = None
+    judged: int | None = None
+    errors: int | None = None
+    # retrieval + answer quality ("rag" runs); every number is 0..1, higher is better
+    hit_at_1: float | None = None
+    hit_at_k: float | None = None
+    mrr: float | None = None
+    answer_relevance: float | None = None
+    groundedness: float | None = None
+    latency_ms_avg: float | None = None
+    # guard runs
+    injection_recall: float | None = None
+    false_positive_rate: float | None = None  # lower is better
+    accuracy: float | None = None
+    misses: list[str] = Field(default_factory=list)
+    missed_injections: list[str] = Field(default_factory=list)
+    wrongly_blocked: list[str] = Field(default_factory=list)
+    notes: str | None = None
+    settings: dict[str, Any] = Field(default_factory=dict)
+
+
+class ExperimentsResponse(BaseModel):
+    runs: list[ExperimentRow]
