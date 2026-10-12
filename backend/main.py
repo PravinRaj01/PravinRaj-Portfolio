@@ -19,6 +19,7 @@ from app.api.routers.game_scores import router as game_scores_router
 from app.api.routers.github_ticker import router as github_ticker_router
 from app.api.routers.hero import router as hero_router
 from app.api.routers.magazine import router as magazine_router
+from app.api.routers.observability import router as observability_router
 from app.api.routers.project_folders import router as project_folders_router
 from app.api.routers.project_image_folders import router as project_image_folders_router
 from app.api.routers.projects import router as projects_router
@@ -80,6 +81,7 @@ app.include_router(magazine_router, prefix="/api/v1")
 app.include_router(resumes_router, prefix="/api/v1")
 app.include_router(drive_router, prefix="/api/v1")
 app.include_router(ai_router, prefix="/api/v1")
+app.include_router(observability_router, prefix="/api/v1")
 
 _CONTENT_MUTATION_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
 # Mutating routes that are never publishable content -- hit on every ordinary

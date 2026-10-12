@@ -27,6 +27,7 @@ import ChatbotSettingsManager from './ChatbotSettingsManager';
 import ProjectFolderManager from './ProjectFolderManager';
 import MagazineManager from './MagazineManager';
 import VisitorStatsManager from './VisitorStatsManager';
+import AIObservability from './observability/AIObservability';
 import { useProjects } from '@/hooks/useProjects';
 import { useExperience } from '@/hooks/useExperience';
 import { useStats } from '@/hooks/useStats';
@@ -162,7 +163,7 @@ const AdminDashboard = () => {
 
           {/* Content Management Tabs */}
           <Tabs defaultValue="projects" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-8">
+            <TabsList className="flex w-full justify-start overflow-x-auto md:grid md:grid-cols-9">
               <TabsTrigger value="projects">Projects</TabsTrigger>
               <TabsTrigger value="experience">Experience</TabsTrigger>
               <TabsTrigger value="content">Content</TabsTrigger>
@@ -170,6 +171,7 @@ const AdminDashboard = () => {
               <TabsTrigger value="academic">Academic</TabsTrigger>
               <TabsTrigger value="podcast">Podcast</TabsTrigger>
               <TabsTrigger value="contact">Contact</TabsTrigger>
+              <TabsTrigger value="ai">AI</TabsTrigger>
               <TabsTrigger value="settings">Settings</TabsTrigger>
             </TabsList>
 
@@ -296,6 +298,10 @@ const AdminDashboard = () => {
 
             <TabsContent value="contact" className="space-y-6">
               <ContactManager />
+            </TabsContent>
+
+            <TabsContent value="ai" className="space-y-6">
+              <AIObservability />
             </TabsContent>
 
             <TabsContent value="settings" className="space-y-6">
