@@ -919,8 +919,8 @@ async def open_chat_stream(db: AsyncSession, request: ChatRequest) -> AsyncItera
             "content_mode": request.contentMode,
             "history_turns": len(request.conversationHistory or []),
         },
-        tags=["chat"],
-        metadata={"content_mode": request.contentMode},
+        tags=["chat", "voice"] if request.viaVoice else ["chat"],
+        metadata={"content_mode": request.contentMode, "via_voice": request.viaVoice},
     )
     if not trace.enabled:
         return await _open_chat_stream(db, request)

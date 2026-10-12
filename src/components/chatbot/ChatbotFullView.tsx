@@ -12,6 +12,7 @@ import { usePortfolio } from "@/contexts/PortfolioContext";
 import { cn } from "@/lib/utils";
 import { ChatbotContentMode } from "./ChatbotDrawer";
 import type { ChatbotMessage } from "@/types/chat";
+import { MicButton, SpeakToggle, type SpeechOutputControls, type VoiceInputControls } from "./VoiceControls";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -62,6 +63,8 @@ interface ChatbotFullViewProps {
   showModeSelector: boolean;
   botName: string;
   welcomeMessage?: string;
+  voice?: VoiceInputControls;
+  speech?: SpeechOutputControls;
 }
 
 const ChatbotFullView = ({
@@ -89,6 +92,8 @@ const ChatbotFullView = ({
   showModeSelector,
   botName,
   welcomeMessage,
+  voice,
+  speech,
 }: ChatbotFullViewProps) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -300,6 +305,7 @@ const ChatbotFullView = ({
             >
               <Trash2 className="h-4 w-4" />
             </Button>
+            {speech && <SpeakToggle speech={speech} className="h-8 w-8" />}
             {isSidebarMode && onExpandToFull && (
               <Button
                 variant="ghost"
@@ -400,17 +406,27 @@ const ChatbotFullView = ({
         >
           <div className="relative">
             <Input
-              value={input}
+              value={voice?.listening && voice.interim ? voice.interim : input}
               onChange={(e) => onInputChange(e.target.value)}
-              placeholder="Ask me anything..."
+              placeholder={voice?.listening ? "Listening..." : "Ask me anything..."}
+              readOnly={voice?.listening}
               disabled={streaming}
-              className="pr-12 h-11 text-base
-                bg-white/10 dark:bg-black/20 
+              className={cn(
+                `h-11 text-base
+                bg-white/10 dark:bg-black/20
                 backdrop-blur-sm
-                border-white/20 
+                border-white/20
                 focus:border-white/40 focus:ring-white/20
-                rounded-xl"
+                rounded-xl`,
+                // room for the microphone as well as the send button
+                voice?.supported ? "pr-[5.5rem]" : "pr-12"
+              )}
             />
+            {voice && (
+              <div className="absolute right-11 top-1/2 -translate-y-1/2">
+                <MicButton voice={voice} disabled={streaming} className="h-8 w-8" />
+              </div>
+            )}
             <Button
               type="submit"
               disabled={!input.trim() || streaming}

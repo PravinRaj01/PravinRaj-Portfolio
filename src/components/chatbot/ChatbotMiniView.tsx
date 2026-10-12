@@ -10,6 +10,7 @@ import { usePortfolio } from "@/contexts/PortfolioContext";
 import { cn } from "@/lib/utils";
 import { ChatbotContentMode } from "./ChatbotDrawer";
 import type { ChatbotMessage } from "@/types/chat";
+import { MicButton, SpeakToggle, type SpeechOutputControls, type VoiceInputControls } from "./VoiceControls";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -32,6 +33,8 @@ interface ChatbotMiniViewProps {
   showModeSelector: boolean;
   botName: string;
   welcomeMessage?: string;
+  voice?: VoiceInputControls;
+  speech?: SpeechOutputControls;
 }
 
 const ChatbotMiniView = ({
@@ -49,6 +52,8 @@ const ChatbotMiniView = ({
   showModeSelector,
   botName,
   welcomeMessage,
+  voice,
+  speech,
 }: ChatbotMiniViewProps) => {
   const displayMessages = messages || [];
   const { mode } = usePortfolio();
@@ -133,6 +138,7 @@ const ChatbotMiniView = ({
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
+            {speech && <SpeakToggle speech={speech} className="h-7 w-7" />}
             <Button
               variant="ghost"
               size="icon"
@@ -212,9 +218,10 @@ const ChatbotMiniView = ({
             className="flex gap-2"
           >
             <Input
-              value={input}
+              value={voice?.listening && voice.interim ? voice.interim : input}
               onChange={(e) => onInputChange(e.target.value)}
-              placeholder="Ask me anything..."
+              placeholder={voice?.listening ? "Listening..." : "Ask me anything..."}
+              readOnly={voice?.listening}
               disabled={streaming}
               className="flex-1 text-sm h-9
                 bg-white/10 dark:bg-black/20 
@@ -223,6 +230,7 @@ const ChatbotMiniView = ({
                 focus:border-white/40
                 rounded-lg"
             />
+            {voice && <MicButton voice={voice} disabled={streaming} className="h-9 w-9" iconClassName="h-3.5 w-3.5" />}
             <Button
               type="submit"
               disabled={!input.trim() || streaming}

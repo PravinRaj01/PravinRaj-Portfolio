@@ -9,7 +9,11 @@ import { useSiteSettings } from "@/hooks/useSiteSettings";
 import { API_BASE_URL } from "@/services/apiClient";
 import { parseNavigateAction } from "@/lib/assistantNavigation";
 import { useAssistantNavigation } from "@/hooks/useAssistantNavigation";
+import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
+import { useSpeechSynthesis } from "@/hooks/useSpeechSynthesis";
+import { friendlyRecognitionError } from "@/lib/speech";
 import type { ChatbotMessage, NavigateAction } from "@/types/chat";
+import type { SpeechOutputControls, VoiceInputControls } from "./VoiceControls";
 import ChatbotMiniView from "./ChatbotMiniView";
 import ChatbotFullView from "./ChatbotFullView";
 
@@ -92,6 +96,19 @@ const ChatbotDrawer = ({ state, onStateChange }: ChatbotDrawerProps) => {
   const { mode, professionalModeEnabled, creativeModeEnabled } = usePortfolio();
   const { resolve: resolveNavigation, goTo: goToTarget } = useAssistantNavigation();
 
+  // Voice: speech in (microphone) and out (spoken replies). Both use the
+  // browser's own Web Speech API -- nothing to host or pay for -- and each
+  // control only appears in browsers that support it.
+  const speech = useSpeechSynthesis();
+  const sendRef = useRef<((message?: string, options?: { viaVoice?: boolean }) => void) | null>(null);
+  const voice = useSpeechRecognition({
+    onFinalTranscript: (transcript) => sendRef.current?.(transcript, { viaVoice: true }),
+    onError: (code) => {
+      const description = friendlyRecognitionError(code);
+      if (description) toast({ title: "Voice input", description, variant: "destructive" });
+    },
+  });
+
   // The drawer covers (almost) the whole screen on phones and in full mode, so
   // when the route changes underneath it -- the assistant took the visitor
   // somewhere, or they tapped an internal link in a reply -- get out of the way.
@@ -167,9 +184,13 @@ const ChatbotDrawer = ({ state, onStateChange }: ChatbotDrawerProps) => {
     });
   }, []);
 
-  const handleSend = async (message?: string) => {
+  const handleSend = async (message?: string, options?: { viaVoice?: boolean }) => {
     const messageToSend = message || input.trim();
     if (!messageToSend || streaming || !currentConversationId) return;
+
+    // Never talk over the visitor, or listen to our own voice.
+    speech.cancel();
+    voice.cancel();
 
     setInput("");
     setStreaming(true);
@@ -197,6 +218,8 @@ const ChatbotDrawer = ({ state, onStateChange }: ChatbotDrawerProps) => {
           message: messageToSend,
           conversationHistory: messages.map((m) => ({ role: m.role, content: m.content })),
           contentMode: contentMode,
+          // Lets the backend tag voice conversations in its traces.
+          viaVoice: options?.viaVoice || undefined,
         }),
       });
 
@@ -255,6 +278,9 @@ const ChatbotDrawer = ({ state, onStateChange }: ChatbotDrawerProps) => {
         };
         addMessageToConversation(currentConversationId, assistantMessage);
 
+        // Read the reply aloud if it was asked by voice, or the visitor turned spoken replies on.
+        if (options?.viaVoice || speech.enabled) speech.speak(assistantMessage.content);
+
         // Auto-title conversation based on first exchange
         const currentConv = conversations.find(c => c.id === currentConversationId);
         if (currentConv && currentConv.title === "New Conversation" && currentConv.messages.length === 0) {
@@ -286,6 +312,28 @@ const ChatbotDrawer = ({ state, onStateChange }: ChatbotDrawerProps) => {
       setStreamingMessage("");
     }
   };
+
+  // The transcript callback above needs the latest handleSend, not the one from the render it was created in.
+  sendRef.current = handleSend;
+
+  const handleMicToggle = () => {
+    if (voice.listening) {
+      voice.stop(); // finishes the utterance; the transcript is then sent
+    } else {
+      speech.cancel();
+      voice.start();
+    }
+  };
+
+  // Closing the chat silences it and stops listening.
+  const cancelSpeech = speech.cancel;
+  const cancelListening = voice.cancel;
+  useEffect(() => {
+    if (state === 'closed') {
+      cancelSpeech();
+      cancelListening();
+    }
+  }, [state, cancelSpeech, cancelListening]);
 
   const handleNewConversation = () => {
     const newConv: Conversation = {
@@ -364,6 +412,19 @@ const ChatbotDrawer = ({ state, onStateChange }: ChatbotDrawerProps) => {
 
   if (state === 'closed') return null;
 
+  const voiceControls: VoiceInputControls = {
+    supported: voice.supported,
+    listening: voice.listening,
+    interim: voice.interim,
+    onToggle: handleMicToggle,
+  };
+  const speechControls: SpeechOutputControls = {
+    supported: speech.supported,
+    enabled: speech.enabled,
+    speaking: speech.speaking,
+    onToggle: speech.toggle,
+  };
+
   // On mobile, always use full screen view
   const effectiveState = isMobile ? 'full' : state;
 
@@ -403,6 +464,8 @@ const ChatbotDrawer = ({ state, onStateChange }: ChatbotDrawerProps) => {
             onExpandToSidebar={handleExpandToSidebar}
             onQuickAction={handleSend}
             onClose={handleClose}
+            voice={voiceControls}
+            speech={speechControls}
             contentMode={contentMode}
             onContentModeChange={setContentMode}
             showModeSelector={showModeSelector}
@@ -430,6 +493,8 @@ const ChatbotDrawer = ({ state, onStateChange }: ChatbotDrawerProps) => {
             onDeleteConversation={handleDeleteConversation}
             onClearChat={handleClearChat}
             onConversationTitleChange={handleConversationTitleChange}
+            voice={voiceControls}
+            speech={speechControls}
             contentMode={contentMode}
             onContentModeChange={setContentMode}
             showModeSelector={showModeSelector}

@@ -65,3 +65,6 @@ class ChatRequest(BaseModel):
     message: str
     conversationHistory: list[ChatMessage] | None = None
     contentMode: ChatContentMode = "both"
+    # True when the visitor spoke the message (browser speech recognition).
+    # Only used to tag the trace, so the admin AI tab can show the voice share.
+    viaVoice: bool = False

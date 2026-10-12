@@ -419,6 +419,23 @@ def test_a_chat_reply_streams_through_unchanged_and_is_traced(world, monkeypatch
     assert "aborted" not in llm["metadata"]
 
 
+def test_a_spoken_message_is_tagged_voice_and_a_typed_one_is_not(world, monkeypatch):
+    full_context(monkeypatch)
+    world.llm_handler = lambda request: httpx.Response(200, content=STREAM_BODY)
+
+    run(open_and_read(ChatRequest(message="show me your projects", contentMode="professional", viaVoice=True)))
+    run(open_and_read(chat_request("what do you do?")))
+
+    spoken, typed = delivered(world)[0]
+    assert "voice" in spoken["tags"] and spoken["metadata"]["via_voice"] is True
+    assert "voice" not in typed["tags"] and typed["metadata"]["via_voice"] is False
+
+
+def test_viavoice_is_optional_and_off_by_default():
+    assert ChatRequest(message="hi").viaVoice is False
+    assert ChatRequest.model_validate({"message": "hi", "viaVoice": True}).viaVoice is True
+
+
 def test_the_trace_never_records_a_client_ip_or_headers(world, monkeypatch):
     full_context(monkeypatch)
     world.llm_handler = lambda request: httpx.Response(200, content=STREAM_BODY)
