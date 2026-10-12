@@ -117,6 +117,19 @@ class Settings(BaseSettings):
     chat_guard_offtopic_min_sim: float = 0.55
     chat_guard_offtopic_margin: float = 0.06
 
+    # Opik observability (app/services/tracing.py): LLM traces for the public
+    # chatbot and the admin AI tools, sent to Opik's REST API with plain httpx
+    # (the opik SDK would add ~245 MB of dependencies to the Vercel bundle).
+    # Off by default, and a no-op unless an API key is also set; tracing fails
+    # open, so it can never break a request. opik_url is Comet's hosted cloud;
+    # point it at a self-hosted instance's /api to use that instead.
+    opik_enabled: bool = False
+    opik_api_key: str = ""
+    opik_workspace: str = ""
+    opik_project_name: str = "gg-portfolio"
+    opik_url: str = "https://www.comet.com/opik/api"
+    opik_flush_timeout: float = 3.0  # seconds a request will wait to deliver its trace
+
     # Public, read-only Drive API key for the resume/gallery folder proxy.
     google_drive_api_key: str = ""
 
@@ -131,6 +144,15 @@ class Settings(BaseSettings):
     @classmethod
     def _normalize_db_url(cls, v: str) -> str:
         return _normalize_asyncpg_url(v)
+
+    @field_validator("opik_url", "opik_project_name", mode="before")
+    @classmethod
+    def _blank_opik_text_uses_default(cls, v: object, info) -> object:
+        # `OPIK_URL=` left blank in a copied .env / Vercel form must not turn
+        # into an empty base URL that silently breaks trace delivery.
+        if isinstance(v, str) and not v.strip():
+            return cls.model_fields[info.field_name].default
+        return v
 
     @property
     def cors_origins_list(self) -> list[str]:

@@ -38,7 +38,7 @@ from app.schemas.ai import (
     MagazineGenerateRequest,
     MagazineGenerateResponse,
 )
-from app.services import ai_gateway, chat_guard, embeddings
+from app.services import ai_gateway, chat_guard, embeddings, tracing
 
 logger = logging.getLogger(__name__)
 
@@ -148,6 +148,18 @@ async def _image_to_data_uri(url: str) -> str | None:
 
 
 async def generate_description(request: DescriptionGenerateRequest) -> DescriptionGenerateResponse:
+    async with tracing.trace(
+        "admin.generate_description",
+        input=request.model_dump(),
+        tags=["admin"],
+        metadata={"entity_type": request.entityType, "content_mode": request.mode},
+    ) as trace:
+        response = await _generate_description(request)
+        trace.set_output({"description": response.description})
+        return response
+
+
+async def _generate_description(request: DescriptionGenerateRequest) -> DescriptionGenerateResponse:
     if not request.data.title or not request.data.title.strip():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -258,6 +270,19 @@ _MAGAZINE_TOOL = {
 
 
 async def generate_magazine(
+    db: AsyncSession, request: MagazineGenerateRequest
+) -> MagazineGenerateResponse:
+    async with tracing.trace(
+        "admin.generate_magazine",
+        input={"project_ids": request.project_ids, "theme_hint": request.theme_hint},
+        tags=["admin"],
+    ) as trace:
+        response = await _generate_magazine(db, request)
+        trace.set_output({"title": response.title, "projects": len(response.project_ids)})
+        return response
+
+
+async def _generate_magazine(
     db: AsyncSession, request: MagazineGenerateRequest
 ) -> MagazineGenerateResponse:
     stmt = (
@@ -657,6 +682,39 @@ async def _retrieve(
     content_mode: ChatContentMode,
     vector: list[float] | None = None,
 ) -> list[Any]:
+    """Hybrid search (see _retrieve_rows), recorded as a trace span: which
+    entries came back, their fused RRF score, and which branch(es) found them."""
+    with tracing.current_trace().span("hybrid_search", input={"query": query, "mode": content_mode}) as span:
+        rows = await _retrieve_rows(db, query, content_mode, vector)
+        if span.enabled:
+            span.set(
+                output=[
+                    {
+                        "title": getattr(r, "title", None),
+                        "type": getattr(r, "source_type", None),
+                        "rrf_score": round(float(getattr(r, "score", 0) or 0), 5),
+                        "vec_rank": getattr(r, "vec_rank", None),
+                        "fts_rank": getattr(r, "fts_rank", None),
+                    }
+                    for r in rows
+                ],
+                metadata={
+                    "k": settings.rag_top_k,
+                    "pool": settings.rag_pool,
+                    "min_cosine": settings.rag_min_score,
+                    "vector_hits": sum(1 for r in rows if getattr(r, "vec_rank", None) is not None),
+                    "fulltext_hits": sum(1 for r in rows if getattr(r, "fts_rank", None) is not None),
+                },
+            )
+        return rows
+
+
+async def _retrieve_rows(
+    db: AsyncSession,
+    query: str,
+    content_mode: ChatContentMode,
+    vector: list[float] | None = None,
+) -> list[Any]:
     """Raises RagUnavailableError when retrieval can't run (embedding failure,
     empty index); the caller then falls back to the full portfolio context.
     `vector` is the already-computed embedding of `query`, so a message is only
@@ -742,8 +800,16 @@ async def _guard_blocks(message: str, retrieval_query: str, retrieval_vector: li
         except embeddings.RagUnavailableError as exc:
             logger.warning("Chat guard skipped (embedding failed): %s", exc)
             return False
-    decision = chat_guard.classify(vector)
+    trace = tracing.current_trace()
+    with trace.span("chat_guard", type="guardrail") as span:
+        decision = chat_guard.classify(vector)
+        span.set(
+            output={"blocked": decision.block, "label": decision.label},
+            metadata={"scores": {k: round(v, 3) for k, v in decision.best.items()}},
+        )
     if decision.block:
+        trace.tag("blocked")
+        trace.set_output({"blocked": True, "label": decision.label, "reply": chat_guard.REDIRECT_REPLY})
         # Scores only -- never the visitor's text.
         logger.info(
             "chat guard blocked a message: label=%s scores=%s",
@@ -790,7 +856,56 @@ Example: If someone asks for the resume, respond with something like:
 Always provide the button when you have the relevant URL available. This makes it easy for visitors to access resources directly."""
 
 
+async def _finish_trace_after(stream: Any, trace: tracing.Trace) -> AsyncIterator[bytes]:
+    """Passes the reply stream through untouched, then delivers the trace.
+    Delivery happens here, inside the request, because on a serverless runtime
+    nothing is guaranteed to run once the response is over. The trace output
+    defaults to the reply text the gateway span collected."""
+    try:
+        if hasattr(stream, "__aiter__"):
+            async for chunk in stream:
+                yield chunk
+        else:
+            for chunk in stream:
+                yield chunk
+    except Exception as exc:
+        trace.fail(exc)
+        raise
+    finally:
+        closer = getattr(stream, "aclose", None)
+        if closer is not None:
+            try:
+                await closer()  # lets the gateway span record the finished reply
+            except Exception:
+                logger.debug("tracing: closing the reply stream failed", exc_info=True)
+        await asyncio.shield(trace.finish())
+
+
 async def open_chat_stream(db: AsyncSession, request: ChatRequest) -> AsyncIterator[bytes]:
+    """The traced entry point for the public chatbot. With Opik off this is
+    exactly _open_chat_stream; with it on, the visitor's message and the whole
+    pipeline (embedding, guard, retrieval, LLM call) are recorded as one trace."""
+    trace = tracing.start_trace(
+        "chat",
+        input={
+            "message": request.message,
+            "content_mode": request.contentMode,
+            "history_turns": len(request.conversationHistory or []),
+        },
+        tags=["chat"],
+        metadata={"content_mode": request.contentMode},
+    )
+    if not trace.enabled:
+        return await _open_chat_stream(db, request)
+    try:
+        stream = await _open_chat_stream(db, request)
+    except Exception as exc:
+        await trace.finish(error=exc)
+        raise
+    return _finish_trace_after(stream, trace)
+
+
+async def _open_chat_stream(db: AsyncSession, request: ChatRequest) -> AsyncIterator[bytes]:
     """Builds the prompt and opens a verified upstream stream (see
     ai_gateway.open_stream for why the connect + status check happen here,
     awaited directly, rather than inside the generator FastAPI iterates)."""
@@ -824,19 +939,25 @@ async def open_chat_stream(db: AsyncSession, request: ChatRequest) -> AsyncItera
                 db, request.contentMode, retrieval_query, query_vector
             )
 
+    if settings.rag_enabled and rag_context is None:
+        tracing.current_trace().tag("rag_fallback")
+
     if rag_context is not None:
         portfolio_context, hero, resume_url = rag_context
         owner_name = hero.name if hero else "this portfolio"
         system_prompt = _chat_system_prompt(owner_name, portfolio_context, resume_url, retrieved=True)
         messages = [{"role": "system", "content": system_prompt}, *sanitized_history, {"role": "user", "content": sanitized_message}]
         logger.info("chat prompt: path=rag mode=%s ~%d tokens", request.contentMode, len(system_prompt) // 4)
+        tracing.current_trace().meta(path="rag", approx_prompt_tokens=len(system_prompt) // 4)
         return await ai_gateway.open_stream(messages, model_kind="chat")
 
-    portfolio_context, hero, resume_url = await _build_portfolio_context(db, request.contentMode)
+    with tracing.current_trace().span("build_full_context"):
+        portfolio_context, hero, resume_url = await _build_portfolio_context(db, request.contentMode)
     owner_name = hero.name if hero else "this portfolio"
     system_prompt = _chat_system_prompt(owner_name, portfolio_context, resume_url)
     messages = [{"role": "system", "content": system_prompt}, *sanitized_history, {"role": "user", "content": sanitized_message}]
     logger.info("chat prompt: path=full mode=%s ~%d tokens", request.contentMode, len(system_prompt) // 4)
+    tracing.current_trace().meta(path="full", approx_prompt_tokens=len(system_prompt) // 4)
 
     # Only worth building a second, trimmed prompt if a fallback provider is
     # actually configured to receive it.

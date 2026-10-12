@@ -15,6 +15,7 @@ from app.models.academic import Certification, Education, Experience
 from app.models.content import AboutContent, HeroContent, Service, Skill
 from app.models.projects import Project
 from app.models.rag import PortfolioChunk
+from app.services import tracing
 from app.services.embeddings import content_hash, embed_documents, to_pgvector
 
 logger = logging.getLogger(__name__)
@@ -238,12 +239,33 @@ _UPSERT_SQL = text(
 
 
 async def reindex(db: AsyncSession, *, force: bool = False) -> dict[str, int]:
+    """Traced entry point (see tracing.py). Runs after every admin content write,
+    so a run that changed nothing is discarded instead of filling Opik with one
+    empty trace per save; runs that embedded or deleted something, forced runs
+    and failures are recorded."""
+    trace = tracing.start_trace("admin.reindex", input={"force": force}, tags=["admin"])
+    try:
+        result = await _reindex(db, force=force)
+    except Exception as exc:
+        await trace.finish(error=exc)
+        raise
+    if force or result["embedded"] or result["deleted"]:
+        trace.meta(**result)
+        await trace.finish(output=result)
+    else:
+        trace.discard()
+    return result
+
+
+async def _reindex(db: AsyncSession, *, force: bool) -> dict[str, int]:
     """Upserts all chunks, embedding only those whose text actually changed,
     and drops chunks whose source row is gone. Raises RagUnavailableError (via
     embed_documents) when embeddings can't be produced -- nothing is written
     in that case, because every embedding is computed before the first write.
     """
-    chunks = await build_chunks(db)
+    with tracing.current_trace().span("build_chunks") as span:
+        chunks = await build_chunks(db)
+        span.set(output={"chunks": len(chunks)})
     existing = {
         key: digest
         for key, digest in (

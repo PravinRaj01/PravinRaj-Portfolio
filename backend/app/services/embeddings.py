@@ -10,6 +10,7 @@ import math
 import httpx
 
 from app.core.config import settings
+from app.services import tracing
 
 _BASE = "https://generativelanguage.googleapis.com/v1beta/models"
 TASK_DOCUMENT = "RETRIEVAL_DOCUMENT"
@@ -67,6 +68,18 @@ async def _post(client: httpx.AsyncClient, path: str, payload: dict) -> dict:
 
 
 async def embed_query(text_: str) -> list[float]:
+    # Traced (see tracing.py): a no-op unless Opik is configured. Only the
+    # size of the text is recorded -- the query itself is already on the trace.
+    with tracing.current_trace().span("embed_query", input={"chars": len(text_)}) as span:
+        span.set(
+            model=settings.gemini_embedding_model,
+            provider="gemini",
+            metadata={"dims": EMBEDDING_DIMS, "task_type": TASK_QUERY},
+        )
+        return await _embed_query(text_)
+
+
+async def _embed_query(text_: str) -> list[float]:
     if not settings.gemini_api_key:
         raise EmbeddingUnavailableError("GEMINI_API_KEY not configured")
     try:
@@ -93,6 +106,27 @@ async def embed_documents(
     *,
     task_type: str = TASK_DOCUMENT,
     rate_limit_retries: int = 0,
+) -> list[list[float]]:
+    with tracing.current_trace().span(
+        "embed_documents", input={"texts": len(texts), "chars": sum(len(t) for t in texts)}
+    ) as span:
+        span.set(
+            model=settings.gemini_embedding_model,
+            provider="gemini",
+            metadata={
+                "dims": EMBEDDING_DIMS,
+                "task_type": task_type,
+                "batches": -(-len(texts) // _BATCH_SIZE),
+            },
+        )
+        return await _embed_documents(texts, task_type=task_type, rate_limit_retries=rate_limit_retries)
+
+
+async def _embed_documents(
+    texts: list[str],
+    *,
+    task_type: str,
+    rate_limit_retries: int,
 ) -> list[list[float]]:
     """Batched, so a full re-index costs ~3 requests instead of ~150.
 
