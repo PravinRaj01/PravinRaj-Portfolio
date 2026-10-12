@@ -117,6 +117,14 @@ class Settings(BaseSettings):
     chat_guard_offtopic_min_sim: float = 0.55
     chat_guard_offtopic_margin: float = 0.06
 
+    # Chatbot navigation (app/services/chat_stream.py): gives the chat model a
+    # navigate_to tool, so "show me your React projects" ends with an `action`
+    # event in the stream that the widget turns into a route change. Off by
+    # default: it should only be switched on once the frontend that understands
+    # those events is deployed, otherwise the bot would announce a navigation
+    # nothing performs.
+    chat_navigation_enabled: bool = False
+
     # Opik observability (app/services/tracing.py): LLM traces for the public
     # chatbot and the admin AI tools, sent to Opik's REST API with plain httpx
     # (the opik SDK would add ~245 MB of dependencies to the Vercel bundle).

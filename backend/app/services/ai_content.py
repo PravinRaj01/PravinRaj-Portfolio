@@ -38,7 +38,7 @@ from app.schemas.ai import (
     MagazineGenerateRequest,
     MagazineGenerateResponse,
 )
-from app.services import ai_gateway, chat_guard, embeddings, tracing
+from app.services import ai_gateway, chat_guard, chat_stream, embeddings, tracing
 
 logger = logging.getLogger(__name__)
 
@@ -819,8 +819,19 @@ async def _guard_blocks(message: str, retrieval_query: str, retrieval_vector: li
     return decision.block
 
 
+_NAVIGATION_PROMPT = """
+
+Navigation:
+You can take the visitor to a page of this website with the navigate_to tool. Use it only when the visitor asks to see, open or go to something -- for example "show me the projects", "take me to the contact page", "show your React projects" or "open the ViralAutomator project". Do not use it for ordinary questions: answer those in text. When you use it, choose the page, put a technology or keyword in `search` (projects page only), and write one short friendly sentence in `announcement`. Nothing else is needed after calling it."""
+
+
 def _chat_system_prompt(
-    owner_name: str, portfolio_context: str, resume_url: str | None, *, retrieved: bool = False
+    owner_name: str,
+    portfolio_context: str,
+    resume_url: str | None,
+    *,
+    retrieved: bool = False,
+    navigation: bool = False,
 ) -> str:
     intro = (
         "Here is the portfolio information you have access to for this conversation (the owner's profile "
@@ -828,7 +839,7 @@ def _chat_system_prompt(
         if retrieved
         else "Here is the complete portfolio information you have access to:"
     )
-    return f"""You are a friendly and professional AI assistant for {owner_name}'s portfolio website. Your role is to help visitors learn about the portfolio owner, their skills, projects, experience, and services.
+    prompt = f"""You are a friendly and professional AI assistant for {owner_name}'s portfolio website. Your role is to help visitors learn about the portfolio owner, their skills, projects, experience, and services.
 
 {intro}
 {portfolio_context}
@@ -854,6 +865,22 @@ Example: If someone asks for the resume, respond with something like:
 "Here's {owner_name}'s resume! [button:Download Resume]({resume_url or '#'})"
 
 Always provide the button when you have the relevant URL available. This makes it easy for visitors to access resources directly."""
+    return prompt + _NAVIGATION_PROMPT if navigation else prompt
+
+
+async def _open_reply(
+    content_mode: ChatContentMode, messages: list[dict[str, Any]], **kwargs: Any
+) -> AsyncIterator[bytes]:
+    """Opens the model's reply stream. With navigation off this is exactly the
+    plain gateway call; with it on, the model also gets the navigate_to tool and
+    the reply passes through chat_stream, which turns a tool call into an
+    `action` event for the chat widget."""
+    if not settings.chat_navigation_enabled:
+        return await ai_gateway.open_stream(messages, model_kind="chat", **kwargs)
+    stream = await ai_gateway.open_stream(
+        messages, model_kind="chat", tools=[chat_stream.NAVIGATE_TOOL], tool_choice="auto", **kwargs
+    )
+    return chat_stream.navigation_stream(stream, content_mode=content_mode)
 
 
 async def _finish_trace_after(stream: Any, trace: tracing.Trace) -> AsyncIterator[bytes]:
@@ -945,16 +972,20 @@ async def _open_chat_stream(db: AsyncSession, request: ChatRequest) -> AsyncIter
     if rag_context is not None:
         portfolio_context, hero, resume_url = rag_context
         owner_name = hero.name if hero else "this portfolio"
-        system_prompt = _chat_system_prompt(owner_name, portfolio_context, resume_url, retrieved=True)
+        system_prompt = _chat_system_prompt(
+            owner_name, portfolio_context, resume_url, retrieved=True, navigation=settings.chat_navigation_enabled
+        )
         messages = [{"role": "system", "content": system_prompt}, *sanitized_history, {"role": "user", "content": sanitized_message}]
         logger.info("chat prompt: path=rag mode=%s ~%d tokens", request.contentMode, len(system_prompt) // 4)
         tracing.current_trace().meta(path="rag", approx_prompt_tokens=len(system_prompt) // 4)
-        return await ai_gateway.open_stream(messages, model_kind="chat")
+        return await _open_reply(request.contentMode, messages)
 
     with tracing.current_trace().span("build_full_context"):
         portfolio_context, hero, resume_url = await _build_portfolio_context(db, request.contentMode)
     owner_name = hero.name if hero else "this portfolio"
-    system_prompt = _chat_system_prompt(owner_name, portfolio_context, resume_url)
+    system_prompt = _chat_system_prompt(
+        owner_name, portfolio_context, resume_url, navigation=settings.chat_navigation_enabled
+    )
     messages = [{"role": "system", "content": system_prompt}, *sanitized_history, {"role": "user", "content": sanitized_message}]
     logger.info("chat prompt: path=full mode=%s ~%d tokens", request.contentMode, len(system_prompt) // 4)
     tracing.current_trace().meta(path="full", approx_prompt_tokens=len(system_prompt) // 4)
@@ -964,7 +995,9 @@ async def _open_chat_stream(db: AsyncSession, request: ChatRequest) -> AsyncIter
     fallback_messages = None
     if settings.groq_api_key:
         compact_context, _, _ = await _build_portfolio_context(db, request.contentMode, compact=True)
-        compact_prompt = _chat_system_prompt(owner_name, compact_context, resume_url)
+        compact_prompt = _chat_system_prompt(
+            owner_name, compact_context, resume_url, navigation=settings.chat_navigation_enabled
+        )
         fallback_messages = [{"role": "system", "content": compact_prompt}, *sanitized_history, {"role": "user", "content": sanitized_message}]
 
-    return await ai_gateway.open_stream(messages, model_kind="chat", fallback_messages=fallback_messages)
+    return await _open_reply(request.contentMode, messages, fallback_messages=fallback_messages)

@@ -146,41 +146,91 @@ class StreamObserver:
         self.parts: list[str] = []
         self.usage: dict[str, int] | None = None
         self.first_token_ms: float | None = None
+        self.done = False  # saw `data: [DONE]`
+        # Tool calls, one slot per call. OpenAI-style streams send the arguments
+        # as JSON text fragments across chunks; Gemini and Groq (checked live)
+        # send each call whole in a single chunk. Both end up in the same slot.
+        self._tool_calls: list[dict[str, str]] = []
 
     @property
     def text(self) -> str:
         return "".join(self.parts)
 
-    def feed(self, chunk: bytes) -> None:
+    @property
+    def tool_calls(self) -> list[dict[str, str]]:
+        """Calls seen so far as [{"id", "name", "arguments"}], arguments being
+        the raw JSON text (unparsed: the model may have produced invalid JSON)."""
+        return [dict(c) for c in self._tool_calls if c["name"]]
+
+    def feed(self, chunk: bytes) -> list[dict[str, Any]]:
+        """Consumes raw bytes and returns the JSON events they completed."""
+        events: list[dict[str, Any]] = []
         try:
             self._buffer += chunk
             *lines, self._buffer = self._buffer.split(b"\n")
             for raw in lines:
-                self._line(raw.strip())
+                event = self._line(raw.strip())
+                if event is not None:
+                    events.append(event)
         except Exception:  # pragma: no cover - observing must never affect the stream
             logger.debug("stream observer failed", exc_info=True)
+        return events
 
-    def _line(self, raw: bytes) -> None:
+    def _line(self, raw: bytes) -> dict[str, Any] | None:
         if not raw.startswith(b"data:"):
-            return
+            return None
         payload = raw[5:].strip()
-        if not payload or payload == b"[DONE]":
-            return
+        if not payload:
+            return None
+        if payload == b"[DONE]":
+            self.done = True
+            return None
         try:
             data = json.loads(payload)
         except ValueError:
-            return
+            return None
         if not isinstance(data, dict):
-            return
+            return None
         usage = _usage_of(data.get("usage") or (data.get("x_groq") or {}).get("usage"))
         if usage:
             self.usage = usage
         for choice in data.get("choices") or []:
-            content = (choice.get("delta") or {}).get("content")
+            delta = choice.get("delta") or {}
+            content = delta.get("content")
             if content:
                 if self.first_token_ms is None:
                     self.first_token_ms = (time.perf_counter() - self._started) * 1000
                 self.parts.append(content)
+            for call in delta.get("tool_calls") or []:
+                self._add_tool_call(call)
+        return data
+
+    def _add_tool_call(self, call: Any) -> None:
+        if not isinstance(call, dict):
+            return
+        function = call.get("function") or {}
+        index, call_id = call.get("index"), call.get("id")
+        slot: dict[str, str] | None = None
+        if isinstance(index, int) and index >= 0:
+            while len(self._tool_calls) <= index:
+                self._tool_calls.append({"id": "", "name": "", "arguments": ""})
+            slot = self._tool_calls[index]
+        elif isinstance(call_id, str) and call_id:
+            slot = next((c for c in self._tool_calls if c["id"] == call_id), None)
+        if slot is None:
+            if not isinstance(index, int) and not call_id and self._tool_calls:
+                slot = self._tool_calls[-1]  # no index, no id: a fragment of the latest call
+            else:
+                slot = {"id": "", "name": "", "arguments": ""}
+                self._tool_calls.append(slot)
+        if isinstance(call_id, str) and call_id and not slot["id"]:
+            slot["id"] = call_id
+        name = function.get("name")
+        if isinstance(name, str) and name and not slot["name"]:
+            slot["name"] = name
+        arguments = function.get("arguments")
+        if isinstance(arguments, str):
+            slot["arguments"] += arguments
 
 
 async def chat_completion(
@@ -260,8 +310,14 @@ async def _drain(
         await response.aclose()
         await client.aclose()
         if span is not None and observer is not None:
+            reply: Any = observer.text or None
+            if observer.tool_calls:
+                reply = {
+                    "content": observer.text or None,
+                    "tool_calls": [{"name": c["name"], "arguments": c["arguments"]} for c in observer.tool_calls],
+                }
             span.end(
-                output=observer.text or None,
+                output=reply,
                 usage=observer.usage,
                 ttft_ms=observer.first_token_ms,
                 metadata={
@@ -272,11 +328,18 @@ async def _drain(
             )
 
 
+async def _send_stream(client: httpx.AsyncClient, provider: _Provider, body: dict[str, Any]) -> httpx.Response:
+    request = client.build_request("POST", provider.base_url, headers=_headers(provider.api_key), json=body)
+    return await client.send(request, stream=True)
+
+
 async def open_stream(
     messages: list[dict[str, Any]],
     *,
     model_kind: str,
     fallback_messages: list[dict[str, Any]] | None = None,
+    tools: list[dict[str, Any]] | None = None,
+    tool_choice: str | dict[str, Any] | None = None,
 ) -> AsyncIterator[bytes]:
     """Connects to a provider and confirms a successful status *before*
     returning, trying the next configured provider on a 429/5xx.
@@ -295,13 +358,25 @@ async def open_stream(
     trace = tracing.current_trace()
 
     for i, provider in enumerate(providers):
-        body = {"model": provider.model, "messages": _pick_messages(messages, fallback_messages, i), "stream": True}
+        body: dict[str, Any] = {
+            "model": provider.model,
+            "messages": _pick_messages(messages, fallback_messages, i),
+            "stream": True,
+        }
+        if tools:
+            body["tools"] = tools
+            if tool_choice is not None:
+                body["tool_choice"] = tool_choice
+        if tracing.is_configured():
+            # Streamed replies only report token usage when asked. Both Gemini
+            # and Groq accept this (checked live); it is only worth sending when
+            # a trace will record it, and is retried without if ever rejected.
+            body["stream_options"] = {"include_usage": True}
         span = _llm_span(trace, provider, body, model_kind=model_kind, attempt=i)
         started = time.perf_counter()
         client = httpx.AsyncClient(timeout=_TIMEOUT)
         try:
-            request = client.build_request("POST", provider.base_url, headers=_headers(provider.api_key), json=body)
-            response = await client.send(request, stream=True)
+            response = await _send_stream(client, provider, body)
         except httpx.HTTPError as exc:
             await client.aclose()
             span.fail(exc).end()
@@ -316,6 +391,26 @@ async def open_stream(
             return _drain(client, response, span, started)
 
         await response.aread()
+        if "stream_options" in body and response.status_code in (400, 422):
+            # Usage reporting is a nicety for tracing; a provider that rejects it
+            # must not take the chat down. Retry the same request without it.
+            await response.aclose()
+            await client.aclose()
+            body.pop("stream_options")
+            client = httpx.AsyncClient(timeout=_TIMEOUT)
+            try:
+                response = await _send_stream(client, provider, body)
+                if response.is_success:
+                    _record_provider_used(trace, provider, i)
+                    return _drain(client, response, span, started)
+                await response.aread()
+            except httpx.HTTPError as exc:
+                await client.aclose()
+                span.fail(exc).end()
+                last_exc = HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="AI gateway request failed")
+                if i < len(providers) - 1:
+                    continue
+                raise last_exc from exc
         mapped = _map_gateway_error(response)
         span.fail(mapped).end(metadata={"status_code": response.status_code})
         await response.aclose()

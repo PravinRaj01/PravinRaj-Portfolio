@@ -15,8 +15,17 @@ DATABASE_URL too.
 
 import os
 import sys
+from pathlib import Path
 
 import pytest
+from dotenv import dotenv_values
+
+# backend/.env.test (gitignored) holds the Neon test-branch URLs and
+# ADMIN_TEST_PASSWORD. Real environment variables take precedence, so CI can
+# still inject its own; a missing file just yields no values.
+for _key, _value in dotenv_values(Path(__file__).resolve().parent.parent / ".env.test").items():
+    if _value is not None:
+        os.environ.setdefault(_key, _value)
 
 _TEST_DB_URL = os.environ.get("TEST_DATABASE_URL")
 _TEST_DB_URL_DIRECT = os.environ.get("TEST_DATABASE_URL_DIRECT")
