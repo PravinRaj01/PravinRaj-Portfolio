@@ -16,8 +16,10 @@ from app.schemas.ai import (
     DescriptionGenerateResponse,
     MagazineGenerateRequest,
     MagazineGenerateResponse,
+    RepoImportRequest,
+    RepoImportResponse,
 )
-from app.services import ai_content, chat_throttle, rag_index
+from app.services import ai_content, chat_throttle, github_repo, rag_index, repo_import
 from app.services.ai_gateway import AIGatewayNotConfiguredError
 from app.services.embeddings import RagUnavailableError
 
@@ -64,6 +66,38 @@ async def generate_magazine(
         return await ai_content.generate_magazine(db, payload)
     except AIGatewayNotConfiguredError as exc:
         raise _not_configured() from exc
+
+
+@router.post(
+    "/project-from-repo",
+    response_model=RepoImportResponse,
+    dependencies=[Depends(require_admin)],
+)
+async def project_from_repo(
+    payload: RepoImportRequest, db: Annotated[AsyncSession, Depends(get_db)]
+) -> RepoImportResponse:
+    """Reads a GitHub repository and returns a draft for the project form.
+    Writes nothing: the admin reviews the draft and saves it as a normal
+    project (which is what triggers the usual re-index)."""
+    try:
+        return await repo_import.generate_project_draft(db, payload)
+    except AIGatewayNotConfiguredError as exc:
+        raise _not_configured() from exc
+    except github_repo.RepoUrlError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except github_repo.RepoNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Repository not found. If it is private, set GITHUB_TOKEN on the backend.",
+        ) from exc
+    except github_repo.RepoRateLimitedError as exc:
+        when = f" Try again after {exc.reset_at}." if exc.reset_at else ""
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"GitHub's rate limit was reached.{when} Setting GITHUB_TOKEN raises the limit.",
+        ) from exc
+    except github_repo.GitHubUnavailableError as exc:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
 
 
 @router.post("/reindex", dependencies=[Depends(require_admin)])

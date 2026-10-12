@@ -141,6 +141,13 @@ class Settings(BaseSettings):
     # Public, read-only Drive API key for the resume/gallery folder proxy.
     google_drive_api_key: str = ""
 
+    # GitHub token for the admin's "import a project from GitHub" tool
+    # (app/services/github_repo.py). Optional: without it GitHub allows 60
+    # anonymous requests an hour (an import uses about 8) and public repos only.
+    # A fine-grained, read-only token raises that to 5000/hour and can read the
+    # owner's private repositories.
+    github_token: str = ""
+
     # Vercel Deploy Hook URL for the FRONTEND project (Project Settings → Git
     # → Deploy Hooks there, not this backend project) — POSTed to after an
     # admin content write so the prerendered static output stays fresh

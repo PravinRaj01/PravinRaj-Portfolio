@@ -11,6 +11,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { useProjects } from '@/hooks/useProjects';
 import { generateDriveImageUrl } from '@/utils/googleDrive';
 import ProjectForm from './ProjectForm';
+import GithubImportDialog from './GithubImportDialog';
+import type { Project } from '@/types/cms';
 import ProjectFilterViews from './ProjectFilterViews';
 import { usePortfolio } from '@/contexts/PortfolioContext';
 
@@ -19,6 +21,14 @@ const ProjectManager = () => {
   const { projects, loading, deleteProject, refetch } = useProjects(mode, { includeInactive: true });
   const [editingProject, setEditingProject] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [showImport, setShowImport] = useState(false);
+  // A draft imported from GitHub, waiting in the (new-project) form for review.
+  const [importedDraft, setImportedDraft] = useState<Partial<Project> | undefined>(undefined);
+
+  const openNewProjectForm = () => {
+    setImportedDraft(undefined); // a manual "Add" never inherits an earlier import
+    setShowForm(true);
+  };
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [viewFilter, setViewFilter] = useState<'all' | 'featured' | 'recent'>('all');
@@ -85,10 +95,16 @@ const ProjectManager = () => {
             Showing <strong className="capitalize">{mode}</strong> mode projects. Use mode toggle (bottom left) to switch.
           </p>
         </div>
-        <Button onClick={() => setShowForm(true)}>
-          <Plus className="w-4 h-4 mr-2" />
-          Add Project
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={() => setShowImport(true)}>
+            <Github className="w-4 h-4 mr-2" />
+            Import from GitHub
+          </Button>
+          <Button onClick={openNewProjectForm}>
+            <Plus className="w-4 h-4 mr-2" />
+            Add Project
+          </Button>
+        </div>
       </div>
 
       {/* Search and Filter Controls */}
@@ -164,6 +180,16 @@ const ProjectManager = () => {
         />
       )}
 
+      <GithubImportDialog
+        open={showImport}
+        onOpenChange={setShowImport}
+        mode={mode}
+        onUseDraft={(draft) => {
+          setImportedDraft(draft);
+          setShowForm(true);
+        }}
+      />
+
       {/* Add Project Dialog */}
       <Dialog open={showForm} onOpenChange={setShowForm}>
         <DialogContent 
@@ -173,9 +199,14 @@ const ProjectManager = () => {
           onEscapeKeyDown={(e) => e.preventDefault()}
         >
           <ProjectForm
-            onClose={() => setShowForm(false)}
+            initialDraft={importedDraft}
+            onClose={() => {
+              setShowForm(false);
+              setImportedDraft(undefined);
+            }}
             onSave={() => {
               setShowForm(false);
+              setImportedDraft(undefined);
               refetch();
             }}
             mode={mode}
@@ -337,7 +368,7 @@ const ProjectManager = () => {
         <Card className="text-center py-12">
           <CardContent>
             <p className="text-muted-foreground mb-4">No projects found for {mode} mode</p>
-            <Button onClick={() => setShowForm(true)}>
+            <Button onClick={openNewProjectForm}>
               <Plus className="w-4 h-4 mr-2" />
               Add Your First Project
             </Button>

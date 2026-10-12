@@ -25,12 +25,17 @@ import { SingleDatePicker } from '@/components/ui/date-range-picker';
 
 interface ProjectFormProps {
   project?: Project;
+  /**
+   * Pre-fills the form for a NEW project (e.g. a draft imported from GitHub).
+   * Ignored when `project` is set: editing always starts from the saved project.
+   */
+  initialDraft?: Partial<Project>;
   onClose: () => void;
   onSave: () => void;
   mode: 'professional' | 'creative';
 }
 
-const ProjectForm = ({ project, onClose, onSave, mode }: ProjectFormProps) => {
+const ProjectForm = ({ project, initialDraft, onClose, onSave, mode }: ProjectFormProps) => {
   const { addProject, updateProject } = useProjects();
   const { folders } = useProjectFolders(mode);
   
@@ -43,35 +48,38 @@ const ProjectForm = ({ project, onClose, onSave, mode }: ProjectFormProps) => {
       .replace(/^-|-$/g, '');
   };
 
+  // A draft only pre-fills a new project; editing starts from the saved one.
+  const seed: Partial<Project> | undefined = project ?? initialDraft;
+
   const [formData, setFormData] = useState({
-    title: project?.title || '',
-    slug: project?.slug || '',
-    description: project?.description || '',
-    category: project?.category || '',
-    categories: project?.categories || [],
-    tags: project?.tags || [],
-    featured: project?.featured || false,
-    show_in_recent: project?.show_in_recent ?? true,
-    is_active: project?.is_active ?? true,
-    image_drive_id: project?.image_drive_id || '',
-    image_scroll_enabled: project?.image_scroll_enabled || false,
-    scroll_speed: project?.scroll_speed ?? 10000,
-    crop_landscape: project?.crop_landscape || { x: 50, y: 50, zoom: 100 },
-    crop_square: project?.crop_square || { x: 50, y: 50, zoom: 100 },
-    crop_phone: project?.crop_phone || { x: 50, y: 50, zoom: 100 },
-    crop_tablet: project?.crop_tablet || { x: 50, y: 50, zoom: 100 },
-    gallery_images: project?.gallery_images || [],
-    video_url: project?.video_url || '',
-    video_thumbnail_drive_id: project?.video_thumbnail_drive_id || '',
-    github_url: project?.github_url || '',
-    live_url: project?.live_url || '',
-    project_links: project?.project_links || [] as ProjectLink[],
-    order_index: project?.order_index || 0,
-    project_date: project?.project_date || '',
-    include_thumbnail_in_gallery: project?.include_thumbnail_in_gallery ?? true,
-    position: project?.position || '',
-    positions: project?.positions || [],
-    folder_id: project?.folder_id || null
+    title: seed?.title || '',
+    slug: seed?.slug || '',
+    description: seed?.description || '',
+    category: seed?.category || '',
+    categories: seed?.categories || [],
+    tags: seed?.tags || [],
+    featured: seed?.featured || false,
+    show_in_recent: seed?.show_in_recent ?? true,
+    is_active: seed?.is_active ?? true,
+    image_drive_id: seed?.image_drive_id || '',
+    image_scroll_enabled: seed?.image_scroll_enabled || false,
+    scroll_speed: seed?.scroll_speed ?? 10000,
+    crop_landscape: seed?.crop_landscape || { x: 50, y: 50, zoom: 100 },
+    crop_square: seed?.crop_square || { x: 50, y: 50, zoom: 100 },
+    crop_phone: seed?.crop_phone || { x: 50, y: 50, zoom: 100 },
+    crop_tablet: seed?.crop_tablet || { x: 50, y: 50, zoom: 100 },
+    gallery_images: seed?.gallery_images || [],
+    video_url: seed?.video_url || '',
+    video_thumbnail_drive_id: seed?.video_thumbnail_drive_id || '',
+    github_url: seed?.github_url || '',
+    live_url: seed?.live_url || '',
+    project_links: seed?.project_links || [] as ProjectLink[],
+    order_index: seed?.order_index || 0,
+    project_date: seed?.project_date || '',
+    include_thumbnail_in_gallery: seed?.include_thumbnail_in_gallery ?? true,
+    position: seed?.position || '',
+    positions: seed?.positions || [],
+    folder_id: seed?.folder_id || null
   });
   
   const [newLinkLabel, setNewLinkLabel] = useState('');
