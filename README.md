@@ -342,4 +342,6 @@ Changes follow a simple flow: an issue, a branch named `<type>/<issue>-<slug>`, 
 
 ## License
 
-MIT
+The code is released under the [MIT License](LICENSE).
+
+The personal content of the site (photos, logo, resume and written material) is **not** covered by it and remains all rights reserved. See the [content notice](CONTENT-NOTICE.md) for the exact scope.
