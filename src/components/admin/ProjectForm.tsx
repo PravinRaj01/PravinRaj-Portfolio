@@ -20,6 +20,7 @@ import ProjectMediaManager from './ProjectMediaManager';
 import ProjectImageFolderManager from './ProjectImageFolderManager';
 import DescriptionGenerator from './DescriptionGenerator';
 import { DriveFile } from '@/services/googleDriveService';
+import { ApiError } from '@/services/apiClient';
 import { generateDriveImageUrl } from '@/utils/googleDrive';
 import { SingleDatePicker } from '@/components/ui/date-range-picker';
 
@@ -118,7 +119,11 @@ const ProjectForm = ({ project, initialDraft, onClose, onSave, mode }: ProjectFo
       onSave();
     } catch (error) {
       console.error('Failed to save project:', error);
-      alert('Failed to save project. Please try again.');
+      // A 401 is already explained by the "session expired" prompt shown over
+      // the admin, so don't stack a second alert on top of it.
+      if (error instanceof ApiError && error.status === 401) return;
+      const reason = error instanceof Error && error.message ? `: ${error.message}` : '';
+      alert(`Failed to save project${reason}`);
     } finally {
       setLoading(false);
     }

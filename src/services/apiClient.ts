@@ -18,6 +18,14 @@ export const getStoredToken = (): string | null => localStorage.getItem(TOKEN_ST
 export const setStoredToken = (token: string): void => localStorage.setItem(TOKEN_STORAGE_KEY, token);
 export const clearStoredToken = (): void => localStorage.removeItem(TOKEN_STORAGE_KEY);
 
+// Called when a request that carried an admin token comes back 401, i.e. the
+// session expired while the page was open. Registered by authService so this
+// file doesn't have to import it (authService already imports apiClient).
+let unauthorizedHandler: (() => void) | null = null;
+export const setUnauthorizedHandler = (handler: (() => void) | null): void => {
+  unauthorizedHandler = handler;
+};
+
 export class ApiError extends Error {
   status: number;
   detail: unknown;
@@ -75,6 +83,8 @@ async function request<T>(
     const detail = parsed && typeof parsed === 'object' && 'detail' in parsed ? parsed.detail : parsed;
     const message =
       typeof detail === 'string' ? detail : `Request to ${path} failed with status ${response.status}`;
+    // Login excluded: a wrong password is also a 401, and isn't an expired session.
+    if (response.status === 401 && token && path !== '/auth/login') unauthorizedHandler?.();
     throw new ApiError(response.status, detail, message);
   }
 

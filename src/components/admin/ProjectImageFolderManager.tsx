@@ -147,7 +147,7 @@ const SortableFolderItem = ({ folder, onUpdate, onDelete, onOpenFilePicker, onOp
       <Collapsible open={isOpen} onOpenChange={setIsOpen}>
         <div className="flex items-center gap-2 p-3">
           {/* Drag handle */}
-          <button
+          <button type="button"
             {...attributes}
             {...listeners}
             className="p-1 hover:bg-muted rounded cursor-grab active:cursor-grabbing"
@@ -156,7 +156,7 @@ const SortableFolderItem = ({ folder, onUpdate, onDelete, onOpenFilePicker, onOp
           </button>
 
           <CollapsibleTrigger asChild>
-            <button className="flex items-center gap-2 flex-1 text-left">
+            <button type="button" className="flex items-center gap-2 flex-1 text-left">
               {isOpen ? (
                 <ChevronDown className="w-4 h-4 text-muted-foreground" />
               ) : (

@@ -128,7 +128,7 @@ const SortableMediaItem = ({ item, onRemove }: SortableMediaItemProps) => {
         </div>
 
         {/* Drag handle */}
-        <button
+        <button type="button"
           {...attributes}
           {...listeners}
           className="absolute top-1 right-8 p-1 bg-black/50 rounded opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing"
