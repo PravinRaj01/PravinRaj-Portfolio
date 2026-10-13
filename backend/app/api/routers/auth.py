@@ -1,12 +1,21 @@
 # app/api/routers/auth.py — MIGRATION_PLAN.md §7 (auth row) and §8
+from datetime import datetime, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_db, require_admin
-from app.core.security import create_access_token, hash_password, verify_password
+from app.core.security import (
+    MAX_SESSION_AGE,
+    create_access_token,
+    decode_access_token,
+    hash_password,
+    token_auth_time,
+    verify_password,
+)
 from app.models.auth import AdminUser
 from app.schemas.auth import AdminUserRead, LoginRequest, TokenResponse
 from app.services import login_throttle
@@ -60,6 +69,35 @@ async def login(
 
     token = create_access_token(user_id=user.id, email=user.email)
     return TokenResponse(access_token=token, user=AdminUserRead.model_validate(user))
+
+
+# Only used to read the raw token inside /refresh: require_admin has already
+# validated it by the time the handler runs.
+_bearer = HTTPBearer(auto_error=False)
+
+
+@router.post("/refresh", response_model=TokenResponse)
+async def refresh(
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer)],
+    current_user: Annotated[AdminUser, Depends(require_admin)],
+) -> TokenResponse:
+    """Swap a still-valid token for a fresh one, so an admin who is actively
+    working isn't logged out an hour after typing their password.
+
+    The new token keeps the original `auth_time`, and refusing once that is
+    older than MAX_SESSION_AGE means a real password login is still needed at
+    least weekly. Takes no password, so it isn't run through login_throttle.
+    """
+    payload = decode_access_token(credentials.credentials) if credentials else {}
+    auth_time = token_auth_time(payload)
+    too_old = auth_time is None or datetime.now(timezone.utc) - auth_time > MAX_SESSION_AGE
+    if too_old:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Session is too old to renew. Please log in again.",
+        )
+    token = create_access_token(user_id=current_user.id, email=current_user.email, auth_time=auth_time)
+    return TokenResponse(access_token=token, user=AdminUserRead.model_validate(current_user))
 
 
 @router.get("/me", response_model=AdminUserRead)
