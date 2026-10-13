@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import ChatComposerInput from "./ChatComposerInput";
 import { Maximize2, X, Send, Loader2, Settings2 } from "lucide-react";
 import ChatMessage from "./ChatMessage";
 import QuickActions from "./QuickActions";
@@ -215,15 +215,16 @@ const ChatbotMiniView = ({
               e.preventDefault();
               onSend();
             }}
-            className="flex gap-2"
+            className="flex gap-2 items-end"
           >
-            <Input
+            <ChatComposerInput
               value={voice?.listening && voice.interim ? voice.interim : input}
-              onChange={(e) => onInputChange(e.target.value)}
+              onChange={onInputChange}
+              onSubmit={onSend}
               placeholder={voice?.listening ? "Listening..." : "Ask me anything..."}
               readOnly={voice?.listening}
               disabled={streaming}
-              className="flex-1 text-sm h-9
+              className="flex-1 text-sm
                 bg-white/10 dark:bg-black/20 
                 backdrop-blur-sm
                 border-white/20 

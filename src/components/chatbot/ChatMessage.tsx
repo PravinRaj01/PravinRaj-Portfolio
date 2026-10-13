@@ -5,6 +5,8 @@ import { describeAction, toInternalPath } from "@/lib/assistantNavigation";
 import { useAssistantNavigation } from "@/hooks/useAssistantNavigation";
 import type { NavigateAction } from "@/types/chat";
 import ReactMarkdown from "react-markdown";
+import remarkBreaks from "remark-breaks";
+import remarkGfm from "remark-gfm";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 
@@ -154,6 +156,9 @@ const ChatMessage = ({ role, content, isStreaming, compact = false, action }: Ch
             return (
               <ReactMarkdown
                 key={index}
+                // remark-breaks keeps single line breaks (Shift+Enter in the chat box);
+                // remark-gfm adds tables, ~~strikethrough~~, task lists and bare links.
+                remarkPlugins={[remarkGfm, remarkBreaks]}
                 components={{
                   p: ({ children }) => (
                     <p className={cn(
@@ -218,6 +223,17 @@ const ChatMessage = ({ role, content, isStreaming, compact = false, action }: Ch
                     </code>
                   ),
                   hr: () => <hr className="my-3 border-white/20" />,
+                  table: ({ children }) => (
+                    <div className="my-2 overflow-x-auto">
+                      <table className="w-full border-collapse text-left">{children}</table>
+                    </div>
+                  ),
+                  th: ({ children }) => (
+                    <th className="border border-white/20 px-2 py-1 font-semibold">{children}</th>
+                  ),
+                  td: ({ children }) => (
+                    <td className="border border-white/20 px-2 py-1 align-top">{children}</td>
+                  ),
                 }}
               >
                 {part.content || ''}

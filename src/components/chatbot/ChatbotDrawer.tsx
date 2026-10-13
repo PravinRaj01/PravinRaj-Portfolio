@@ -87,10 +87,17 @@ const clearAllConversations = () => {
 
 const ChatbotDrawer = ({ state, onStateChange }: ChatbotDrawerProps) => {
   const [input, setInput] = useState("");
-  const [streaming, setStreaming] = useState(false);
+  // Which conversation a reply is currently being written into (at most one at a
+  // time), so a new or different chat never inherits another chat's typing state.
+  const [streamingConvId, setStreamingConvId] = useState<string | null>(null);
   const [streamingMessage, setStreamingMessage] = useState("");
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
+  const activeRequest = useRef<{ controller: AbortController; convId: string } | null>(null);
+  // The conversation on screen right now, readable from inside a long-running send.
+  const visibleConversationId = useRef<string | null>(null);
+  visibleConversationId.current = currentConversationId;
+  const streaming = streamingConvId !== null && streamingConvId === currentConversationId;
   const { toast } = useToast();
   const isMobile = useIsMobile();
   const { mode, professionalModeEnabled, creativeModeEnabled } = usePortfolio();
@@ -184,6 +191,19 @@ const ChatbotDrawer = ({ state, onStateChange }: ChatbotDrawerProps) => {
     });
   }, []);
 
+  /** Cancels the in-flight reply, optionally only if it belongs to `onlyConvId`. */
+  const abortStreaming = useCallback((onlyConvId?: string) => {
+    const active = activeRequest.current;
+    if (!active || (onlyConvId !== undefined && active.convId !== onlyConvId)) return;
+    activeRequest.current = null;
+    active.controller.abort();
+    setStreamingConvId(null);
+    setStreamingMessage("");
+  }, []);
+
+  // Closing the drawer component for good ends any reply still in flight.
+  useEffect(() => () => abortStreaming(), [abortStreaming]);
+
   const handleSend = async (message?: string, options?: { viaVoice?: boolean }) => {
     const messageToSend = message || input.trim();
     if (!messageToSend || streaming || !currentConversationId) return;
@@ -193,7 +213,11 @@ const ChatbotDrawer = ({ state, onStateChange }: ChatbotDrawerProps) => {
     voice.cancel();
 
     setInput("");
-    setStreaming(true);
+    // A reply may still be coming for another chat; one request at a time.
+    abortStreaming();
+    const controller = new AbortController();
+    activeRequest.current = { controller, convId: currentConversationId };
+    setStreamingConvId(currentConversationId);
     setStreamingMessage("");
 
     const userMessage: Message = {
@@ -213,6 +237,7 @@ const ChatbotDrawer = ({ state, onStateChange }: ChatbotDrawerProps) => {
     try {
       const response = await fetch(CHAT_URL, {
         method: "POST",
+        signal: controller.signal,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           message: messageToSend,
@@ -278,8 +303,10 @@ const ChatbotDrawer = ({ state, onStateChange }: ChatbotDrawerProps) => {
         };
         addMessageToConversation(currentConversationId, assistantMessage);
 
-        // Read the reply aloud if it was asked by voice, or the visitor turned spoken replies on.
-        if (options?.viaVoice || speech.enabled) speech.speak(assistantMessage.content);
+        // Read the reply aloud if it was asked by voice, or the visitor turned spoken replies on --
+        // but not if they have since moved to another chat, where it would be confusing.
+        const stillHere = visibleConversationId.current === currentConversationId;
+        if (stillHere && (options?.viaVoice || speech.enabled)) speech.speak(assistantMessage.content);
 
         // Auto-title conversation based on first exchange
         const currentConv = conversations.find(c => c.id === currentConversationId);
@@ -290,7 +317,7 @@ const ChatbotDrawer = ({ state, onStateChange }: ChatbotDrawerProps) => {
         }
       }
 
-      if (pendingAction) {
+      if (pendingAction && visibleConversationId.current === currentConversationId) {
         if (navigationTarget) {
           goToTarget(navigationTarget);
         } else {
@@ -302,14 +329,21 @@ const ChatbotDrawer = ({ state, onStateChange }: ChatbotDrawerProps) => {
         }
       }
     } catch (error: any) {
+      // Cancelled on purpose (another chat was started, or this one was deleted): not an error.
+      if (controller.signal.aborted) return;
       toast({
         title: "Error",
         description: error.message,
         variant: "destructive",
       });
     } finally {
-      setStreaming(false);
-      setStreamingMessage("");
+      // Only clear the state if this request is still the active one; an aborted
+      // request must not wipe the typing state of the one that replaced it.
+      if (activeRequest.current?.controller === controller) {
+        activeRequest.current = null;
+        setStreamingConvId(null);
+        setStreamingMessage("");
+      }
     }
   };
 
@@ -351,6 +385,7 @@ const ChatbotDrawer = ({ state, onStateChange }: ChatbotDrawerProps) => {
   };
 
   const handleDeleteConversation = (convId: string) => {
+    abortStreaming(convId);
     setConversations(prev => {
       const updated = prev.filter(c => c.id !== convId);
       saveConversations(updated);
@@ -377,6 +412,7 @@ const ChatbotDrawer = ({ state, onStateChange }: ChatbotDrawerProps) => {
 
   const handleClearChat = () => {
     if (!currentConversationId) return;
+    abortStreaming(currentConversationId);
     updateConversation(currentConversationId, { messages: [] });
     toast({
       title: "Chat cleared",
@@ -385,6 +421,7 @@ const ChatbotDrawer = ({ state, onStateChange }: ChatbotDrawerProps) => {
   };
 
   const handleClearAllConversations = () => {
+    abortStreaming();
     clearAllConversations();
     const newConv: Conversation = {
       id: `conv-${Date.now()}`,
@@ -456,7 +493,7 @@ const ChatbotDrawer = ({ state, onStateChange }: ChatbotDrawerProps) => {
         {effectiveState === 'mini' ? (
           <ChatbotMiniView
             messages={messages}
-            streamingMessage={streamingMessage}
+            streamingMessage={streaming ? streamingMessage : ""}
             streaming={streaming}
             input={input}
             onInputChange={setInput}
@@ -475,7 +512,7 @@ const ChatbotDrawer = ({ state, onStateChange }: ChatbotDrawerProps) => {
         ) : (
           <ChatbotFullView
             messages={messages}
-            streamingMessage={streamingMessage}
+            streamingMessage={streaming ? streamingMessage : ""}
             streaming={streaming}
             input={input}
             onInputChange={setInput}

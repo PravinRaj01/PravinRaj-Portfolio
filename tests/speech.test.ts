@@ -16,6 +16,11 @@ describe('speechTextFrom', () => {
     );
   });
 
+  test('reads a markdown table as its cell text, without pipes or divider rows', () => {
+    const table = '| Skill | Level |\n|---|:--:|\n| Python | Expert |\n| React | Strong |';
+    expect(speechTextFrom(table)).toBe('Skill Level Python Expert React Strong');
+  });
+
   test('keeps ordinary punctuation, numbers and hyphenated words', () => {
     expect(speechTextFrom('Built in 2024 - a full-stack app (v2.1), 3 users.')).toBe('Built in 2024 - a full-stack app (v2.1), 3 users.');
   });

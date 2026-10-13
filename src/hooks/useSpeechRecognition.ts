@@ -36,6 +36,9 @@ interface Recognition {
 }
 type RecognitionConstructor = new () => Recognition;
 
+/** How long a stop may take to be confirmed by the speech service before we force it. */
+const STOP_GRACE_MS = 1200;
+
 const getRecognitionConstructor = (): RecognitionConstructor | null => {
   if (typeof window === 'undefined') return null;
   const w = window as unknown as {
@@ -63,18 +66,55 @@ export function useSpeechRecognition({ onFinalTranscript, onError }: UseSpeechRe
   const [interim, setInterim] = useState('');
 
   const recognition = useRef<Recognition | null>(null);
-  const finalText = useRef('');
+  // Everything heard so far in this session: finished phrases plus the phrase in progress.
+  const heardText = useRef('');
   const errorCode = useRef<string | null>(null);
   const cancelled = useRef(false);
+  // True between the visitor tapping stop and the speech service confirming it.
+  const stopping = useRef(false);
+  const stopTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Callers pass fresh closures every render; keep the latest without
   // re-creating start/stop (which would drop an active session).
   const handlers = useRef({ onFinalTranscript, onError });
   handlers.current = { onFinalTranscript, onError };
 
+  /**
+   * Ends `session` exactly once, from whichever comes first: the service's own
+   * `onend`, the stop fallback below, or a cancel. Late events from a session
+   * that has already been finished are ignored everywhere else.
+   */
+  const finish = useCallback((session: Recognition) => {
+    if (recognition.current !== session) return;
+    if (stopTimer.current) {
+      clearTimeout(stopTimer.current);
+      stopTimer.current = null;
+    }
+    recognition.current = null;
+    stopping.current = false;
+    setListening(false);
+    setInterim('');
+    if (cancelled.current) return;
+    const text = heardText.current.trim();
+    if (errorCode.current) handlers.current.onError?.(errorCode.current);
+    else if (text) handlers.current.onFinalTranscript(text);
+  }, []);
+
   const start = useCallback(() => {
     const Ctor = getRecognitionConstructor();
-    if (!Ctor || recognition.current) return;
+    if (!Ctor) return;
+
+    if (recognition.current) {
+      if (!stopping.current) return; // already listening
+      // The previous session is still winding down after a stop: wrap it up now.
+      const old = recognition.current;
+      try {
+        old.abort();
+      } catch {
+        // already ended
+      }
+      finish(old);
+    }
 
     const session = new Ctor();
     session.lang = (typeof navigator !== 'undefined' && navigator.language) || 'en-US';
@@ -82,35 +122,34 @@ export function useSpeechRecognition({ onFinalTranscript, onError }: UseSpeechRe
     session.continuous = false; // one utterance per press
     session.maxAlternatives = 1;
 
-    finalText.current = '';
+    heardText.current = '';
     errorCode.current = null;
     cancelled.current = false;
+    stopping.current = false;
 
+    let finalPart = '';
     session.onresult = (event) => {
+      if (recognition.current !== session) return;
       let interimText = '';
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const result = event.results[i];
         const transcript = result[0]?.transcript ?? '';
-        if (result.isFinal) finalText.current += transcript;
+        if (result.isFinal) finalPart += transcript;
         else interimText += transcript;
       }
-      setInterim((finalText.current + interimText).trim());
+      heardText.current = (finalPart + interimText).trim();
+      setInterim(heardText.current);
     };
 
     session.onerror = (event) => {
+      if (recognition.current !== session) return;
+      // abort() reports 'aborted'; when we aborted a slow stop on purpose that is not a failure.
+      if (event.error === 'aborted' && stopping.current) return;
       errorCode.current = event.error;
     };
 
     // Fires after a result, an error, stop() and abort() alike.
-    session.onend = () => {
-      recognition.current = null;
-      setListening(false);
-      setInterim('');
-      if (cancelled.current) return;
-      const text = finalText.current.trim();
-      if (errorCode.current) handlers.current.onError?.(errorCode.current);
-      else if (text) handlers.current.onFinalTranscript(text);
-    };
+    session.onend = () => finish(session);
 
     recognition.current = session;
     try {
@@ -121,18 +160,45 @@ export function useSpeechRecognition({ onFinalTranscript, onError }: UseSpeechRe
       recognition.current = null;
       handlers.current.onError?.('start-failed');
     }
-  }, []);
+  }, [finish]);
 
-  /** Finish now and send what was heard. */
+  /**
+   * Finish now and send what was heard. The button reacts at once; the browser's
+   * service can take a while to finalise (or never answer), so after a short
+   * grace period the session is aborted and the text heard so far is sent.
+   */
   const stop = useCallback(() => {
-    recognition.current?.stop();
-  }, []);
+    const session = recognition.current;
+    if (!session || stopping.current) return;
+    stopping.current = true;
+    setListening(false);
+    try {
+      session.stop();
+    } catch {
+      // already ended
+    }
+    stopTimer.current = setTimeout(() => {
+      try {
+        session.abort();
+      } catch {
+        // already ended
+      }
+      finish(session);
+    }, STOP_GRACE_MS);
+  }, [finish]);
 
   /** Abandon the session without sending anything. */
   const cancel = useCallback(() => {
     cancelled.current = true;
-    recognition.current?.abort();
-  }, []);
+    const session = recognition.current;
+    if (!session) return;
+    try {
+      session.abort();
+    } catch {
+      // already ended
+    }
+    finish(session);
+  }, [finish]);
 
   useEffect(() => cancel, [cancel]);
 

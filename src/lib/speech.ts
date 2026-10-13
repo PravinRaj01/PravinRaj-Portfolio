@@ -12,8 +12,9 @@ export function speechTextFrom(markdown: string): string {
     .replace(/!\[[^\]]*\]\([^)]*\)/g, ' ')
     .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
     .replace(/https?:\/\/\S+/g, ' ')
+    .replace(/^\s*\|?[\s:-]*\|[\s:|-]*$/gm, ' ') // table divider rows (|---|:--:|)
     .replace(/^\s*(?:#{1,6}|>|[-*+])\s+/gm, '')
-    .replace(/[*`~]+/g, '')
+    .replace(/[*`~|]+/g, ' ') // markdown symbols and table cell separators
     .replace(/\s+/g, ' ')
     .trim();
 }

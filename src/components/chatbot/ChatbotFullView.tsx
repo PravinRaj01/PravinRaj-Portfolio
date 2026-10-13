@@ -1,6 +1,6 @@
 import { useRef, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import ChatComposerInput from "./ChatComposerInput";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { CardHeader, CardContent } from "@/components/ui/card";
 import { Loader2, Send, Sparkles, Minimize2, X, Maximize2, Plus, Trash2, MessageSquare, ChevronDown, Settings2 } from "lucide-react";
@@ -405,14 +405,15 @@ const ChatbotFullView = ({
           }}
         >
           <div className="relative">
-            <Input
+            <ChatComposerInput
               value={voice?.listening && voice.interim ? voice.interim : input}
-              onChange={(e) => onInputChange(e.target.value)}
+              onChange={onInputChange}
+              onSubmit={onSend}
               placeholder={voice?.listening ? "Listening..." : "Ask me anything..."}
               readOnly={voice?.listening}
               disabled={streaming}
               className={cn(
-                `h-11 text-base
+                `py-2.5 text-base
                 bg-white/10 dark:bg-black/20
                 backdrop-blur-sm
                 border-white/20
@@ -423,7 +424,7 @@ const ChatbotFullView = ({
               )}
             />
             {voice && (
-              <div className="absolute right-11 top-1/2 -translate-y-1/2">
+              <div className="absolute right-11 bottom-1.5">
                 <MicButton voice={voice} disabled={streaming} className="h-8 w-8" />
               </div>
             )}
@@ -432,7 +433,7 @@ const ChatbotFullView = ({
               disabled={!input.trim() || streaming}
               size="icon"
               className={cn(
-                "absolute right-2 top-1/2 -translate-y-1/2 backdrop-blur-sm h-8 w-8 rounded-lg",
+                "absolute right-2 bottom-1.5 backdrop-blur-sm h-8 w-8 rounded-lg",
                 sendButtonClass
               )}
             >

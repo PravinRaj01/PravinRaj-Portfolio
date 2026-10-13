@@ -80,7 +80,9 @@ const Hero = ({ mode }: HeroProps) => {
     profile_photo_url: undefined,
     animation_speed: 30,
     animation_pause_duration: 500,
-    gradient_overlay_opacity: 0.7
+    gradient_overlay_opacity: 0.7,
+    birth_date: null,
+    fun_facts: null
   };
 
   const handleCtaClick = () => {
