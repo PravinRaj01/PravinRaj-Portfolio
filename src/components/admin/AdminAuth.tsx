@@ -10,9 +10,11 @@ import { signInAdmin } from '@/services/authService';
 
 interface AdminAuthProps {
   onSuccess: () => void;
+  /** Shown above the form, e.g. why the admin is being asked to sign in again. */
+  notice?: string;
 }
 
-const AdminAuth = ({ onSuccess }: AdminAuthProps) => {
+const AdminAuth = ({ onSuccess, notice }: AdminAuthProps) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -52,6 +54,9 @@ const AdminAuth = ({ onSuccess }: AdminAuthProps) => {
             </CardDescription>
           </CardHeader>
           <CardContent>
+            {notice && (
+              <div className="mb-4 rounded bg-amber-50 p-3 text-sm text-amber-800">{notice}</div>
+            )}
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>

@@ -2,7 +2,14 @@
 // Fully cut over to the new FastAPI backend (MIGRATION_PLAN.md §7/§8/§11):
 // POST /auth/login, GET /auth/me, POST /auth/logout, all verified working
 // (with the real seeded admin) since the auth phase of this migration.
-import { apiClient, TOKEN_STORAGE_KEY, setStoredToken, getStoredToken, clearStoredToken } from '@/services/apiClient';
+import {
+  apiClient,
+  TOKEN_STORAGE_KEY,
+  setStoredToken,
+  getStoredToken,
+  clearStoredToken,
+  setUnauthorizedHandler,
+} from '@/services/apiClient';
 
 export interface AdminUser {
   id: string;
@@ -72,5 +79,101 @@ export const onAuthStateChange = (callback: AuthListener): (() => void) => {
   return () => {
     listeners.delete(callback);
     window.removeEventListener('storage', onStorage);
+  };
+};
+
+// --- Session renewal ---------------------------------------------------------
+// The backend issues 60-minute tokens. While the admin page is open and in use
+// the token is swapped for a fresh one in the background (POST /auth/refresh),
+// so an hour of editing never ends in "Not authenticated". It still expires
+// after about an hour idle, and the backend refuses renewal once the password
+// was last typed more than 7 days ago -- then a real login is required.
+
+type ExpiredListener = () => void;
+const expiredListeners = new Set<ExpiredListener>();
+
+const notifyExpired = () => {
+  expiredListeners.forEach((callback) => callback());
+};
+
+// Fires when the session is known to be unusable (a 401 on a request that
+// carried a token, or a token already past its expiry). The admin shell
+// answers by asking for a password *over* the page, never by unmounting it,
+// so unsaved form edits survive.
+export const onSessionExpired = (callback: ExpiredListener): (() => void) => {
+  expiredListeners.add(callback);
+  return () => {
+    expiredListeners.delete(callback);
+  };
+};
+
+setUnauthorizedHandler(notifyExpired);
+
+let refreshInFlight: Promise<void> | null = null;
+
+// Single-flight: the interval, a focus event and a visibility event can all
+// ask at once, and only one request should go out.
+export const refreshSession = (): Promise<void> => {
+  if (!refreshInFlight) {
+    refreshInFlight = apiClient
+      .post<TokenResponse>('/auth/refresh')
+      .then((data) => {
+        setStoredToken(data.access_token);
+      })
+      .finally(() => {
+        refreshInFlight = null;
+      });
+  }
+  return refreshInFlight;
+};
+
+// Seconds until the stored token's `exp`. Read client-side only to decide
+// *when* to refresh -- the server is what actually verifies the token.
+const secondsUntilExpiry = (token: string): number | null => {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+    return typeof payload.exp === 'number' ? payload.exp - Date.now() / 1000 : null;
+  } catch {
+    return null;
+  }
+};
+
+const RENEW_WHEN_UNDER_SECONDS = 15 * 60;
+const CHECK_EVERY_MS = 60_000;
+
+export const startSessionKeepAlive = (): (() => void) => {
+  const check = async () => {
+    const token = getStoredToken();
+    if (!token) return;
+    const secondsLeft = secondsUntilExpiry(token);
+    if (secondsLeft === null) return;
+    if (secondsLeft <= 0) {
+      notifyExpired(); // e.g. the laptop slept past the expiry
+      return;
+    }
+    if (secondsLeft < RENEW_WHEN_UNDER_SECONDS) {
+      try {
+        await refreshSession();
+      } catch {
+        // Offline or a server hiccup: try again on the next check. A real 401
+        // has already raised the expired notice through apiClient.
+      }
+    }
+  };
+
+  // Background tabs throttle timers, so also check when the tab comes back.
+  const onVisible = () => {
+    if (document.visibilityState === 'visible') void check();
+  };
+
+  const interval = window.setInterval(() => void check(), CHECK_EVERY_MS);
+  document.addEventListener('visibilitychange', onVisible);
+  window.addEventListener('focus', onVisible);
+  void check();
+
+  return () => {
+    window.clearInterval(interval);
+    document.removeEventListener('visibilitychange', onVisible);
+    window.removeEventListener('focus', onVisible);
   };
 };
