@@ -254,14 +254,14 @@ def _safe_url(value: Any) -> str | None:
     return url if parts.scheme in ("http", "https") and parts.netloc else None
 
 
-def _month_year(iso: str | None) -> str | None:
+def _full_date(iso: str | None) -> str | None:
     if not iso:
         return None
     try:
         moment = datetime.fromisoformat(iso.replace("Z", "+00:00"))
     except ValueError:
         return None
-    return f"{_MONTHS[moment.month - 1]} {moment.year}"
+    return f"{moment.day} {_MONTHS[moment.month - 1]} {moment.year}"
 
 
 def _fallback_title(digest: RepoDigest) -> str:
@@ -315,7 +315,7 @@ def build_draft(raw: dict[str, Any], digest: RepoDigest, request: RepoImportRequ
         position=positions[0] if positions else None,
         positions=positions,
         # Facts that come from GitHub, not from the model.
-        project_date=_month_year(digest.created_at),
+        project_date=_full_date(digest.created_at),
         github_url=github_url,
         live_url=live_url,
         project_links=links,

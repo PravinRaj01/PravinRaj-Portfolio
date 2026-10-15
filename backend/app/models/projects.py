@@ -45,6 +45,7 @@ class Project(UUIDPk, TimestampsNullable, Base):
     order_index: Mapped[int | None] = mapped_column(Integer, server_default=text("0"))
     recent_order_index: Mapped[int | None] = mapped_column(Integer, server_default=text("0"))
     project_date: Mapped[str | None] = mapped_column(Text)
+    date_display: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'month'"))  # 'month' | 'full'
     image_drive_id: Mapped[str | None] = mapped_column(Text)
     image_home_drive_id: Mapped[str | None] = mapped_column(Text)
     image_scroll_enabled: Mapped[bool | None] = mapped_column(Boolean, server_default=text("false"))
