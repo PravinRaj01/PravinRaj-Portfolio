@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { formatProjectDate } from '@/lib/projectDate';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft, ExternalLink, Github, Calendar, Tag, ChevronLeft, ChevronRight, User, Folder, Images, Video, Play } from 'lucide-react';
@@ -257,7 +258,7 @@ const ProjectDetail = () => {
                 {project.project_date && (
                   <span className="flex items-center text-xs sm:text-sm md:text-base">
                     <Calendar className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-1.5 flex-shrink-0" />
-                    {project.project_date}
+                    {formatProjectDate(project)}
                   </span>
                 )}
               </div>

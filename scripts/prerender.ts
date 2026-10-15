@@ -20,6 +20,7 @@
 //
 // Hard-fails (non-zero exit) on any error, so a broken prerender fails the
 // Vercel build instead of silently shipping a stale or partial dist/.
+import { formatProjectDate } from '../src/lib/projectDate';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -76,6 +77,7 @@ interface ProjectRow extends Dated {
   categories?: string[] | null;
   tags?: string[] | null;
   project_date?: string | null;
+  date_display?: 'month' | 'full' | null;
   github_url?: string | null;
   live_url?: string | null;
   image_drive_id?: string | null;
@@ -161,7 +163,7 @@ function projectFacts(project: ProjectRow): string[] {
   const category = project.category || project.categories?.[0];
   facts.push(
     `${category ? `A ${category} project` : 'A project'} by Pravin Raj Muralitharan${
-      project.project_date ? ` (${project.project_date})` : ''
+      project.project_date ? ` (${formatProjectDate(project)})` : ''
     }.`
   );
   if (project.tags && project.tags.length > 0) facts.push(`Tags: ${project.tags.join(', ')}.`);

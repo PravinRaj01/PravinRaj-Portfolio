@@ -1,6 +1,7 @@
 # app/schemas/projects.py — MIGRATION_PLAN.md §6 (Project* schemas)
 import uuid
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
 
@@ -34,6 +35,7 @@ class ProjectBase(BaseModel):
     order_index: int | None = None
     recent_order_index: int | None = None
     project_date: str | None = None
+    date_display: Literal["month", "full"] | None = None
     image_drive_id: str | None = None
     image_home_drive_id: str | None = None
     image_scroll_enabled: bool | None = None
@@ -73,6 +75,7 @@ class ProjectUpdate(BaseModel):                     # PATCH: every field optiona
     order_index: int | None = None
     recent_order_index: int | None = None
     project_date: str | None = None
+    date_display: Literal["month", "full"] | None = None
     image_drive_id: str | None = None
     image_home_drive_id: str | None = None
     image_scroll_enabled: bool | None = None

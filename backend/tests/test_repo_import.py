@@ -263,7 +263,7 @@ def test_a_good_answer_becomes_a_draft_with_github_facts_set_server_side():
     assert draft.tags == ["Python", "CLI"]  # de-duplicated, case-insensitively
     assert draft.positions == ["Developer"] and draft.position == "Developer"
     assert draft.github_url == "https://github.com/octo/hello-world_app"
-    assert draft.project_date == "Mar 2024"  # from GitHub's created_at, in the format the form uses
+    assert draft.project_date == "15 Mar 2024"  # from GitHub's created_at, in the format the form uses
     assert draft.live_url == "https://demo.example.com"
     assert [(l.label, l.url) for l in draft.project_links] == [("Docs", "https://docs.example.com")]
     assert highlights == ["Has a CLI", "Written in Python"]
@@ -273,7 +273,7 @@ def test_the_model_cannot_set_the_github_url_or_the_date():
     sneaky = {**GOOD, "github_url": "https://evil.example/x", "project_date": "Jan 1999"}
     draft, _ = repo_import.build_draft(sneaky, digest(), request())
     assert draft.github_url == "https://github.com/octo/hello-world_app"
-    assert draft.project_date == "Mar 2024"
+    assert draft.project_date == "15 Mar 2024"
 
 
 @pytest.mark.parametrize(
@@ -450,7 +450,7 @@ def test_the_route_returns_a_draft(admin_headers, pipeline):
     r = client.post(URL, json={**BODY, "additionalContext": "I led this."}, headers=admin_headers)
     assert r.status_code == 200
     body = r.json()
-    assert body["draft"]["title"] == "Hello Greeter" and body["draft"]["project_date"] == "Mar 2024"
+    assert body["draft"]["title"] == "Hello Greeter" and body["draft"]["project_date"] == "15 Mar 2024"
     assert body["highlights"] == ["Has a CLI", "Written in Python"]
     assert body["repo"]["full_name"] == "octo/hello-world_app"
 

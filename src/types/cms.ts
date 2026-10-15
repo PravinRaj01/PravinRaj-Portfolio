@@ -35,6 +35,7 @@ export interface Project {
   mode: 'professional' | 'creative';
   order_index: number;
   project_date?: string;
+  date_display?: 'month' | 'full';
   created_at: string;
   updated_at: string;
   include_thumbnail_in_gallery?: boolean;

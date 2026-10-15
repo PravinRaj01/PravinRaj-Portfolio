@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { cropStyle } from '@/lib/crop';
 import { useNavigate } from 'react-router-dom';
 import { motion, PanInfo, useAnimation } from 'framer-motion';
 import { ExternalLink, Github } from 'lucide-react';
@@ -119,11 +120,7 @@ const TinderProjectCards = ({ projects, mode }: TinderProjectCardsProps) => {
                     : generateDriveImageUrl(project.image_drive_id, 'medium')}
                   alt={project.title}
                   className="w-full h-full object-cover"
-                  style={{
-                    objectPosition: `${project.crop_phone?.x ?? project.crop_square?.x ?? 50}% ${project.crop_phone?.y ?? project.crop_square?.y ?? 50}%`,
-                    transform: `scale(${(project.crop_phone?.zoom ?? project.crop_square?.zoom ?? 100) / 100})`,
-                    transformOrigin: `${project.crop_phone?.x ?? project.crop_square?.x ?? 50}% ${project.crop_phone?.y ?? project.crop_square?.y ?? 50}%`
-                  }}
+                  style={cropStyle(project.crop_phone ?? project.crop_square)}
                 />
               ) : (
                 <div className={`w-full h-full flex items-center justify-center ${

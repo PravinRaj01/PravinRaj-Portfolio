@@ -19,7 +19,8 @@ import { useProjects } from '@/hooks/useProjects';
 import { useProjectFolders } from '@/hooks/useProjectFolders';
 import { useSiteSettings } from '@/hooks/useSiteSettings';
 import { generateDriveImageUrl } from '@/utils/googleDrive';
-import { parse } from 'date-fns';
+import { cropStyle } from '@/lib/crop';
+import { compareProjectDates, formatProjectDate } from '@/lib/projectDate';
 import ReactMarkdown from 'react-markdown';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
@@ -186,24 +187,6 @@ const Projects = () => {
       return 0;
     });
 
-  // Helper function to parse project date
-  const parseProjectDate = (dateStr?: string): Date => {
-    if (!dateStr) return new Date(0); // Return epoch if no date
-    try {
-      // Try parsing different formats
-      let date = parse(dateStr, "d MMM yyyy", new Date());
-      if (isNaN(date.getTime())) {
-        date = parse(dateStr, "MMM yyyy", new Date());
-      }
-      if (isNaN(date.getTime())) {
-        date = parse(dateStr, "yyyy", new Date());
-      }
-      return isNaN(date.getTime()) ? new Date(0) : date;
-    } catch {
-      return new Date(0);
-    }
-  };
-
   // Sort projects: featured first in cards view, then by date
   const sortedProjects = useMemo(() => {
     const sorted = [...filteredProjects].sort((a, b) => {
@@ -213,14 +196,8 @@ const Projects = () => {
         if (!a.featured && b.featured) return 1;
       }
       
-      const dateA = parseProjectDate(a.project_date);
-      const dateB = parseProjectDate(b.project_date);
-      
-      if (sortOrder === 'newest') {
-        return dateB.getTime() - dateA.getTime();
-      } else {
-        return dateA.getTime() - dateB.getTime();
-      }
+      const newestFirst = compareProjectDates(a, b);
+      return sortOrder === 'newest' ? newestFirst : -newestFirst;
     });
     return sorted;
   }, [filteredProjects, sortOrder, viewMode]);
@@ -460,7 +437,7 @@ const Projects = () => {
                         >
                           <div className="flex flex-col md:flex-row">
                             {/* Project Image - Square Crop */}
-                            <div className="relative w-full md:w-48 aspect-square md:aspect-square overflow-hidden flex-shrink-0">
+                            <div className="relative w-full md:w-48 aspect-square md:aspect-[3/4] md:self-start overflow-hidden flex-shrink-0">
                               {project.image_drive_id ? (
                                 <img 
                                   src={project.image_drive_id.startsWith('http') 
@@ -468,11 +445,7 @@ const Projects = () => {
                                     : generateDriveImageUrl(project.image_drive_id, 'medium')} 
                                   alt={project.title}
                                   className="w-full h-full object-cover"
-                                  style={{
-                                    objectPosition: `${project.crop_square?.x ?? 50}% ${project.crop_square?.y ?? 50}%`,
-                                    transform: `scale(${(project.crop_square?.zoom ?? 100) / 100})`,
-                                    transformOrigin: `${project.crop_square?.x ?? 50}% ${project.crop_square?.y ?? 50}%`
-                                  }}
+                                  style={cropStyle(isMobile ? project.crop_square : project.crop_tablet)}
                                 />
                               ) : (
                                 <div className="w-full h-full bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center">
@@ -513,7 +486,7 @@ const Projects = () => {
                                     {project.project_date && (
                                       <span className="flex items-center text-muted-foreground">
                                         <Calendar className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
-                                        {project.project_date}
+                                        {formatProjectDate(project)}
                                       </span>
                                     )}
                                     {/* Folder badge in timeline view */}
@@ -781,11 +754,7 @@ const Projects = () => {
                                 : generateDriveImageUrl(project.image_drive_id, 'medium')} 
                               alt={project.title}
                               className="w-full h-full object-cover"
-                              style={{
-                                objectPosition: `${project.crop_landscape?.x ?? 50}% ${project.crop_landscape?.y ?? 50}%`,
-                                transform: `scale(${(project.crop_landscape?.zoom ?? 100) / 100})`,
-                                transformOrigin: `${project.crop_landscape?.x ?? 50}% ${project.crop_landscape?.y ?? 50}%`
-                              }}
+                              style={cropStyle(project.crop_landscape)}
                             />
                           ) : (
                             <div className="w-full h-full bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center">
@@ -842,7 +811,7 @@ const Projects = () => {
                               {project.project_date && (
                                 <span className="flex items-center text-muted-foreground">
                                   <Calendar className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
-                                  {project.project_date}
+                                  {formatProjectDate(project)}
                                 </span>
                               )}
                             </div>

@@ -4,6 +4,7 @@ import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Monitor, Tablet, Move, RotateCcw, ZoomIn, Square } from 'lucide-react';
 import { CropPosition } from '@/types/cms';
+import { cropStyle } from '@/lib/crop';
 
 interface ImageCropPreviewProps {
   imageUrl: string;
@@ -74,11 +75,11 @@ const ImageCropPreview = ({
   const getPreviewLabel = (type: PreviewType): string => {
     switch (type) {
       case 'landscape':
-        return 'Projects Page';
+        return 'Project Cards (16:9)';
       case 'square':
-        return 'Home Cards';
+        return 'Home Slider / Mobile List (square)';
       case 'tablet':
-        return 'Tablet Projects';
+        return 'Project List (vertical)';
     }
   };
 
@@ -116,11 +117,7 @@ const ImageCropPreview = ({
           src={imageUrl}
           alt={`${type} preview`}
           className="w-full h-full object-cover"
-          style={{
-            objectPosition: `${crop.x}% ${crop.y}%`,
-            transform: `scale(${(crop.zoom ?? 100) / 100})`,
-            transformOrigin: `${crop.x}% ${crop.y}%`,
-          }}
+          style={cropStyle(crop)}
         />
         {activePreview === type && (
           <div className="absolute top-1 left-1 bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 rounded font-medium">

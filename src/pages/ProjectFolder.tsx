@@ -18,7 +18,8 @@ import { useProjectFolders, ProjectFolder as FolderType } from '@/hooks/useProje
 import { useSiteSettings } from '@/hooks/useSiteSettings';
 import { generateDriveImageUrl } from '@/utils/googleDrive';
 import { Project } from '@/types/cms';
-import { parse } from 'date-fns';
+import { cropStyle } from '@/lib/crop';
+import { compareProjectDates, formatProjectDate } from '@/lib/projectDate';
 import ReactMarkdown from 'react-markdown';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { usePageMeta } from '@/hooks/usePageMeta';
@@ -92,23 +93,6 @@ const ProjectFolderPage = () => {
   // Get unique categories from folder projects
   const categories = ['all', ...Array.from(new Set(folderProjects.map(p => p.category)))];
   
-  // Helper function to parse project date
-  const parseProjectDate = (dateStr?: string): Date => {
-    if (!dateStr) return new Date(0);
-    try {
-      let date = parse(dateStr, "d MMM yyyy", new Date());
-      if (isNaN(date.getTime())) {
-        date = parse(dateStr, "MMM yyyy", new Date());
-      }
-      if (isNaN(date.getTime())) {
-        date = parse(dateStr, "yyyy", new Date());
-      }
-      return isNaN(date.getTime()) ? new Date(0) : date;
-    } catch {
-      return new Date(0);
-    }
-  };
-
   // Filter and sort projects
   const filteredProjects = useMemo(() => {
     let filtered = folderProjects;
@@ -135,11 +119,8 @@ const ProjectFolderPage = () => {
       if (!a.featured && b.featured) return 1;
       
       // Then sort by date
-      const dateA = parseProjectDate(a.project_date);
-      const dateB = parseProjectDate(b.project_date);
-      return sortOrder === 'newest' 
-        ? dateB.getTime() - dateA.getTime()
-        : dateA.getTime() - dateB.getTime();
+      const newestFirst = compareProjectDates(a, b);
+      return sortOrder === 'newest' ? newestFirst : -newestFirst;
     });
     
     return filtered;
@@ -400,11 +381,7 @@ const ProjectFolderPage = () => {
                             : generateDriveImageUrl(project.image_drive_id, 'medium')} 
                           alt={project.title}
                           className="w-full h-full object-cover"
-                          style={{
-                            objectPosition: `${(project.crop_landscape as any)?.x ?? 50}% ${(project.crop_landscape as any)?.y ?? 50}%`,
-                            transform: `scale(${((project.crop_landscape as any)?.zoom ?? 100) / 100})`,
-                            transformOrigin: `${(project.crop_landscape as any)?.x ?? 50}% ${(project.crop_landscape as any)?.y ?? 50}%`
-                          }}
+                          style={cropStyle(project.crop_landscape)}
                         />
                       ) : (
                         <div className="w-full h-full bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center">
@@ -444,7 +421,7 @@ const ProjectFolderPage = () => {
                           {project.project_date && (
                             <span className="flex items-center text-muted-foreground">
                               <Calendar className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
-                              {project.project_date}
+                              {formatProjectDate(project)}
                             </span>
                           )}
                         </div>
@@ -562,6 +539,7 @@ const ProjectFolderPage = () => {
                                 : generateDriveImageUrl(project.image_drive_id, 'medium')} 
                               alt={project.title}
                               className="w-full h-full object-cover"
+                              style={cropStyle(isMobile ? project.crop_landscape : project.crop_tablet)}
                             />
                           ) : (
                             <div className="w-full h-full min-h-[200px] bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center">
@@ -578,7 +556,7 @@ const ProjectFolderPage = () => {
                               {project.project_date && (
                                 <span className="flex items-center text-muted-foreground">
                                   <Calendar className="w-4 h-4 mr-1" />
-                                  {project.project_date}
+                                  {formatProjectDate(project)}
                                 </span>
                               )}
                             </CardDescription>
