@@ -77,6 +77,7 @@ const ProjectForm = ({ project, initialDraft, onClose, onSave, mode }: ProjectFo
     project_links: seed?.project_links || [] as ProjectLink[],
     order_index: seed?.order_index || 0,
     project_date: seed?.project_date || '',
+    date_display: (seed?.date_display ?? 'month') as 'month' | 'full',
     include_thumbnail_in_gallery: seed?.include_thumbnail_in_gallery ?? true,
     position: seed?.position || '',
     positions: seed?.positions || [],
@@ -410,12 +411,32 @@ const ProjectForm = ({ project, initialDraft, onClose, onSave, mode }: ProjectFo
 
             <div>
               <Label>Project Date</Label>
+              {/* Always saved as a full date so projects from the same month sort by day */}
               <SingleDatePicker
                 value={formData.project_date}
                 onChange={(value) => setFormData(prev => ({ ...prev, project_date: value }))}
                 placeholder="Select project date"
-                showFormatSelector={true}
+                dateFormat="full"
+                showFormatSelector={false}
               />
+              <div className="mt-2 space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Display on site</Label>
+                <Select
+                  value={formData.date_display}
+                  onValueChange={(value: 'month' | 'full') => setFormData(prev => ({ ...prev, date_display: value }))}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select display" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="month">Month &amp; Year only (e.g., Oct 2026)</SelectItem>
+                    <SelectItem value="full">Full date (e.g., 15 Oct 2026)</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  The full date is used for ordering; this only changes what visitors see.
+                </p>
+              </div>
             </div>
 
             <div className="space-y-2">
