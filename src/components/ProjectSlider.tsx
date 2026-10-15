@@ -13,6 +13,7 @@ import TinderProjectCards from './TinderProjectCards';
 import ReactMarkdown from 'react-markdown';
 import { usePortfolio } from '@/contexts/PortfolioContext';
 import { getModePath } from '@/lib/modePath';
+import { cropStyle } from '@/lib/crop';
 
 // Swiper styles
 import 'swiper/css';
@@ -174,7 +175,7 @@ const ProjectSlider = ({ projects, mode }: ProjectSliderProps) => {
               </div>
 
               {/* Right Content - Image with optional scroll effect */}
-              <div className="relative h-[22rem] overflow-hidden rounded-xl w-[40%] shadow-2xl group">
+              <div className="relative h-[22rem] w-[22rem] max-w-[40%] shrink-0 overflow-hidden rounded-xl shadow-2xl group">
                 {project.image_drive_id ? (
                   <img
                     src={project.image_drive_id.startsWith('http') 
@@ -188,9 +189,7 @@ const ProjectSlider = ({ projects, mode }: ProjectSliderProps) => {
                       ...(project.image_scroll_enabled
                         ? { transition: `all ${project.scroll_speed || 10000}ms linear` }
                         : {
-                            objectPosition: `${project.crop_landscape?.x ?? 50}% ${project.crop_landscape?.y ?? 50}%`,
-                            transform: `scale(${(project.crop_landscape?.zoom ?? 100) / 100})`,
-                            transformOrigin: `${project.crop_landscape?.x ?? 50}% ${project.crop_landscape?.y ?? 50}%`,
+                            ...cropStyle(project.crop_square),
                             transition: 'all 300ms ease'
                           }
                       )
