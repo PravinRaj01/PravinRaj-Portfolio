@@ -2,7 +2,6 @@ import React, { useMemo, useState } from 'react';
 import { ArrowLeft, Check, Github, Link2, Loader2, RefreshCw } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
 import {
   Dialog,
   DialogContent,
@@ -14,6 +13,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { cn } from '@/lib/utils';
 import { apiClient } from '@/services/apiClient';
 import type { Project, ProjectLink } from '@/types/cms';
 import type { CurrentProjectEntry, RepoImportResponse } from '@/types/repoImport';
@@ -25,7 +25,7 @@ interface GithubSyncDialogProps {
   project: Project | null;
   mode: 'professional' | 'creative';
   onOpenChange: (open: boolean) => void;
-  /** The ticked fields, to be reviewed in the edit form. Nothing is saved by this dialog. */
+  /** The chosen fields, to be reviewed in the edit form. Nothing is saved by this dialog. */
   onApply: (updates: Partial<Project>) => void;
 }
 
@@ -40,13 +40,20 @@ type FieldKey =
   | 'github_url'
   | 'live_url'
   | 'project_links';
-type MergeKey = 'tags' | 'project_links';
-type Combine = 'merge' | 'replace';
 type FieldValue = string | string[] | ProjectLink[];
+type OptionId = 'current' | 'repo' | 'merged' | 'combined';
 
-const MERGEABLE: FieldKey[] = ['tags', 'project_links'];
-// Usually hand-tuned, so only pre-ticked when the project has nothing there yet.
-const HAND_TUNED: FieldKey[] = ['title', 'project_date', 'categories', 'positions'];
+interface Option {
+  id: OptionId;
+  label: string;
+  value: FieldValue;
+}
+
+interface Field {
+  key: FieldKey;
+  /** `current` first. A single option means the repository has nothing different to offer. */
+  options: Option[];
+}
 
 const LABELS: Record<FieldKey, string> = {
   title: 'Title',
@@ -62,6 +69,8 @@ const LABELS: Record<FieldKey, string> = {
 const ORDER: FieldKey[] = [
   'description', 'title', 'tags', 'categories', 'positions', 'project_date', 'github_url', 'live_url', 'project_links',
 ];
+// Usually hand-tuned, so the saved value stays selected unless it is empty.
+const KEEP_CURRENT: FieldKey[] = ['title', 'project_date', 'categories', 'positions'];
 
 const normUrl = (url: string) => url.trim().replace(/\.git$/i, '').replace(/\/+$/, '').toLowerCase();
 const isEmpty = (v: FieldValue) => (Array.isArray(v) ? v.length === 0 : !v.trim());
@@ -94,17 +103,17 @@ const repoValue = (d: RepoImportResponse['draft'], key: FieldKey): FieldValue =>
   }
 };
 
-/** What the field would become if ticked. Tags and links can be merged into what is there. */
-const proposed = (key: FieldKey, cur: FieldValue, repo: FieldValue, combine: Combine): FieldValue => {
-  if (combine === 'merge' && key === 'tags') {
+/** Everything already there, plus whatever the repository has that isn't. */
+const combineValues = (key: FieldKey, cur: FieldValue, repo: FieldValue): FieldValue | null => {
+  if (key === 'tags') {
     const have = new Set((cur as string[]).map((t) => t.toLowerCase()));
     return [...(cur as string[]), ...(repo as string[]).filter((t) => !have.has(t.toLowerCase()))];
   }
-  if (combine === 'merge' && key === 'project_links') {
+  if (key === 'project_links') {
     const have = new Set((cur as ProjectLink[]).map((l) => normUrl(l.url)));
     return [...(cur as ProjectLink[]), ...(repo as ProjectLink[]).filter((l) => !have.has(normUrl(l.url)))];
   }
-  return repo;
+  return null;
 };
 
 const sameValue = (key: FieldKey, a: FieldValue, b: FieldValue): boolean => {
@@ -117,7 +126,35 @@ const sameValue = (key: FieldKey, a: FieldValue, b: FieldValue): boolean => {
   return a === b;
 };
 
-/** The project-form fields a ticked row writes. */
+/** The choices for one field. Candidates that equal one already listed are folded into it. */
+const buildField = (project: Project, draft: RepoImportResponse['draft'], key: FieldKey): Field => {
+  const cur = currentValue(project, key);
+  const repo = repoValue(draft, key);
+  const options: Option[] = [{ id: 'current', label: 'Current', value: cur }];
+  const offer = (option: Option) => {
+    if (isEmpty(option.value)) return;
+    if (options.some((o) => sameValue(key, o.value, option.value))) return;
+    options.push(option);
+  };
+  offer({ id: 'repo', label: 'From repo', value: repo });
+  if (key === 'description' && draft.merged_description) {
+    offer({ id: 'merged', label: 'Merged with AI', value: draft.merged_description });
+  }
+  const combined = combineValues(key, cur, repo);
+  if (combined) offer({ id: 'combined', label: 'Both', value: combined });
+  return { key, options };
+};
+
+const defaultChoice = (field: Field): OptionId => {
+  const has = (id: OptionId) => field.options.some((o) => o.id === id);
+  if (isEmpty(field.options[0].value) && has('repo')) return 'repo';
+  if (KEEP_CURRENT.includes(field.key)) return 'current';
+  if (field.key === 'description') return has('merged') ? 'merged' : has('repo') ? 'repo' : 'current';
+  if (field.key === 'tags' || field.key === 'project_links') return has('combined') ? 'combined' : has('repo') ? 'repo' : 'current';
+  return has('repo') ? 'repo' : 'current';
+};
+
+/** The project-form fields a chosen value writes. */
 const toUpdate = (key: FieldKey, value: FieldValue): Partial<Project> => {
   switch (key) {
     case 'categories': return { categories: value as string[], category: (value as string[])[0] ?? '' };
@@ -159,14 +196,49 @@ const ValueView = ({ field, value }: { field: FieldKey; value: FieldValue }) => 
   return <p className="whitespace-pre-wrap break-words">{value}</p>;
 };
 
+const ChoiceCard = ({
+  option,
+  field,
+  selected,
+  onSelect,
+}: {
+  option: Option;
+  field: FieldKey;
+  selected: boolean;
+  onSelect: () => void;
+}) => (
+  <button
+    type="button"
+    role="radio"
+    aria-checked={selected}
+    onClick={onSelect}
+    className={cn(
+      'relative flex min-w-0 flex-col gap-1.5 rounded-lg border p-3 text-left text-sm transition-colors',
+      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+      selected ? 'border-primary bg-primary/5 ring-2 ring-primary' : 'hover:border-primary/50 hover:bg-muted/40',
+    )}
+  >
+    <span className="flex items-center justify-between gap-2">
+      <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{option.label}</span>
+      {selected && (
+        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
+          <Check className="h-3 w-3" />
+        </span>
+      )}
+    </span>
+    <span className={cn('min-w-0', field === 'description' && 'max-h-48 overflow-y-auto pr-1')}>
+      <ValueView field={field} value={option.value} />
+    </span>
+  </button>
+);
+
 const GithubSyncDialog = ({ project, mode, onOpenChange, onApply }: GithubSyncDialogProps) => {
   const [step, setStep] = useState<Step>('input');
   const [repoUrl, setRepoUrl] = useState('');
   const [notes, setNotes] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<RepoImportResponse | null>(null);
-  const [ticked, setTicked] = useState<Partial<Record<FieldKey, boolean>>>({});
-  const [combine, setCombine] = useState<Record<MergeKey, Combine>>({ tags: 'merge', project_links: 'merge' });
+  const [choice, setChoice] = useState<Partial<Record<FieldKey, OptionId>>>({});
   // Which project the local state was initialised for, so opening on another project starts clean.
   const [seededFor, setSeededFor] = useState<string | null>(null);
 
@@ -177,21 +249,19 @@ const GithubSyncDialog = ({ project, mode, onOpenChange, onApply }: GithubSyncDi
     setNotes('');
     setError(null);
     setResult(null);
-    setTicked({});
-    setCombine({ tags: 'merge', project_links: 'merge' });
+    setChoice({});
   }
 
   const linking = !project?.github_url;
 
-  const rows = useMemo(() => {
-    if (!project || !result) return [];
-    return ORDER.map((key) => {
-      const cur = currentValue(project, key);
-      const how: Combine = MERGEABLE.includes(key) ? combine[key as MergeKey] : 'replace';
-      const next = proposed(key, cur, repoValue(result.draft, key), how);
-      return { key, cur, next, differs: !isEmpty(next) && !sameValue(key, cur, next) };
-    });
-  }, [project, result, combine]);
+  const fields = useMemo(
+    () => (project && result ? ORDER.map((key) => buildField(project, result.draft, key)) : []),
+    [project, result],
+  );
+  const decided = fields.filter((f) => f.options.length > 1);
+  const unchanged = fields.filter((f) => f.options.length === 1);
+  const chosen = (f: Field) => f.options.find((o) => o.id === choice[f.key]) ?? f.options[0];
+  const changeCount = decided.filter((f) => chosen(f).id !== 'current').length;
 
   const handleOpenChange = (next: boolean) => {
     if (!next && step === 'generating') return; // don't lose an in-flight sync
@@ -220,14 +290,12 @@ const GithubSyncDialog = ({ project, mode, onOpenChange, onApply }: GithubSyncDi
         additionalContext: notes.trim() || undefined,
         current,
       });
-      const defaults: Partial<Record<FieldKey, boolean>> = {};
+      const defaults: Partial<Record<FieldKey, OptionId>> = {};
       for (const key of ORDER) {
-        const cur = currentValue(project, key);
-        const next = proposed(key, cur, repoValue(response.draft, key), 'merge');
-        const differs = !isEmpty(next) && !sameValue(key, cur, next);
-        defaults[key] = differs && (!HAND_TUNED.includes(key) || isEmpty(cur));
+        const field = buildField(project, response.draft, key);
+        defaults[key] = defaultChoice(field);
       }
-      setTicked(defaults);
+      setChoice(defaults);
       setResult(response);
       setStep('compare');
     } catch (err) {
@@ -236,11 +304,16 @@ const GithubSyncDialog = ({ project, mode, onOpenChange, onApply }: GithubSyncDi
     }
   };
 
+  const keepAllCurrent = () => setChoice(Object.fromEntries(decided.map((f) => [f.key, 'current'])));
+  const takeAllFromRepo = () =>
+    setChoice(Object.fromEntries(decided.map((f) => [f.key, f.options.some((o) => o.id === 'repo') ? 'repo' : 'current'])));
+
   const handleApply = () => {
     if (!project || !result) return;
     const updates: Partial<Project> = {};
-    for (const row of rows) {
-      if (ticked[row.key] && row.differs) Object.assign(updates, toUpdate(row.key, row.next));
+    for (const field of decided) {
+      const picked = chosen(field);
+      if (picked.id !== 'current') Object.assign(updates, toUpdate(field.key, picked.value));
     }
     // Linking a project that has no GitHub URL always records the repo it was linked to.
     if (!project.github_url && !updates.github_url) updates.github_url = result.draft.github_url;
@@ -251,10 +324,9 @@ const GithubSyncDialog = ({ project, mode, onOpenChange, onApply }: GithubSyncDi
     handleOpenChange(false);
   };
 
-  const tickedCount = rows.filter((r) => ticked[r.key] && r.differs).length;
   const applyLabel =
-    tickedCount > 0
-      ? `Review ${tickedCount} change${tickedCount === 1 ? '' : 's'} in form`
+    changeCount > 0
+      ? `Review ${changeCount} change${changeCount === 1 ? '' : 's'} in form`
       : linking
         ? 'Link only'
         : 'Nothing selected';
@@ -270,8 +342,8 @@ const GithubSyncDialog = ({ project, mode, onOpenChange, onApply }: GithubSyncDi
           </DialogTitle>
           <DialogDescription>
             {linking
-              ? 'Paste the repository this project lives in. You choose which fields to take from it.'
-              : 'Reads the repository again and shows what differs. Tick the fields to update; they are filled into the edit form for you to review, and nothing is saved until you save.'}
+              ? 'Paste the repository this project lives in. For each field you then pick which version to keep.'
+              : 'Reads the repository again. For each field that differs, click the version you want; your choices are filled into the edit form for you to review, and nothing is saved until you save.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -331,57 +403,59 @@ const GithubSyncDialog = ({ project, mode, onOpenChange, onApply }: GithubSyncDi
         )}
 
         {step === 'compare' && result && (
-          <div className="space-y-4">
+          <div className="space-y-5">
             <RepoSummary repo={result.repo} />
 
-            <ul className="space-y-3">
-              {rows.map(({ key, cur, next, differs }) => (
-                <li key={key} className={`rounded-lg border p-3 ${differs ? '' : 'opacity-60'}`}>
-                  <div className="flex flex-wrap items-center gap-3">
-                    <Checkbox
-                      id={`sync-${key}`}
-                      checked={!!ticked[key] && differs}
-                      disabled={!differs}
-                      onCheckedChange={(v) => setTicked((t) => ({ ...t, [key]: v === true }))}
-                    />
-                    <Label htmlFor={`sync-${key}`} className="font-medium">
-                      {LABELS[key]}
-                    </Label>
-                    {!differs && <span className="text-xs text-muted-foreground">nothing new from the repository</span>}
-                    {MERGEABLE.includes(key) && (
-                      <div className="ml-auto flex gap-1" role="group" aria-label={`How to apply ${LABELS[key]}`}>
-                        {(['merge', 'replace'] as const).map((c) => (
-                          <Button
-                            key={c}
-                            type="button"
-                            size="sm"
-                            variant={combine[key as MergeKey] === c ? 'default' : 'outline'}
-                            className="h-6 px-2 text-xs"
-                            onClick={() => setCombine((m) => ({ ...m, [key]: c }))}
-                          >
-                            {c === 'merge' ? 'Add new' : 'Replace'}
-                          </Button>
-                        ))}
-                      </div>
-                    )}
+            {decided.length > 0 ? (
+              <>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-sm text-muted-foreground">Click the version of each field to use.</p>
+                  <div className="flex gap-2">
+                    <Button type="button" size="sm" variant="outline" onClick={keepAllCurrent}>
+                      Keep all current
+                    </Button>
+                    <Button type="button" size="sm" variant="outline" onClick={takeAllFromRepo}>
+                      Take all from repo
+                    </Button>
                   </div>
-                  {differs && (
-                    <div className="mt-2 grid gap-3 text-sm sm:grid-cols-2">
-                      <div className="min-w-0">
-                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-1">Current</p>
-                        <ValueView field={key} value={cur} />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-1">
-                          From repository
-                        </p>
-                        <ValueView field={key} value={next} />
-                      </div>
+                </div>
+
+                {decided.map((field) => (
+                  <section key={field.key} className="space-y-2" aria-label={LABELS[field.key]}>
+                    <h3 className="text-sm font-semibold">{LABELS[field.key]}</h3>
+                    <div
+                      role="radiogroup"
+                      aria-label={LABELS[field.key]}
+                      className={cn(
+                        'grid gap-3 grid-cols-1',
+                        field.options.length === 2 && 'sm:grid-cols-2',
+                        field.options.length >= 3 && 'sm:grid-cols-2 lg:grid-cols-3',
+                      )}
+                    >
+                      {field.options.map((option) => (
+                        <ChoiceCard
+                          key={option.id}
+                          option={option}
+                          field={field.key}
+                          selected={chosen(field).id === option.id}
+                          onSelect={() => setChoice((c) => ({ ...c, [field.key]: option.id }))}
+                        />
+                      ))}
                     </div>
-                  )}
-                </li>
-              ))}
-            </ul>
+                  </section>
+                ))}
+              </>
+            ) : (
+              <p className="rounded-lg border p-3 text-sm text-muted-foreground">
+                Nothing in the repository differs from this project.
+              </p>
+            )}
+
+            {unchanged.length > 0 && decided.length > 0 && (
+              <p className="text-xs text-muted-foreground">
+                Nothing new from the repository for: {unchanged.map((f) => LABELS[f.key]).join(', ')}.
+              </p>
+            )}
 
             {result.highlights.length > 0 && (
               <div className="rounded-lg border p-3 text-sm">
@@ -400,7 +474,7 @@ const GithubSyncDialog = ({ project, mode, onOpenChange, onApply }: GithubSyncDi
               <Button type="button" variant="outline" onClick={() => setStep('input')}>
                 <ArrowLeft className="h-4 w-4 mr-2" /> Back
               </Button>
-              <Button type="button" onClick={handleApply} disabled={tickedCount === 0 && !linking}>
+              <Button type="button" onClick={handleApply} disabled={changeCount === 0 && !linking}>
                 <Check className="h-4 w-4 mr-2" />
                 {applyLabel}
               </Button>
