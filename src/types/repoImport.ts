@@ -41,3 +41,19 @@ export interface RepoImportResponse {
   highlights: string[];
   repo: RepoInfo;
 }
+
+/** Sent with a repo import to refresh an existing project instead of drafting a new one. */
+export interface CurrentProjectEntry {
+  title: string;
+  description: string;
+  tags: string[];
+}
+
+// Response row of GET /ai/repo-status (backend/app/schemas/ai.py).
+export type RepoSyncState = 'never_synced' | 'up_to_date' | 'changed' | 'unavailable';
+
+export interface RepoStatus {
+  project_id: string;
+  state: RepoSyncState;
+  pushed_at: string | null;
+}

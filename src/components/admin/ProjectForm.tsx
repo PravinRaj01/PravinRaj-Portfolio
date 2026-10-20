@@ -27,8 +27,9 @@ import { SingleDatePicker } from '@/components/ui/date-range-picker';
 interface ProjectFormProps {
   project?: Project;
   /**
-   * Pre-fills the form for a NEW project (e.g. a draft imported from GitHub).
-   * Ignored when `project` is set: editing always starts from the saved project.
+   * Pre-fills the form. For a NEW project it is the whole seed (e.g. a draft
+   * imported from GitHub); when editing, these fields are laid over the saved
+   * project (e.g. the fields ticked in a GitHub sync), still unsaved.
    */
   initialDraft?: Partial<Project>;
   onClose: () => void;
@@ -49,8 +50,8 @@ const ProjectForm = ({ project, initialDraft, onClose, onSave, mode }: ProjectFo
       .replace(/^-|-$/g, '');
   };
 
-  // A draft only pre-fills a new project; editing starts from the saved one.
-  const seed: Partial<Project> | undefined = project ?? initialDraft;
+  // New project: the draft. Editing: the saved project with any draft fields laid over it.
+  const seed: Partial<Project> | undefined = project ? { ...project, ...initialDraft } : initialDraft;
 
   const [formData, setFormData] = useState({
     title: seed?.title || '',
@@ -74,6 +75,8 @@ const ProjectForm = ({ project, initialDraft, onClose, onSave, mode }: ProjectFo
     video_thumbnail_drive_id: seed?.video_thumbnail_drive_id || '',
     github_url: seed?.github_url || '',
     live_url: seed?.live_url || '',
+    github_synced_at: seed?.github_synced_at ?? null,
+    github_pushed_at: seed?.github_pushed_at ?? null,
     project_links: seed?.project_links || [] as ProjectLink[],
     order_index: seed?.order_index || 0,
     project_date: seed?.project_date || '',
@@ -291,6 +294,12 @@ const ProjectForm = ({ project, initialDraft, onClose, onSave, mode }: ProjectFo
           </Button>
         </div>
         
+        {project && initialDraft && (
+          <div className="flex-shrink-0 border-b bg-primary/5 px-6 py-2 text-sm" role="status">
+            Fields from GitHub were filled in below. Review them, then save.
+          </div>
+        )}
+
         {/* Scrollable Content */}
         <div className="flex-1 overflow-y-auto px-6 py-4">
           <form id="project-form" onSubmit={handleSubmit} className="space-y-6">

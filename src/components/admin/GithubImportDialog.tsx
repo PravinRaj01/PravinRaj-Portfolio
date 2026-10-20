@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { AlertCircle, ArrowLeft, Check, ExternalLink, FileText, Github, Loader2, Sparkles, Star } from 'lucide-react';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { ArrowLeft, Check, Github, Loader2, Sparkles } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -17,6 +16,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { apiClient } from '@/services/apiClient';
 import type { Project } from '@/types/cms';
 import type { RepoImportResponse } from '@/types/repoImport';
+import { ImportErrorAlert, RepoSummary, Row } from './githubImportShared';
+import { toProjectDraft } from './githubImport';
 
 interface GithubImportDialogProps {
   open: boolean;
@@ -27,30 +28,6 @@ interface GithubImportDialogProps {
 }
 
 type Step = 'input' | 'generating' | 'preview';
-
-const toProjectDraft = (response: RepoImportResponse): Partial<Project> => {
-  const d = response.draft;
-  return {
-    title: d.title,
-    description: d.description,
-    category: d.category,
-    categories: d.categories,
-    tags: d.tags,
-    position: d.position ?? undefined,
-    positions: d.positions,
-    project_date: d.project_date ?? undefined,
-    github_url: d.github_url,
-    live_url: d.live_url ?? undefined,
-    project_links: d.project_links,
-  };
-};
-
-const Row = ({ label, children }: { label: string; children: React.ReactNode }) => (
-  <div className="grid gap-1 sm:grid-cols-[110px_1fr] sm:gap-3">
-    <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground pt-0.5">{label}</dt>
-    <dd className="text-sm min-w-0 break-words">{children}</dd>
-  </div>
-);
 
 const GithubImportDialog = ({ open, onOpenChange, mode, onUseDraft }: GithubImportDialogProps) => {
   const [step, setStep] = useState<Step>('input');
@@ -124,13 +101,7 @@ const GithubImportDialog = ({ open, onOpenChange, mode, onUseDraft }: GithubImpo
 
         {step !== 'preview' && (
           <form onSubmit={handleImport} className="space-y-4">
-            {error && (
-              <Alert variant="destructive" className="text-red-600 dark:text-red-300 dark:border-red-500/60 [&>svg]:text-red-500">
-                <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Couldn't import</AlertTitle>
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
+            {error && <ImportErrorAlert message={error} />}
 
             <div className="space-y-2">
               <Label htmlFor="repo-url">Repository URL</Label>
@@ -185,29 +156,7 @@ const GithubImportDialog = ({ open, onOpenChange, mode, onUseDraft }: GithubImpo
 
         {step === 'preview' && result && repo && draft && (
           <div className="space-y-5">
-            <div className="rounded-lg border bg-muted/30 p-3 text-sm space-y-1">
-              <a
-                href={repo.html_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
-              >
-                {repo.full_name} <ExternalLink className="h-3 w-3" />
-              </a>
-              <p className="text-xs text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1">
-                {repo.language && <span>{repo.languages ?? repo.language}</span>}
-                <span className="inline-flex items-center gap-1">
-                  <Star className="h-3 w-3" /> {repo.stars}
-                </span>
-                <span className="inline-flex items-center gap-1">
-                  <FileText className="h-3 w-3" />
-                  {repo.readme_found ? 'README read' : 'no README found'}
-                  {repo.manifests.length > 0 && ` · ${repo.manifests.join(', ')}`}
-                </span>
-                {repo.is_fork && <Badge variant="outline">fork</Badge>}
-                {repo.archived && <Badge variant="outline">archived</Badge>}
-              </p>
-            </div>
+            <RepoSummary repo={repo} />
 
             <dl className="space-y-3">
               <Row label="Title">
