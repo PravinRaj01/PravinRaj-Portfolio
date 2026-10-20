@@ -13,6 +13,7 @@
 import asyncio
 import logging
 import re
+import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
@@ -269,3 +270,53 @@ async def fetch_repo_digest(owner: str, repo: str) -> RepoDigest:
         tree_truncated=truncated,
         manifests=manifests,
     )
+
+
+# --- cheap "has it changed?" lookups (project sync badges) -------------------------------
+
+STATUS_CACHE_TTL = 600.0  # seconds; keeps reopening the admin from spending GitHub's anonymous 60/hour
+_STATUS_CONCURRENCY = 5
+_status_cache: dict[str, tuple[float, str | None]] = {}
+
+
+async def fetch_pushed_at(client: httpx.AsyncClient, owner: str, repo: str) -> str | None:
+    """The repo's `pushed_at` from a single metadata request. Raises
+    RepoNotFoundError / RepoRateLimitedError / GitHubUnavailableError."""
+    response = await _get(client, f"/repos/{quote(owner, safe='')}/{quote(repo, safe='')}")
+    if response is None:
+        raise RepoNotFoundError(f"{owner}/{repo} was not found")
+    pushed_at = response.json().get("pushed_at")
+    return pushed_at if isinstance(pushed_at, str) else None
+
+
+async def fetch_many_pushed_at(pairs: list[tuple[str, str]]) -> dict[tuple[str, str], str | None]:
+    """`pushed_at` for each distinct (owner, repo), a few requests at a time.
+    A repo that can't be read (missing, private without a token, rate limited,
+    GitHub down) is left out of the result; one failure never fails the rest.
+    Results are cached for STATUS_CACHE_TTL seconds."""
+    now = time.monotonic()
+    out: dict[tuple[str, str], str | None] = {}
+    todo: list[tuple[str, str]] = []
+    for pair in dict.fromkeys(pairs):
+        cached = _status_cache.get(f"{pair[0]}/{pair[1]}".lower())
+        if cached and now - cached[0] < STATUS_CACHE_TTL:
+            out[pair] = cached[1]
+        else:
+            todo.append(pair)
+    if not todo:
+        return out
+
+    semaphore = asyncio.Semaphore(_STATUS_CONCURRENCY)
+    async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
+
+        async def one(pair: tuple[str, str]) -> None:
+            async with semaphore:
+                try:
+                    pushed_at = await fetch_pushed_at(client, *pair)
+                except (RepoNotFoundError, RepoRateLimitedError, GitHubUnavailableError):
+                    return
+            _status_cache[f"{pair[0]}/{pair[1]}".lower()] = (time.monotonic(), pushed_at)
+            out[pair] = pushed_at
+
+        await asyncio.gather(*(one(pair) for pair in todo))
+    return out

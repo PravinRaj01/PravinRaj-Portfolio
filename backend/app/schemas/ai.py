@@ -74,10 +74,21 @@ class ChatRequest(BaseModel):
 # --- admin: project draft from a GitHub repository (AI v2, Phase 5) ---------------
 
 
+class CurrentProject(BaseModel):
+    """The saved entry being re-synced. Sent by the client so the endpoint stays
+    write-free and read-free: it never looks a project up by id."""
+
+    title: str = Field(default="", max_length=200)
+    description: str = Field(default="", max_length=3000)
+    tags: list[str] = Field(default_factory=list, max_length=30)
+
+
 class RepoImportRequest(BaseModel):
     repo_url: str = Field(min_length=3, max_length=300)
     mode: Mode
     additionalContext: str | None = Field(default=None, max_length=1000)
+    # Set when refreshing an existing project instead of drafting a new one.
+    current: CurrentProject | None = None
 
 
 class ProjectDraft(BaseModel):
@@ -120,3 +131,15 @@ class RepoImportResponse(BaseModel):
     draft: ProjectDraft
     highlights: list[str]  # the facts the draft rests on, for the reviewer
     repo: RepoInfo
+
+
+# --- admin: has a project's repository changed since its last sync? ---------------
+
+
+RepoSyncState = Literal["never_synced", "up_to_date", "changed", "unavailable"]
+
+
+class RepoStatus(BaseModel):
+    project_id: str
+    state: RepoSyncState
+    pushed_at: str | None = None  # the repository's latest push, when it could be read
