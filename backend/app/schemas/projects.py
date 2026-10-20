@@ -46,6 +46,8 @@ class ProjectBase(BaseModel):
     video_thumbnail_drive_id: str | None = None
     github_url: str | None = None
     live_url: str | None = None
+    github_synced_at: datetime | None = None
+    github_pushed_at: str | None = None
     project_links: list[ProjectLink] | None = None
     crop_square: CropPosition | None = None
     crop_landscape: CropPosition | None = None
@@ -86,6 +88,8 @@ class ProjectUpdate(BaseModel):                     # PATCH: every field optiona
     video_thumbnail_drive_id: str | None = None
     github_url: str | None = None
     live_url: str | None = None
+    github_synced_at: datetime | None = None
+    github_pushed_at: str | None = None
     project_links: list[ProjectLink] | None = None
     crop_square: CropPosition | None = None
     crop_landscape: CropPosition | None = None
