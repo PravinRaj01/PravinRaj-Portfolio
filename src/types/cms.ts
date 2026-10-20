@@ -30,6 +30,10 @@ export interface Project {
   category: string;
   github_url?: string;
   live_url?: string;
+  /** When this project was last synced from its GitHub repository (ISO). */
+  github_synced_at?: string | null;
+  /** The repository's `pushed_at` as of that sync (ISO); compared to know if it has since changed. */
+  github_pushed_at?: string | null;
   project_links?: ProjectLink[];
   featured: boolean;
   mode: 'professional' | 'creative';

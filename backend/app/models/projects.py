@@ -1,6 +1,7 @@
 # app/models/projects.py
 import uuid
-from sqlalchemy import Boolean, CheckConstraint, ForeignKey, Index, Integer, Text, UniqueConstraint, text
+from datetime import datetime
+from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Index, Integer, Text, UniqueConstraint, text
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base, UUIDPk, TimestampsRequired, TimestampsNullable
@@ -56,6 +57,8 @@ class Project(UUIDPk, TimestampsNullable, Base):
     video_thumbnail_drive_id: Mapped[str | None] = mapped_column(Text)
     github_url: Mapped[str | None] = mapped_column(Text)            # LEGACY-ish; project_links is newer
     live_url: Mapped[str | None] = mapped_column(Text)
+    github_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))  # last sync from the repo
+    github_pushed_at: Mapped[str | None] = mapped_column(Text)      # repo's pushed_at (ISO) as of that sync
     project_links: Mapped[list[dict] | None] = mapped_column(JSONB, server_default=text("'[]'::jsonb"))  # [{label,url,show_on_card}]
     crop_square: Mapped[dict | None] = mapped_column(JSONB, server_default=CROP_DEFAULT)
     crop_landscape: Mapped[dict | None] = mapped_column(JSONB, server_default=CROP_DEFAULT)

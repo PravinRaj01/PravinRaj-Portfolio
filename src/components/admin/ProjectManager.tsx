@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Edit, Trash2, Image, ExternalLink, Github, Search, Filter, Home, Star, EyeOff } from 'lucide-react';
+import { Plus, Edit, Trash2, Image, ExternalLink, Github, Search, Filter, Home, Star, EyeOff, RefreshCw, Link2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -12,14 +12,29 @@ import { useProjects } from '@/hooks/useProjects';
 import { generateDriveImageUrl } from '@/utils/googleDrive';
 import ProjectForm from './ProjectForm';
 import GithubImportDialog from './GithubImportDialog';
+import GithubSyncDialog from './GithubSyncDialog';
+import { useGithubSyncStatus } from '@/hooks/useGithubSyncStatus';
 import type { Project } from '@/types/cms';
 import ProjectFilterViews from './ProjectFilterViews';
 import { usePortfolio } from '@/contexts/PortfolioContext';
 
+const timeAgo = (iso: string): string => {
+  const minutes = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
+  if (minutes < 1) return 'just now';
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.round(hours / 24)}d ago`;
+};
+
 const ProjectManager = () => {
   const { mode } = usePortfolio();
   const { projects, loading, deleteProject, refetch } = useProjects(mode, { includeInactive: true });
+  const { statuses: syncStatuses, refresh: refreshSyncStatus } = useGithubSyncStatus(mode);
   const [editingProject, setEditingProject] = useState<string | null>(null);
+  // The project open in the GitHub sync dialog, and the fields it ticked, waiting in the edit form for review.
+  const [syncingProject, setSyncingProject] = useState<Project | null>(null);
+  const [syncOverrides, setSyncOverrides] = useState<Partial<Project> | undefined>(undefined);
   const [showForm, setShowForm] = useState(false);
   const [showImport, setShowImport] = useState(false);
   // A draft imported from GitHub, waiting in the (new-project) form for review.
@@ -190,6 +205,17 @@ const ProjectManager = () => {
         }}
       />
 
+      <GithubSyncDialog
+        project={syncingProject}
+        mode={mode}
+        onOpenChange={(open) => !open && setSyncingProject(null)}
+        onApply={(updates) => {
+          if (!syncingProject) return;
+          setSyncOverrides(updates);
+          setEditingProject(syncingProject.id);
+        }}
+      />
+
       {/* Add Project Dialog */}
       <Dialog open={showForm} onOpenChange={setShowForm}>
         <DialogContent 
@@ -215,7 +241,15 @@ const ProjectManager = () => {
       </Dialog>
 
       {/* Edit Project Dialog */}
-      <Dialog open={!!editingProject} onOpenChange={(open) => !open && setEditingProject(null)}>
+      <Dialog
+        open={!!editingProject}
+        onOpenChange={(open) => {
+          if (!open) {
+            setEditingProject(null);
+            setSyncOverrides(undefined);
+          }
+        }}
+      >
         <DialogContent 
           className="max-w-4xl h-[90vh] p-0" 
           hideCloseButton
@@ -224,10 +258,16 @@ const ProjectManager = () => {
         >
           <ProjectForm
             project={projects.find(p => p.id === editingProject)}
-            onClose={() => setEditingProject(null)}
+            initialDraft={syncOverrides}
+            onClose={() => {
+              setEditingProject(null);
+              setSyncOverrides(undefined);
+            }}
             onSave={() => {
               setEditingProject(null);
+              setSyncOverrides(undefined);
               refetch();
+              void refreshSyncStatus();
             }}
             mode={mode}
           />
@@ -288,6 +328,17 @@ const ProjectManager = () => {
                       size="sm"
                       variant="secondary"
                       className="h-8 w-8 p-0"
+                      title={project.github_url ? 'Sync with GitHub' : 'Link to GitHub'}
+                      aria-label={project.github_url ? 'Sync with GitHub' : 'Link to GitHub'}
+                      onClick={() => setSyncingProject(project)}
+                    >
+                      {project.github_url ? <RefreshCw className="w-4 h-4" /> : <Link2 className="w-4 h-4" />}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      className="h-8 w-8 p-0"
+                      aria-label="Edit project"
                       onClick={() => setEditingProject(project.id)}
                     >
                       <Edit className="w-4 h-4" />
@@ -327,6 +378,18 @@ const ProjectManager = () => {
                     )}
                   </div>
                   
+                  {project.github_url && (
+                    <p className="text-xs">
+                      {syncStatuses[project.id]?.state === 'changed' ? (
+                        <span className="text-amber-600 dark:text-amber-400 font-medium">Repository updated since last sync</span>
+                      ) : project.github_synced_at ? (
+                        <span className="text-muted-foreground">Synced {timeAgo(project.github_synced_at)}</span>
+                      ) : (
+                        <span className="text-muted-foreground">Not synced from GitHub</span>
+                      )}
+                    </p>
+                  )}
+
                   <div className="flex space-x-2">
                     {project.github_url && (
                       <Button size="sm" variant="outline" className="h-7 text-xs flex-1" asChild>

@@ -365,6 +365,26 @@ def test_owner_notes_are_included_when_given():
     assert "Built for a hackathon, I led it." in user["content"]
 
 
+def test_a_refresh_prompt_carries_the_current_entry_and_the_keep_my_wording_rule():
+    current = {"title": "Old Title", "description": "My own words about it.", "tags": ["Python", " CLI "]}
+    system, user = repo_import._messages(digest(), request(current=current), [], [], compact=False)
+    assert "REFRESH" in system["content"] and "Keep the owner's wording" in system["content"]
+    assert "<current_entry>" in user["content"]
+    assert "My own words about it." in user["content"] and "Tags: Python, CLI" in user["content"]
+    # the owner's entry precedes the untrusted repository block
+    assert user["content"].index("<current_entry>") < user["content"].index("<repository>")
+
+
+def test_a_new_import_prompt_is_unchanged_by_the_refresh_support():
+    system, user = repo_import._messages(digest(), request(), [], [], compact=False)
+    assert "REFRESH" not in system["content"] and "<current_entry>" not in user["content"]
+
+
+def test_the_current_entry_is_length_capped():
+    with pytest.raises(ValueError):
+        request(current={"title": "t", "description": "x" * 3001, "tags": []})
+
+
 # --- end to end (GitHub + model stubbed) ---------------------------------------------------------------
 
 
@@ -487,3 +507,34 @@ def test_the_route_says_503_without_ai_keys(admin_headers, pipeline, monkeypatch
     monkeypatch.setattr(settings, "gemini_api_key", "")
     r = client.post(URL, json=BODY, headers=admin_headers)
     assert r.status_code == 503
+
+
+# --- pushed_at lookups for the sync badges -----------------------------------------------------------------
+
+
+@pytest.fixture
+def pushed(github):
+    github_repo._status_cache.clear()
+    github.overrides["/repos/octo/other"] = lambda r: httpx.Response(200, json={"pushed_at": "2025-06-01T00:00:00Z"})
+    github.overrides["/repos/octo/gone"] = lambda r: httpx.Response(404, json={"message": "Not Found"})
+    github.overrides["/repos/octo/limited"] = lambda r: httpx.Response(429, json={})
+    yield github
+    github_repo._status_cache.clear()
+
+
+def test_pushed_at_is_read_for_each_distinct_repo_with_one_request_each(pushed):
+    result = run(github_repo.fetch_many_pushed_at([("octo", "hello"), ("octo", "other"), ("octo", "hello")]))
+    assert result[("octo", "other")] == "2025-06-01T00:00:00Z"
+    assert set(result) == {("octo", "hello"), ("octo", "other")}
+    assert len(pushed.requests) == 2
+
+
+def test_a_repo_that_cannot_be_read_is_left_out_without_failing_the_rest(pushed):
+    result = run(github_repo.fetch_many_pushed_at([("octo", "other"), ("octo", "gone"), ("octo", "limited")]))
+    assert set(result) == {("octo", "other")}
+
+
+def test_pushed_at_lookups_are_cached(pushed):
+    run(github_repo.fetch_many_pushed_at([("octo", "other")]))
+    run(github_repo.fetch_many_pushed_at([("Octo", "Other")]))  # same repo, different case
+    assert len(pushed.requests) == 1
