@@ -4,6 +4,8 @@ import type { ProjectLink } from '@/types/cms';
 export interface RepoProjectDraft {
   title: string;
   description: string;
+  /** Refresh only: the project's current description updated with the repo. */
+  merged_description?: string | null;
   category: string;
   categories: string[];
   tags: string[];

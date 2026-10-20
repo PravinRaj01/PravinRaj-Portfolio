@@ -96,6 +96,8 @@ class ProjectDraft(BaseModel):
 
     title: str
     description: str
+    # Only on a refresh of an existing project: its current description updated with the repo.
+    merged_description: str | None = None
     category: str
     categories: list[str]
     tags: list[str]

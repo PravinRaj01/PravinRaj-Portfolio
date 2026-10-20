@@ -368,7 +368,8 @@ def test_owner_notes_are_included_when_given():
 def test_a_refresh_prompt_carries_the_current_entry_and_the_keep_my_wording_rule():
     current = {"title": "Old Title", "description": "My own words about it.", "tags": ["Python", " CLI "]}
     system, user = repo_import._messages(digest(), request(current=current), [], [], compact=False)
-    assert "REFRESH" in system["content"] and "Keep the owner's wording" in system["content"]
+    assert "REFRESH" in system["content"] and "keep the owner's wording" in system["content"]
+    assert "merged_description" in system["content"]
     assert "<current_entry>" in user["content"]
     assert "My own words about it." in user["content"] and "Tags: Python, CLI" in user["content"]
     # the owner's entry precedes the untrusted repository block
@@ -378,6 +379,27 @@ def test_a_refresh_prompt_carries_the_current_entry_and_the_keep_my_wording_rule
 def test_a_new_import_prompt_is_unchanged_by_the_refresh_support():
     system, user = repo_import._messages(digest(), request(), [], [], compact=False)
     assert "REFRESH" not in system["content"] and "<current_entry>" not in user["content"]
+
+
+def test_only_a_refresh_asks_the_model_for_a_merged_description():
+    plain = repo_import._draft_tool(False)["function"]["parameters"]
+    refresh = repo_import._draft_tool(True)["function"]["parameters"]
+    assert "merged_description" not in plain["properties"]
+    assert "merged_description" in refresh["properties"] and "merged_description" in refresh["required"]
+    assert "merged_description" not in repo_import.DRAFT_TOOL["function"]["parameters"]["properties"]  # not mutated
+
+
+def test_the_merged_description_is_normalised_capped_and_refresh_only():
+    current = {"title": "t", "description": "old", "tags": []}
+    raw = {**GOOD, "merged_description": "  Old words.\n\n   Plus new.  " + "x" * 3000}
+    draft, _ = repo_import.build_draft(raw, digest(), request(current=current))
+    assert draft.merged_description.startswith("Old words.\n\nPlus new.") and len(draft.merged_description) <= 1500
+    assert draft.description == GOOD["description"]  # the repo-only text is untouched
+    # a new import never carries one, even if the model sends it
+    assert repo_import.build_draft(raw, digest(), request())[0].merged_description is None
+    # a missing or junk one is simply absent, not an error
+    for bad in ({}, {"merged_description": 5}, {"merged_description": "   "}):
+        assert repo_import.build_draft({**GOOD, **bad}, digest(), request(current=current))[0].merged_description is None
 
 
 def test_the_current_entry_is_length_capped():
